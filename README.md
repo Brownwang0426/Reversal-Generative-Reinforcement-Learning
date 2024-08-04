@@ -21,4 +21,4 @@ To get started with Genrl, follow these steps:
 3. **Take a rest and wait for the result**
 
 ## License
-Genrl is released under the [MIT](https://github.com/brownwang0426/Genrl/LICENSE)](https://github.com/Brownwang0426/Genrl/blob/main/LICENSE) license.
+Genrl is released under the [MIT](https://github.com/Brownwang0426/Genrl/blob/main/LICENSE) license.
