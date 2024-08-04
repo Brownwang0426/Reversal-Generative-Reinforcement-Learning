@@ -1,6 +1,6 @@
 # Genrl
 ## Introduction
-We introduce Generative Reinforcement Learning (Genrl), a model-free and value-function-free reinforcement learning method, where ""ONLY"" neural networks are involved.
+We introduce Generative Reinforcement Learning (Genrl), a model-free and value-function-free reinforcement learning method, where "ONLY" neural networks are involved.
 We 
 
 ## Features
