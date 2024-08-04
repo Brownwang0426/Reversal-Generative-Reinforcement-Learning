@@ -1,6 +1,6 @@
 # Genrl
 ## Introduction
-We introduce Generative Reinforcement Learning (**Genrl**), a **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
+We introduce **Gen**erative **R**einforcement **L**earning (**Genrl**), a **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
 
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method.
 
