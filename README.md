@@ -14,7 +14,5 @@ The project is currently in active development. We are continually adding new fe
 To get started with Genrl, follow these steps:
 
 1. **Open the .ipynb in colab**
-   ```bash
-   git clone https://github.com/yourusername/awesome-project.git```
 2. **Ctrl + F10**
 3. **Take a rest and wait for the result**
