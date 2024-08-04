@@ -7,7 +7,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 However, in **Genrl**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the results of it deduced actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
 ## Features
-- **Neural Nets are all you need**: No need for the Bellman function, and none of the complicated jargon found in current deep reinforcement learning methods.
+- **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
 
 ## Status
