@@ -19,3 +19,6 @@ To get started with Genrl, follow these steps:
 1. **Open the .ipynb in colab**
 2. **Ctrl + F10**
 3. **Take a rest and wait for the result**
+
+## License
+Genrl is released under the [MIT](https://github.com/brownwang0426/Genrl/LICENSE) license.
