@@ -14,6 +14,7 @@ However, in **Genrl**, we have inherited the spirit of the previous research whi
 
 ## Algorithm
 We present the algorithm here.
+
 $$
 \int_0^\infty e^{-x} \, dx = 1
 $$
