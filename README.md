@@ -14,12 +14,6 @@ However, in **Genrl**, we have inherited the spirit of the previous research whi
 
 ## Algorithm
 
-The full algorithm, which we call reverse generation for reinforcement learning, is presented in Algorithm \ref{alg:1}, where $ \alpha, \beta \in \mathbbm{R} $ and sequentializing $ D $ to $ \mathbbm{D} $ is defined as: in $ D $, for $ s $  in time step $ T $, $ a = \{ a_{T+1} , a_{T+2} , ... , a_{T+t} \} $ and $ r $  in time step $ T+t $, we store $ s , a , r $ to $ \mathbbm{D} $.
-
-
-$$
-\int_0^\infty e^{-x} \, dx = 1
-$$
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
