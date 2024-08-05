@@ -6,6 +6,10 @@ We introduce **Gen**erative **R**einforcement **L**earning (**Genrl**), a **mode
 
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method.
 
+$$
+\int_0^\infty e^{-x} \, dx = 1
+$$
+
 However, in **Genrl**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
 ## Features
