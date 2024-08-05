@@ -12,6 +12,13 @@ However, in **Genrl**, we have inherited the spirit of the previous research whi
 - **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
 
+## Getting Started
+To get started with Genrl, follow these steps:
+
+1. **Open the .ipynb in colab**
+2. **Ctrl + F10**
+3. **Take a rest and wait for the result**
+
 ## Algorithm
 
 ## Experimental Results
@@ -19,12 +26,6 @@ However, in **Genrl**, we have inherited the spirit of the previous research whi
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
 
-## Getting Started
-To get started with Genrl, follow these steps:
-
-1. **Open the .ipynb in colab**
-2. **Ctrl + F10**
-3. **Take a rest and wait for the result**
 
 ## License
 Genrl is released under the [MIT](https://github.com/Brownwang0426/Genrl/blob/main/LICENSE) license.
