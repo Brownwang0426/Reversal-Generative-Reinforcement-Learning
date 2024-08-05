@@ -2,6 +2,8 @@
 ## Introduction
 We introduce **Gen**erative **R**einforcement **L**earning (**Genrl**), a **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
 
+**Genrl** approach treats state and action as input data and reward as output data. By training a deep neural network on a sequence of known states and unknown actions, we update the unknown actions through error backpropagation, targeting desired rewards. Subsequently, the agent adopts the updated actions and learns the ensuing consequences of its decisions, forming a continuous iterative process.
+
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method.
 
 However, in **Genrl**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the results of it deduced actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
