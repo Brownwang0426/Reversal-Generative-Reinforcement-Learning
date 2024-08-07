@@ -41,7 +41,9 @@ function binary_search(arr, target)
 ```
 
 ## Why an ensemble of neural networks rather than a single neural network?
-Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf). We discover that in
+Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we discovered that when using error backpropagation to update input data like:
+
+$    \hat{x}\leftarrow\hat{x}-\beta\frac{\partial}{\partial\hat{x}}{E}\Big(y,f(\hat{x})\Big) $
 
 ## Experimental Results
 We use Cartpole as example.
