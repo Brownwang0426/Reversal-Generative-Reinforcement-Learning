@@ -21,6 +21,7 @@ To get started with Genrl, follow these steps:
 ## Algorithm
 
 ## Experimental Results
+We use Cartpole as example.
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
