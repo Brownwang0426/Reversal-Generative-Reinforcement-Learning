@@ -9,7 +9,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 ## Features
 - **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
-- **Both online and offline learning**: We provide both online and offline learning versions. However, currently the online version is more time costly.
+- **Both online and offline learning**: We provide both online and offline learning versions. However, currently the online version is more time costly so we will focus on the offline learning version.
 
 ## Getting Started
 To get started with Genrl, follow these steps:
@@ -19,9 +19,13 @@ To get started with Genrl, follow these steps:
 3. **Take a rest and wait for the result**
 
 ## Algorithm
+Suppose a agent is an ensemble of neural networks $ \mathbbm{W} $ where $ \mathbbm{W} = \{ W_1 , W_2 , \ldots , W_m \} $,  desired reward is $ \acute{r} $
 
- $E = mc^2$
- 
+
+
+## Why an ensemble of neural networks rather than a single neural network?
+Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf). We discover that in
+
 ## Experimental Results
 We use Cartpole as example.
 
