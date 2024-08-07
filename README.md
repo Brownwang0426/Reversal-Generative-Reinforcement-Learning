@@ -11,6 +11,7 @@ However, in **Genrl**, we have inherited the spirit of the previous research whi
 ## Features
 - **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
+- **Both online and offline learning**: We provide both online and offline learning versions. However, currently the online version is more time costly.
 
 ## Getting Started
 To get started with Genrl, follow these steps:
