@@ -19,7 +19,7 @@ To get started with Genrl, follow these steps:
 3. **Take a rest and wait for the result**
 
 ## Algorithm
-Suppose a agent is an ensemble of neural networks $' \mathbbm{W} '$ where $' \mathbbm{W} = \{ W_1 , W_2 , \ldots , W_m \} '$,  desired reward is $' \acute{r} '$
+Suppose a agent is an ensemble of neural networks $' \mathbbm{W} '$ where $' \mathbbm{W} = \{ W_1 , W_2 , \ldots , W_m \} '$,  desired reward is $ \acute{r} $
 
 
 
