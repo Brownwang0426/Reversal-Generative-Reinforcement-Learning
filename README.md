@@ -48,7 +48,11 @@ To negate this instability, we mimic the traditional stochastic gradient descent
 We previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of trained deep neural networks solve a completely blank Sudoku with 97.3% success rate.
 
 ## Experimental Results
-We use Cartpole as example.
+We use traditional **Cartpole** as an example and show that how the size of an ensemble of neural networks affect the overall performace of the agent.
+
+
+
+Also, since our method solely involves deep neural networks, the **catastrophic forgetting** issue in deep learning has to be addressed. To overcome this defect, we applied **E**lastic **W**eight **C**ontrol (**EWC**) in this [paper](https://arxiv.org/pdf/1612.00796).
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
