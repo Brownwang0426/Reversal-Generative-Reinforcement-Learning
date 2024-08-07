@@ -38,6 +38,7 @@ function binary_search(arr, target)
             high <- mid - 1
 
     return -1
+```
 
 ## Why an ensemble of neural networks rather than a single neural network?
 Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf). We discover that in
