@@ -20,6 +20,8 @@ To get started with Genrl, follow these steps:
 
 ## Algorithm
 
+ $E = mc^2$
+ 
 ## Experimental Results
 We use Cartpole as example.
 
