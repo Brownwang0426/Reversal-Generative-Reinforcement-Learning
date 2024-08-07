@@ -41,18 +41,17 @@ function binary_search(arr, target)
 ```
 
 ## Why an ensemble of neural networks rather than a single neural network?
-Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we discovered that when using error backpropagation to update input data to perform some kind of **model inversion mechanism** in deep neural network similar to those in **deep dream**, the updated input data is always unstable and prone to get stuck. After several attempts, we finally discovered the reason behind this instability is that the input data is factually doing gradient descent upon a single error surface created by a single deep neural network, which leads to tons of local minima. 
+Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we discovered that when using error backpropagation to update input data to perform some kind of **model inversion mechanism** in a trained deep neural network similar to those in **deep dream**, the updated input data is always unstable and prone to get stuck. After several attempts, we finally discovered the reason behind this instability is that the input data is factually doing gradient descent upon a single error surface created by a single deep neural network, which leads to tons of local minima, no matter how well-trained the deep neural network is.
 
-To negate this instability, we mimic the traditional stachostic gradient descent where we shuffle x and y to train a deep neural network, but this time we shuffle an ensemble of deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
+To negate this instability, we mimic the traditional stochastic gradient descent where we shuffle x and y to train a deep neural network, but this time we shuffle an ensemble of trained deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
 
-We previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of deep neural networks solve a completely blank Sudoku with 97.3% success rate.
+We previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of trained deep neural networks solve a completely blank Sudoku with 97.3% success rate.
 
 ## Experimental Results
 We use Cartpole as example.
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
-
 
 ## License
 Genrl is released under the [MIT](https://github.com/Brownwang0426/Genrl/blob/main/LICENSE) license.
