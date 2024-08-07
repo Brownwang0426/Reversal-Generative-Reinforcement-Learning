@@ -52,7 +52,7 @@ We use traditional **Cartpole** as an example and show that how the size of an e
 
 
 
-Also, since our method solely involves deep neural networks, the **catastrophic forgetting** issue in deep learning has to be addressed. To overcome this defect, we applied **E**lastic **W**eight **C**ontrol (**EWC**) in this [paper](https://arxiv.org/pdf/1612.00796).
+Also, since our method solely involves deep neural networks, the **catastrophic forgetting** issue in deep learning has to be addressed. To overcome this defect, we also applied **E**lastic **W**eight **C**ontrol (**EWC**) in this [paper](https://arxiv.org/pdf/1612.00796). It helps.
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
