@@ -22,6 +22,22 @@ To get started with Genrl, follow these steps:
 Suppose an agent is an ensemble of neural networks $\mathbbm{W}$ where $\mathbbm{W} = \{ W_1 , W_2 , \ldots , W_m \}$. $\acute{r}$ is desired reward, $\acute{r}$ is present state
 
 
+```pseudo
+function binary_search(arr, target)
+    low <- 0
+    high <- length(arr) - 1
+
+    while low <= high do
+        mid <- floor((low + high) / 2)
+        
+        if arr[mid] = target then
+            return mid
+        else if arr[mid] < target then
+            low <- mid + 1
+        else
+            high <- mid - 1
+
+    return -1
 
 ## Why an ensemble of neural networks rather than a single neural network?
 Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf). We discover that in
