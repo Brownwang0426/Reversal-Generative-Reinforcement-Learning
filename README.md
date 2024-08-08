@@ -23,6 +23,34 @@ Suppose an agent is an ensemble of neural networks '\mathbbm{W}' where '\mathbbm
 
 
 ```pseudo
+1. **Initialize** long-term memory `𝔇`
+2. **Initialize** neural ensemble `𝕎` where `𝕎 = { W₁ , W₂ , ... , Wₘ }`
+3. **Initialize** desired reward `r'`
+4. **For** each episode:
+    1. **Initialize** environment
+    2. **Initialize** short-term memory `D`
+    3. **While** not done:
+        1. **Observe** state `s`
+        2. **Initialize** actions `a` where `a = { a₁ , a₂ , ... , aₜ }`
+        3. **For** each iteration:
+            1. **Select** `Wᵢ` from `𝕎`
+            2. **Perform** back-propagation:  
+               `a ← a - β * ( ∂/∂a ) E( r' , f( Wᵢ , (s, a) ) )`
+        4. **Execute** action `a₁` where `a₁ ∈ a`
+        5. **Observe** reward `r`
+        6. **Store** `s , a₁ , r` to `D`
+    4. **End While**
+    5. **Return** agent performance to human for inspection
+    6. **Sequentialize** `D` to `𝔇`
+    7. **For** each `Wᵢ` in `𝕎`:
+        1. **For** each iteration:
+            1. **Select** `sⱼ , aⱼ , rⱼ` from `𝔇`  
+               where `aⱼ = { aⱼ₁ , aⱼ₂ , ... , aⱼₜ }`
+            2. **Perform** back-propagation:  
+               `Wᵢ ← Wᵢ - α * ( ∂/∂Wᵢ ) E( rⱼ , f( Wᵢ , ( sⱼ , aⱼ ) ) )`
+        2. **End For**
+    8. **End For**
+5. **End For**
 Initialize short term memory $ D $
 function binary_search(arr, target)
     low <- 0
