@@ -20,7 +20,7 @@ To get started with Genrl, follow these steps:
 
 ## Algorithm
 Suppose, for each step, an agent is an ensemble of neural networks 
-<img src="[https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22](https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7)" alt="image" width="200" style="vertical-align: middle;"> 
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image" width="200" style="vertical-align: middle;"> 
 where 
 `𝕎 = {W₁, W₂, ..., Wₘ}`
 , present state is represented by `s`, intitial actions are represented by `a` where `a = {a₁, a₂, ...,aₜ}`, and desired reward is represented by `r'`. Then we have the following iterative update for `a`:
@@ -28,54 +28,6 @@ where
 <p align="center">
   <img src="https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22" alt="image">
 </p>
-
-
-```pseudo
-1. **Initialize** long-term memory `𝔇`
-2. **Initialize** neural ensemble 𝕎 where `𝕎 = { W₁ , W₂ , ... , Wₘ }`
-3. **Initialize** desired reward `r'`
-4. **For** each episode:
-    1. **Initialize** environment
-    2. **Initialize** short-term memory `D`
-    3. **While** not done:
-        1. **Observe** state `s`
-        2. **Initialize** actions `a` where `a = { a₁ , a₂ , ... , aₜ }`
-        3. **For** each iteration:
-            1. **Select** `Wᵢ` from `𝕎`
-            2. **Perform** back-propagation:  
-               $a ← a - β * ( ∂/∂a ) E( r' , f( Wᵢ , (s, a) ) )$
-        4. **Execute** action `a₁` where `a₁ ∈ a`
-        5. **Observe** reward `r`
-        6. **Store** `s , a₁ , r` to `D`
-    4. **End While**
-    5. **Return** agent performance to human for inspection
-    6. **Sequentialize** `D` to `𝔇`
-    7. **For** each `Wᵢ` in `𝕎`:
-        1. **For** each iteration:
-            1. **Select** `sⱼ , aⱼ , rⱼ` from `𝔇`  
-               where `aⱼ = { aⱼ₁ , aⱼ₂ , ... , aⱼₜ }`
-            2. **Perform** back-propagation:  
-               `Wᵢ ← Wᵢ - α * ( ∂/∂Wᵢ ) E( rⱼ , f( Wᵢ , ( sⱼ , aⱼ ) ) )`
-        2. **End For**
-    8. **End For**
-5. **End For**
-Initialize short term memory $ D $
-function binary_search(arr, target)
-    low <- 0
-    high <- length(arr) - 1
-
-    while low <= high do
-        mid <- floor((low + high) / 2)
-        
-        if arr[mid] = target then
-            return mid
-        else if arr[mid] < target then
-            low <- mid + 1
-        else
-            high <- mid - 1
-
-    return -1
-```
 
 ## Why an ensemble of neural networks rather than a single neural network?
 Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we discovered that when using error backpropagation to update input data to perform some kind of **model inversion mechanism** in a trained deep neural network similar to those in **deep dream**, the updated input data is always unstable and prone to get stuck. After several attempts, we finally discovered the reason behind this instability is that the input data is factually doing gradient descent upon a single error surface created by a single deep neural network, which leads to tons of local minima, no matter how well-trained the deep neural network is.
