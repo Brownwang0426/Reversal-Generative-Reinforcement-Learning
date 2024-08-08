@@ -19,7 +19,8 @@ To get started with Genrl, follow these steps:
 3. **Take a rest and wait for the result**
 
 ## Algorithm
-Suppose an agent is an ensemble of neural networks `𝕎` where `𝕎 = {W₁, W₂,... ,Wₘ}`, present state is represented by `s` is desired reward, `\acute{r}` is present state
+Suppose an agent is an ensemble of neural networks `𝕎` where `𝕎 = {W₁, W₂, ..., Wₘ}`, present state is represented by `s`,  intitial actions are represented by `a` where `a = {a₁, a₂, ...,aₜ}`, and desired reward is represented by `r'`. Then, for the present step, we have
+is desired reward, `\acute{r}` is present state
 
 
 ```pseudo
