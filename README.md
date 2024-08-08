@@ -21,7 +21,9 @@ To get started with Genrl, follow these steps:
 ## Algorithm
 Suppose, for each step, an agent is an ensemble of neural networks `𝕎` where `𝕎 = {W₁, W₂, ..., Wₘ}`, present state is represented by `s`, intitial actions are represented by `a` where `a = {a₁, a₂, ...,aₜ}`, and desired reward is represented by `r'`. Then we have the following iterative update for `a`:
 
-[image](https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22" alt="image">
+</p>
 
 
 ```pseudo
