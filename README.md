@@ -45,7 +45,7 @@ Based on our previous research in this [paper](https://ala2022.github.io/papers/
 
 To negate this instability, we mimic the traditional stochastic gradient descent where we shuffle x and y to train a deep neural network, but this time we shuffle an ensemble of trained deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
 
-We previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of trained deep neural networks solve a completely blank Sudoku with 97.3% success rate.
+Our previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of trained deep neural networks solve a completely blank Sudoku with 97.3% success rate.
 
 ## Experimental Results
 We use traditional **Cartpole** as an example and show that how the size of an ensemble of neural networks affect the overall performace of the agent.
