@@ -32,10 +32,13 @@ where
 , and desired reward is represented by 
 <img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image">
 . 
-Then we have the following iterative update for `a`:
+
+Then, for the present step, the agent will update its 
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
+using error backpropagation:
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22" alt="image">
+  <img src="https://github.com/user-attachments/assets/6dc2dd45-e95c-4c61-b0cd-72e5f3daae49" alt="image">
 </p>
 
 ## Why an ensemble of neural networks rather than a single neural network?
