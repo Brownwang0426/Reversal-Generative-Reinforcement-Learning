@@ -24,8 +24,15 @@ Suppose, for each step, an agent is an ensemble of neural networks
 where 
 <img src="https://github.com/user-attachments/assets/60552124-f33a-40b0-8e7b-8453982ee753" alt="image">
 , present state is represented by 
-`s`
-, intitial actions are represented by `a` where `a = {a₁, a₂, ...,aₜ}`, and desired reward is represented by `r'`. Then we have the following iterative update for `a`:
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
+, intitial actions are represented by 
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
+where 
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image">
+, and desired reward is represented by 
+<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image">
+. 
+Then we have the following iterative update for `a`:
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/e2c721cc-c34a-4d76-95cc-e824d01a5e22" alt="image">
