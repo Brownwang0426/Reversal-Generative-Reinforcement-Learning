@@ -23,6 +23,7 @@ Suppose an agent is an ensemble of neural networks $\mathbbm{W}$ where $\mathbbm
 
 
 ```pseudo
+Initialize short term memory $ D $
 function binary_search(arr, target)
     low <- 0
     high <- length(arr) - 1
