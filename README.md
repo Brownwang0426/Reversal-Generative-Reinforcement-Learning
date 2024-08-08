@@ -20,9 +20,6 @@ To get started with Genrl, follow these steps:
 
 ## Algorithm
 Suppose for each step an agent is an ensemble of neural networks `𝕎` where `𝕎 = {W₁, W₂, ..., Wₘ}`, present state is represented by `s`, intitial actions are represented by `a` where `a = {a₁, a₂, ...,aₜ}`, and desired reward is represented by `r'`.
-Then, for the present step, we have `a ← a - β * ( ∂/∂a ) E( r' , f( Wᵢ , (s, a) ) )`
-
-is desired reward, `\acute{r}` is present state
 
 
 ```pseudo
@@ -38,7 +35,7 @@ is desired reward, `\acute{r}` is present state
         3. **For** each iteration:
             1. **Select** `Wᵢ` from `𝕎`
             2. **Perform** back-propagation:  
-               `a ← a - β * ( ∂/∂a ) E( r' , f( Wᵢ , (s, a) ) )`
+               $a ← a - β * ( ∂/∂a ) E( r' , f( Wᵢ , (s, a) ) )$
         4. **Execute** action `a₁` where `a₁ ∈ a`
         5. **Observe** reward `r`
         6. **Store** `s , a₁ , r` to `D`
