@@ -24,7 +24,7 @@ Suppose an agent is an ensemble of neural networks `\mathbbm{W}` where `\mathbbm
 
 ```pseudo
 1. **Initialize** long-term memory `𝔇`
-2. **Initialize** neural ensemble `𝕎` where `𝕎 = { W₁ , W₂ , ... , Wₘ }`
+2. **Initialize** neural ensemble 𝕎 where `𝕎 = { W₁ , W₂ , ... , Wₘ }`
 3. **Initialize** desired reward `r'`
 4. **For** each episode:
     1. **Initialize** environment
