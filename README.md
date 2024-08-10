@@ -9,7 +9,9 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 ## Features
 - **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
-- **Both online and offline learning**: We provide both online and offline learning versions. However, currently the online version is more time costly so we will focus on the offline learning version.
+
+## Future Works
+- **Online learning**: For the present time, we present offline learning version of Genrl. However, we are still working on the online learning version since there are some technical issues to oversome :-)
 
 ## Getting Started
 To get started with Genrl, follow these steps:
