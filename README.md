@@ -44,11 +44,11 @@ using error backpropagation and the neural net ensemble:
 </p>
 
 ## Why an ensemble of neural networks rather than a single neural network?
-Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we discovered that when using error backpropagation to update input data to perform some kind of **model inversion mechanism** in a trained deep neural network similar to those in **deep dream**, the updated input data is always unstable and prone to get stuck. After several attempts, we finally discovered the reason behind this instability is that the input data is factually doing gradient descent upon a single error surface created by a single deep neural network, which leads to tons of local minima, no matter how well-trained the deep neural network is.
+Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we found that when using error backpropagation to update input data for model inversion in a trained deep neural network—similar to techniques used in DeepDream—the updated input data often becomes unstable and gets stuck. After several attempts, we identified that this instability arises because the input data is factually performing gradient descent on a single error surface created by one deep neural network, which results in numerous local minima, regardless of how well-trained the network is.
 
-To negate this instability, we mimic the traditional stochastic gradient descent where we shuffle x and y to train a deep neural network, but this time we shuffle an ensemble of trained deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
+To address this instability, we adapted the traditional stochastic gradient descent approach of shuffling input data and labels to train a deep neural network. However, this time,  we shuffle an ensemble of trained deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
 
-Our previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since our method have an ensemble of trained deep neural networks solve a completely blank Sudoku with 97.3% success rate.
+Our previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since this method has an ensemble of trained deep neural networks solve completely blank Sudokus with 97.3% success rate.
 
 ## Experimental Results
 We use traditional **Cartpole** as an example and show that how the size of an ensemble of neural networks affect the overall performace of the agent.
