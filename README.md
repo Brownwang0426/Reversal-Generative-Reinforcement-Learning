@@ -20,28 +20,10 @@ To get started with Genrl, follow these steps:
 2. **Ctrl + F10**
 3. **Take a rest and wait for the result**
 
-## Algorithm
-Suppose, for each step, an agent is an ensemble of neural networks 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
-where 
-<img src="https://github.com/user-attachments/assets/60552124-f33a-40b0-8e7b-8453982ee753" alt="image">
-, present state is represented by 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
-, intitial actions are represented by 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
-where 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image">
-, and desired reward is represented by 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image">
-.
+## Experimental Results
+We use traditional **Cartpole** as an example and show that how the size of an ensemble of neural networks affect the overall performace of the agent.
 
-Then, for the present step, the agent will update its 
-<img src="https://github.com/user-attachments/assets/3469e249-0a09-49f1-bafe-26283d2708c7" alt="image"> 
-using error backpropagation and the neural net ensemble:
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/6dc2dd45-e95c-4c61-b0cd-72e5f3daae49" alt="image">
-</p>
 
 ## Why an ensemble of neural networks rather than a single neural network?
 Based on our previous research in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), we found that when using error backpropagation to update input data for model inversion in a trained deep neural network—similar to techniques used in DeepDream—the updated input data often becomes unstable and gets stuck. After several attempts, we identified that this instability arises because the input data is factually performing gradient descent on a single error surface created by one deep neural network, which results in numerous local minima, regardless of how well-trained the network is.
@@ -49,14 +31,6 @@ Based on our previous research in this [paper](https://ala2022.github.io/papers/
 To address this instability, we adapted the traditional stochastic gradient descent approach of shuffling input data and labels to train a deep neural network. However, this time,  we shuffle an ensemble of trained deep neural networks during the updating of the input data to ensure that the updated input data won't get stuck at local minima.
 
 Our previous [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf) showed it is quite successful since this method has an ensemble of trained deep neural networks solve completely blank Sudokus with 97.3% success rate.
-
-## Experimental Results
-We use traditional **Cartpole** as an example and show that how the size of an ensemble of neural networks affect the overall performace of the agent.
-
-
-
-
-Also, since our method solely involves deep neural networks, the **catastrophic forgetting** issue in deep learning has to be addressed. To overcome this defect, we also applied **E**lastic **W**eight **C**ontrol (**EWC**) in this [paper](https://arxiv.org/pdf/1612.00796). It helps.
 
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
