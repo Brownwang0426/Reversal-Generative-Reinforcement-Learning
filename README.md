@@ -11,7 +11,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
 
 ## Future Works
-- **Online learning**: For the present time, we present offline learning version of Genrl. However, we are still working on the online learning version since there are some technical issues to oversome. You know, online learning is harder than offline learning at least in our opinion :-)
+- **Online learning**: For the present time, we present offline learning version of Genrl. However, we are still working on the online learning version :-)
 
 ## Getting Started
 To get started with Genrl, follow these steps:
