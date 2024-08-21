@@ -37,3 +37,12 @@ The project is currently in active development. We are continually adding new fe
 
 ## License
 Genrl is released under the [MIT](https://github.com/Brownwang0426/Genrl/blob/main/LICENSE) license.
+
+## Related Works
+- [Rewarded Region Replay (R3) for Policy Learning with Discrete Action Space](https://arxiv.org/pdf/2405.16383)
+- [Rewarded Region Replay (R3) for Policy Learning with Discrete Action Space](https://arxiv.org/pdf/2403.06313)
+
+
+
+
+
