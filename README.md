@@ -40,7 +40,7 @@ Genrl is released under the [MIT](https://github.com/Brownwang0426/Genrl/blob/ma
 
 ## Related Works
 - [Rewarded Region Replay (R3) for Policy Learning with Discrete Action Space](https://arxiv.org/pdf/2405.16383)
-- [Rewarded Region Replay (R3) for Policy Learning with Discrete Action Space](https://arxiv.org/pdf/2403.06313)
+- [Optimal Policy Sparsication and Low Rank Decomposition for Deep Reinforcement Learning](https://arxiv.org/pdf/2403.06313)
 
 
 
