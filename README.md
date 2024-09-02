@@ -4,10 +4,12 @@ We introduce **Gen**erative **R**einforcement **L**earning (**Genrl**), a **mode
 
 **Genrl** treats an agent as ***a neural net ensemble*** where ***state*** and ***action*** are ***input*** datum, and ***reward*** is ***output*** data. First, when the neural net ensemble (the agent) observes certain state, it initializes and updates its actions through error backpropagation, with given desired reward as target. Second, the agent executes the updated actions and learns the ensuing consequence (state, executed actions and actual reward). Under this iterative updating-then-learning process, the agent gradually forms a belief approximating the real environement, allowing the agent to find the optimal solution to achieve the maximum reward in the environment. This approach is very similar to reinforcement learning in our intuitive finding. Since action is gradually generated from input layer rather than output layer, we refer to this method as **Gen**erative **R**einforcement **L**earning (**Genrl**).
 
+In **Genrl**, you don't need Bellman function or other value funtions to map reward to action because the deep neural net **IS** the Bellman function!
+
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method. However, in **Genrl**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
 ## Features
-- **Neural Nets are all you need**: No need for the Bellman function or other value funtions, and none of the complicated jargon found in current deep reinforcement learning methods.
+- **Neural Nets are all you need**: No need for the Bellman function or other value funtions to map reward to action, and none of the complicated jargon found in current deep reinforcement learning methods.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
 
 ## Future Works
