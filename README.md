@@ -10,7 +10,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 
 ## Features
 - **Neural Nets are all you need**: No need for the Bellman function or other value funtions to map reward to action, and none of the complicated jargon found in current deep reinforcement learning methods.
-- **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing.
+- **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-)
 
 ## Future Works
 - **Online learning**: For the present time, we present offline learning version of Genrl. However, we are still working on the online learning version :-)
