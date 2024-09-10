@@ -13,7 +13,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-)
 
 ## Future Works
-- **Online learning**: For the present time, we present offline learning version of Genrl. However, we are still working on the online learning version :-)
+- **Online learning**: For the present time, we present offline learning version of Genrl.
 
 ## Getting Started
 To get started with Genrl, follow these steps:
