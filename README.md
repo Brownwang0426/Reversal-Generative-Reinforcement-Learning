@@ -9,8 +9,8 @@ In **RGRL**, you don't need Bellman function or other value funtions to map rewa
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method. However, in **RGRL**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
 ## Features
-- **Neural Nets are all you need**: No need for the Bellman function or other value funtions to map reward to action, and none of the complicated jargon found in current deep reinforcement learning methods. If you know deep learning, you know RGRL!
-- **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-)
+- **Neural Nets are all you need**: No need for the Bellman function or other value funtions to map reward to action. If you know deep learning, you know RGRL!
+- **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-) (Of course, if you have big big GPU)
 
 ## Future Works
 - **Online learning**: For the present time, we present offline learning version of RGRL.
