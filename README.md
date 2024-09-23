@@ -4,12 +4,12 @@ We introduce **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL*
 
 **RGRL** treats an agent as ***a neural net ensemble*** where ***state*** and ***action*** are ***input*** datum, and ***reward*** is ***output*** data. First, when the neural net ensemble (the agent) observes certain state, it initializes and updates its actions through error backpropagation, with given desired reward as target. Second, the agent executes the updated actions and learns the ensuing consequence (state, executed actions and actual reward). Third, based on the learned neural net ensemble, the agent starts observing new state and initializing or updating its actions again. Under this iterative updating-then-learning process, the agent gradually forms a belief approximating the real environement, allowing the agent to find the optimal solution to achieve the maximum reward in the environment. This approach is very similar to reinforcement learning in our intuitive finding. Since action is gradually generated from input layer rather than output layer, we refer to this method as **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL**).
 
-In **RGRL**, you don't need Bellman function or other value funtions to map reward to action because the deep neural net **IS** the Bellman function!
+In **RGRL**, we use deep neural nets to substitute Bellman function to provide more flexibility.
 
-Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method. However, in **RGRL**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. This enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
+Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method. However, in **RGRL**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. In practice, this enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
 ## Features
-- **Neural Nets are all you need**: No need for the Bellman function or other value funtions to map reward to action. If you know deep learning, you know RGRL!
+- **Neural Nets are all you need**: Seriously, really.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-) (Of course, if you have big big GPU)
 
 ## Future Works
