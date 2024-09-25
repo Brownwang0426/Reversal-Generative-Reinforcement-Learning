@@ -18,7 +18,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 ## Getting Started
 To get started with RGRL, follow these steps:
 
-1. **Open the .ipynb in colab**
+1. **Open the .ipynb in colab and select T4 GPU or above**
 2. **Ctrl + F10**
 3. **Take a rest and wait for the result**
 
