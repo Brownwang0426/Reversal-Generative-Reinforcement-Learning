@@ -34,6 +34,9 @@ To mitigate this instability, we borrow the concept of traditional stochastic gr
 In our earlier work, we demonstrated the effectiveness of this method, achieving a 97.3% success rate in solving blank Sudoku puzzles using the ensemble of deep neural networks.
 
 ## Project Structure
+
+We try to keep the structure as clean and easy as possible. The whole structure of RGRL is as follow:
+
 ```bash
 RGRL/
 │
