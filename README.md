@@ -40,17 +40,21 @@ We try to keep the structure as clean and easy as possible. The whole structure 
 ```bash
 RGRL/
 │
-├── models/                  # Model-related files or classes
+├── envs/                    # environement-related files
 │   ├── __init__.py
-│   ├── model.py             # Model implementation
-│   └── model_utils.py       # Helper functions for the model
+│   ├── env_cartpole.py      # environement-related file for cartpole, such as vectorizing state, actions and reward
+│   ├── ...
+│   └── env_lunarlander.py   # environement-related file for lunarlander, such as vectorizing state, actions and reward
 │
-├── utils/                   # General utility functions
-│   ├── logging.py           # Logging system
-│   ├── metrics.py           # Metrics calculation
-│   └── helpers.py           # Common helper functions
+├── models/                  # Model implementation files
+│   ├── __init__.py
+│   ├── model_att.py         # Model implementation file for attention
+│   └── model_rnn.py         # Model implementation file for rnn, gru, lstm
 │
-├── in_experiment/           # Models in exepriment. Not ready, but you may try it out!
+├── utils/                   # Utility functions
+│   ├── __init__.py
+│   ├── util_att.py          # Utility function for attention
+│   └── util_rnn.py          # Utility function for rnn, gru, lstm
 │
 ├── train.py                 # Main script for training the model
 │
