@@ -35,6 +35,31 @@ To mitigate this instability, we borrow the concept of traditional stochastic gr
 
 In our earlier work, we demonstrated the effectiveness of this method, achieving a 97.3% success rate in solving blank Sudoku puzzles using the ensemble of deep neural networks.
 
+project_name/
+│
+├── models/                  # 放置模型相關的文件或類別
+│   ├── __init__.py
+│   ├── model.py             # 具體模型實作
+│   └── model_utils.py       # 模型的輔助功能
+│
+├── data/                    # 資料相關的處理文件
+│   ├── data_loader.py       # 資料讀取器
+│   └── data_preprocessing.py# 資料預處理腳本
+│
+├── utils/                   # 通用輔助功能
+│   ├── logging.py           # 紀錄/日志系統
+│   ├── metrics.py           # 計算指標
+│   └── helpers.py           # 一些通用小功能
+│
+├── tests/                   # 測試代碼
+│   ├── test_model.py
+│   ├── test_data_loader.py
+│   └── test_utils.py
+│
+├── train.py                 # 訓練模型的主程式
+├── inference.py             # 推理過程的程式
+└── README.md                # 專案說明文件
+
 ## Status
 The project is currently in active development. We are continually adding new features and improving the performance.
 
