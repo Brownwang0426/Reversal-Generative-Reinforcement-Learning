@@ -64,8 +64,8 @@ The project is currently in active development. We are continually adding new fe
 RGRL is released under the [MIT](https://github.com/Brownwang0426/RGRL/blob/main/LICENSE) license.
 
 ## Related Works
-- [Rewarded Region Replay (R3) for Policy Learning with Discrete Action Space](https://arxiv.org/pdf/2405.16383)
-- [Optimal Policy Sparsication and Low Rank Decomposition for Deep Reinforcement Learning](https://arxiv.org/pdf/2403.06313)
+- 
+- 
 
 
 
