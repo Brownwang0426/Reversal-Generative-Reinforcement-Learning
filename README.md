@@ -35,7 +35,7 @@ In our earlier work, we demonstrated the effectiveness of this method, achieving
 
 ## Project Structure
 
-We try to keep the structure as clean and easy as possible. The whole structure of RGRL is as follow:
+We try to keep the structure as clean and easy as possible. The whole structure of RGRL is as follows:
 
 ```bash
 RGRL/
