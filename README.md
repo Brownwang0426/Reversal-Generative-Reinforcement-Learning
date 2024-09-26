@@ -47,7 +47,10 @@ RGRL/
 │   ├── metrics.py           # Metrics calculation
 │   └── helpers.py           # Common helper functions
 │
+├── in_experiment/           # Models in exepriment. Not ready, but you may try it out!
+│
 ├── train.py                 # Main script for training the model
+│
 └── README.md                # Project documentation
 ```
 
