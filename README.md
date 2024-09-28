@@ -18,7 +18,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 ## Getting Started
 To get started with RGRL, follow these steps:
 
-1. **Open the .ipynb in colab or local environment**
+1. **Open the train.ipynb in colab or local environment**
 2. **Set up configs in the Control Board section according to the instructions thereof**
 3. **Select T4 GPU or above, Ctrl + F10, restart and Ctrl + F10**
 4. **Take a rest and wait for the result**
