@@ -47,19 +47,19 @@ RGRL/
 │   ├── ...                  # environement-related file for ...
 │   └── env_lunarlander.py   # environement-related file for lunarlander, such as vectorizing state, actions and reward
 │
-├── models/                  # Model implementation files
+├── models/                  # model implementation files
 │   ├── __init__.py          # package indicator
-│   ├── model_att.py         # Model implementation file for attention
-│   └── model_rnn.py         # Model implementation file for rnn, gru, lstm
+│   ├── model_att.py         # model implementation file for attention
+│   └── model_rnn.py         # model implementation file for rnn, gru, lstm
 │
-├── utils/                   # Utility functions
+├── utils/                   # utility functions
 │   ├── __init__.py          # package indicator
-│   ├── util_att.py          # Utility function for attention
-│   └── util_rnn.py          # Utility function for rnn, gru, lstm
+│   ├── util_att.py          # utility function for attention
+│   └── util_rnn.py          # utility function for rnn, gru, lstm
 │
-├── train.py                 # Main script for training the model
+├── train.py                 # main script for training the model
 │
-└── README.md                # Project documentation
+└── README.md                # project documentation
 ```
 
 ## Status
