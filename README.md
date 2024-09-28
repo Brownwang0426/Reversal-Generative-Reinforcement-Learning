@@ -42,18 +42,18 @@ We try to keep the structure as clean and easy as possible. The whole structure 
 RGRL/
 │
 ├── envs/                    # environement-related files
-│   ├── __init__.py
+│   ├── __init__.py          # package indicator
 │   ├── env_cartpole.py      # environement-related file for cartpole, such as vectorizing state, actions and reward
-│   ├── ...
+│   ├── ...                  # environement-related file for ...
 │   └── env_lunarlander.py   # environement-related file for lunarlander, such as vectorizing state, actions and reward
 │
 ├── models/                  # Model implementation files
-│   ├── __init__.py
+│   ├── __init__.py          # package indicator
 │   ├── model_att.py         # Model implementation file for attention
 │   └── model_rnn.py         # Model implementation file for rnn, gru, lstm
 │
 ├── utils/                   # Utility functions
-│   ├── __init__.py
+│   ├── __init__.py          # package indicator
 │   ├── util_att.py          # Utility function for attention
 │   └── util_rnn.py          # Utility function for rnn, gru, lstm
 │
