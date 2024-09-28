@@ -68,8 +68,9 @@ The project is currently in active development. We are continually adding new fe
 RGRL is released under the [MIT](https://github.com/Brownwang0426/RGRL/blob/main/LICENSE) license.
 
 ## Related Works
-- 
-- 
+- [Deducing Decision by Error Backpropagation](https://ala2022.github.io/papers/ALA2022_paper_4.pdf)
+- [Modeling and Optimization of Complex Building Energy Systems with Deep Neural Networks](https://ieeexplore.ieee.org/document/8335578)
+- [Offline Contextual Bandits for Wireless Network Optimization](https://arxiv.org/abs/2111.08587)
 
 
 
