@@ -42,7 +42,7 @@ def update_pre_activated_actions(iteration_for_deducing,
 
         model   = random.choice(model_list_copy)
 
-        actions = torch.tanh(pre_activated_actions)
+        actions = torch.sigmoid(pre_activated_actions)
 
         model.train()
         actions = actions.clone().detach().requires_grad_(True)
@@ -56,7 +56,7 @@ def update_pre_activated_actions(iteration_for_deducing,
         total_loss    = loss_function(output, desired_reward)
         total_loss.backward() # get grad
 
-        pre_activated_actions -= actions.grad * (1 - actions ** 2) * beta # update params
+        pre_activated_actions -= actions.grad * (1 - actions) * actions * beta # update params
 
     return pre_activated_actions
 

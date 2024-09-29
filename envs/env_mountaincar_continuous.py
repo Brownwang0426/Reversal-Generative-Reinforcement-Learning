@@ -47,8 +47,8 @@ def vectorizing_state(state):      # Reminder: change this for your specific tas
     return state
 
 def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    activated_actions = torch.tanh(pre_activated_actions).cpu().detach().numpy()
-    return activated_actions[0,0], activated_actions[0,0]
+    activated_actions = torch.sigmoid(pre_activated_actions).cpu().detach().numpy()
+    return activated_actions[0,0], activated_actions[0,0] * 2 - 1
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     reward = quantifying(reward_size, -1.2, 0.6, state[0])
