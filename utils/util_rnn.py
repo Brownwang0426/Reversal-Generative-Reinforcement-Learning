@@ -33,7 +33,7 @@ def update_pre_activated_actions(iteration_for_deducing,
                                  desired_reward,
                                  beta,
                                  device):
-
+    
     state, pre_activated_actions, desired_reward = state.to(device), pre_activated_actions.to(device), desired_reward.to(device)
 
     model_list_copy = copy.deepcopy(model_list)
@@ -41,22 +41,21 @@ def update_pre_activated_actions(iteration_for_deducing,
     for _ in range(iteration_for_deducing):
 
         model   = random.choice(model_list_copy)
-
-        actions = torch.sigmoid(pre_activated_actions)
-
+        
         model.train()
-        actions = actions.clone().detach().requires_grad_(True)
-        if actions.grad is not None:
-            actions.grad.zero_()
+        pre_activated_actions = pre_activated_actions.clone().detach().requires_grad_(True)
+        if pre_activated_actions.grad is not None:
+            pre_activated_actions.grad.zero_()
         for param in model.parameters():
             param.requires_grad = False
+        actions = torch.tanh(pre_activated_actions)
 
         loss_function = model.loss_function
         output, _     = model(state, actions, padding_mask=None)
         total_loss    = loss_function(output, desired_reward)
         total_loss.backward() # get grad
 
-        pre_activated_actions -= actions.grad * (1 - actions) * actions * beta # update params
+        pre_activated_actions = pre_activated_actions - pre_activated_actions.grad * beta # update params
 
     return pre_activated_actions
 
@@ -136,24 +135,24 @@ def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
-            input += np.array([  np.random.uniform(low=0, high=1, size=shape)    ]) * noise_r
+            input += np.random.uniform(low=0, high=1, size=shape) * noise_r
     elif init == "random_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= 1, size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= 1, size= shape ) * noise_r
     elif init == "glorot_uniform":
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.array([  np.random.uniform(low=-limit, high=limit, size=shape)    ])  * noise_r
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
     elif init == "glorot_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
     elif init == "xavier_uniform":
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.array([  np.random.uniform(low=-limit, high=limit, size=shape)    ])  * noise_r
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
     elif init == "xavier_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
     return input
 
 

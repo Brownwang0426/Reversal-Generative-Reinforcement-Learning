@@ -43,21 +43,13 @@ def quantifying(array_size, min_value, max_value, value):
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(100, -4.8  , 4.8   , state[0])
-    state_1 = quantifying(100, -3.75 , 3.75  , state[1])
-    state_2 = quantifying(100, -0.418, 0.418 , state[2])
-    state_3 = quantifying(100, -3.75 , 3.75  , state[3])
-    state   = np.concatenate((state_0, state_1, state_2, state_3))
+    state = np.tanh(state)
     return state
 
 def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    action_size      = pre_activated_actions.size(2)
-    action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
-    return (np.eye(action_size)[action_argmax] - 0.5) * 2, action_argmax
+    activated_actions = torch.tanh(pre_activated_actions).cpu().detach().numpy()
+    return activated_actions[0,0], activated_actions[0,0]
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    if done:
-        reward = np.zeros(reward_size) - 1
-    else:
-        reward = np.ones(reward_size)
+    reward = quantifying(reward_size, -1.2, 0.6, state[0])
     return reward
