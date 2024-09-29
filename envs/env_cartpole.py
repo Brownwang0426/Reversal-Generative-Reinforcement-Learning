@@ -35,7 +35,7 @@ Crucial function regarding how you manipulate or shape your state, action and re
 """
 
 def quantifying(array_size, min_value, max_value, value):
-    array    = np.zeros(array_size) - 1
+    array    = np.zeros(array_size) 
     interval = (max_value - min_value) / array_size
     index    = int( (value - max_value) // interval + 1)
     if index >= 0:
@@ -57,7 +57,7 @@ def vectorizing_action(pre_activated_actions):  # Reminder: change this for your
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done:
-        reward = np.zeros(reward_size) - 1
+        reward = np.zeros(reward_size) 
     else:
         reward = np.ones(reward_size)
     return reward
