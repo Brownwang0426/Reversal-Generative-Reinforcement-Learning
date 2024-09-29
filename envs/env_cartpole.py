@@ -37,7 +37,7 @@ Crucial function regarding how you manipulate or shape your state, action and re
 def quantifying(array_size, min_value, max_value, value):
     array    = np.zeros(array_size) 
     interval = (max_value - min_value) / array_size
-    index    = int( (value - max_value) // interval + 1)
+    index    = int( (value - min_value) // interval + 1)
     if index >= 0:
         array[ : index] = 1
     return array
