@@ -34,28 +34,35 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(array_size, init, interval, input):
-    array = np.zeros(array_size)
-    index = int( (input - init) // interval + 1)
+def quantifying(array_size, min_value, max_value, value):
+    array    = np.zeros(array_size) 
+    interval = (max_value - min_value) / array_size
+    index    = int( (value - min_value) // interval + 1)
     if index >= 0:
         array[ : index] = 1
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(100, -2.5, 0.050, state[0])
-    state_1 = quantifying(100, -3.75, 0.075, state[1])
-    state_2 = quantifying(100, -0.375, 0.0075, state[2])
-    state_3 = quantifying(100, -3.75, 0.075, state[3])
-    state_4 = quantifying(100, 0, 10, 0)
-    state   = np.atleast_2d(np.concatenate((state_0, state_1, state_2, state_3, state_4)))
+    state_0 = quantifying(100, -4.8  , 4.8   , state[0])
+    state_1 = quantifying(100, -3.75 , 3.75  , state[1])
+    state_2 = quantifying(100, -0.418, 0.418 , state[2])
+    state_3 = quantifying(100, -3.75 , 3.75  , state[3])
+    state   = np.concatenate((state_0, state_1, state_2, state_3))
     return state
 
-def vectorizing_action(action_size, action_argmax):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    return np.eye(action_size)[action_argmax]
+# def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+#     action_size      = pre_activated_actions.size(2)
+#     action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
+#     return np.eye(action_size)[action_argmax], action_argmax
+
+def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    activated_actions = torch.sigmoid(pre_activated_actions).cpu().detach().numpy()
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
+    return activated_actions[0,0], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done:
-        reward = np.zeros(reward_size)
+        reward = np.zeros(reward_size) 
     else:
         reward = np.ones(reward_size)
     return reward

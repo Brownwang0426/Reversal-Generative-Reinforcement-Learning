@@ -35,22 +35,25 @@ Crucial function regarding how you manipulate or shape your state, action and re
 """
 
 
-def quantifying(array_size, init, interval, input):
-    array = np.zeros(array_size)
-    index = int( (input - init) // interval + 1)
+def quantifying(array_size, min_value, max_value, value):
+    array    = np.zeros(array_size) 
+    interval = (max_value - min_value) / array_size
+    index    = int( (value - min_value) // interval + 1)
     if index >= 0:
         array[ : index] = 1
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(100, -0.6, 0.012, state[0])
-    state_1 = quantifying(100, -0.1, 0.002, state[1])
-    state    = np.atleast_2d(np.concatenate((state_0, state_1 )))
+    state_0 = quantifying(100, -1.2 , 0.6 , state[0])
+    state_1 = quantifying(100, -0.07, 0.07, state[1])
+    state   = np.concatenate((state_0, state_1 ))
     return state
 
-def vectorizing_action(action_size, action_argmax):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    return np.eye(action_size)[action_argmax]
+def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    action_size      = pre_activated_actions.size(2)
+    action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
+    return np.eye(action_size)[action_argmax], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(reward_size, -0.6, (0.6 - (-0.6))/reward_size, state[0])
+    reward = quantifying(reward_size, -1.2, 0.6, state[0])
     return reward

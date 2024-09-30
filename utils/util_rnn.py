@@ -136,24 +136,24 @@ def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
-            input += np.array([  np.random.uniform(low=0, high=1, size=shape)    ]) * noise_r
+            input += np.random.uniform(low=0, high=1, size=shape) * noise_r
     elif init == "random_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= 1, size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= 1, size= shape ) * noise_r
     elif init == "glorot_uniform":
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.array([  np.random.uniform(low=-limit, high=limit, size=shape)    ])  * noise_r
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
     elif init == "glorot_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
     elif init == "xavier_uniform":
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.array([  np.random.uniform(low=-limit, high=limit, size=shape)    ])  * noise_r
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
     elif init == "xavier_normal":
         for _ in range(noise_t):
-            input += np.array([  np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape )    ])  * noise_r
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
     return input
 
 
