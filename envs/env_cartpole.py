@@ -50,10 +50,15 @@ def vectorizing_state(state):      # Reminder: change this for your specific tas
     state   = np.concatenate((state_0, state_1, state_2, state_3))
     return state
 
+# def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+#     action_size      = pre_activated_actions.size(2)
+#     action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
+#     return np.eye(action_size)[action_argmax], action_argmax
+
 def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    action_size      = pre_activated_actions.size(2)
-    action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
-    return np.eye(action_size)[action_argmax], action_argmax
+    activated_actions = torch.sigmoid(pre_activated_actions).cpu().detach().numpy()
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
+    return activated_actions[0,0], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done:
