@@ -8,6 +8,9 @@ In **RGRL**, we use deep neural nets to substitute Bellman function to provide m
 
 Our previous research can be seen in this [paper](https://ala2022.github.io/papers/ALA2022_paper_4.pdf), where we simply used supervised learning method rather than reinforcement learning method. However, in **RGRL**, we have inherited the spirit of the previous research while incorporating the concept of reinforcement learning, allowing the agent to learn from the ensuing consequence of it deduced or updated actions. In practice, this enables the agent to find the optimal solution to achieve the maximum reward in the environment more quickly.
 
+## Details
+For more detials, please refer to RGRL's technical [paper](https://github.com/Brownwang0426/RGRL/blob/main/paper.pdf).
+
 ## Features
 - **Neural Nets are all you need**: Seriously, really.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-) 
@@ -60,6 +63,8 @@ RGRL/
 ├── train.py                 # main script for training the model
 │
 ├── paper.pdf                # main technical paper for understanding the mechansim behind RGRL
+│
+├── LICENSE                  # license and user agreement, etc.
 │
 └── README.md                # project documentation
 ```
