@@ -59,6 +59,8 @@ RGRL/
 │
 ├── train.py                 # main script for training the model
 │
+├── paper.pdf                # main technical paper for understanding the mechansim behind RGRL
+│
 └── README.md                # project documentation
 ```
 
