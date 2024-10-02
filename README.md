@@ -64,6 +64,8 @@ RGRL/
 │
 ├── paper.pdf                # main technical paper for understanding the mechansim behind RGRL
 │
+├── LICENSE                  # license and user agreement, etc.
+│
 └── README.md                # project documentation
 ```
 
