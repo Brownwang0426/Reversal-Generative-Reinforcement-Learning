@@ -52,7 +52,7 @@ def update_pre_activated_actions(iteration_for_deducing,
             param.requires_grad = False
 
         loss_function = model.loss_function
-        output, _     = model(state, actions, padding_mask=None)
+        output        = model(state, actions, padding_mask=None)
         total_loss    = loss_function(output, desired_reward)
         total_loss.backward() # get grad
 
