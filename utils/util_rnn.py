@@ -178,8 +178,8 @@ def sequentialize(state_list, action_list, reward_list, time_size):
     #     sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+time_size_]) - 1 ]  )
     #     sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+time_size_])     ]  )
 
-    # a more sophisticated method
-    for j in range(time_size):
+    # below is a more sophisticated and effective method but will consume lots of cuda memory...
+    for j in range(5):
         time_size_ = j+1
         if time_size_== 1:
             for i in range(len(reward_list[:])):
