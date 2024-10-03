@@ -12,7 +12,7 @@ Our previous research can be seen in this [paper](https://ala2022.github.io/pape
 For more detials, please refer to RGRL's technical [paper](https://github.com/Brownwang0426/RGRL/blob/main/paper.pdf).
 
 ## Features
-- **Neural Nets are all you need**: Seriously, really.
+- **Only Neural Nets are involved**: Really.
 - **Highly custimizable**: All you need to do is to customize state, action and reward-shaping or vectorizing. You can also make state as raw input if you prefer :-) Why not? It is deep neural network :-) 
 
 ## Future Works
