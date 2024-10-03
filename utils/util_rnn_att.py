@@ -159,25 +159,23 @@ def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
 
 
 
-def sequentialize(short_term_state_list, short_term_action_list, short_term_reward_list, time_size):
-
-    time_size = 5
+def sequentialize(short_term_state_list, short_term_action_list, short_term_reward_list, chunk_size):
 
     short_term_present_state_list = []
     short_term_future_action_list = []
     short_term_future_reward_list = []
     short_term_future_state_list  = []
 
-    if time_size > len(short_term_state_list[:-1]):
-        time_size = len(short_term_state_list[:-1])
+    if chunk_size > len(short_term_state_list[:-1]):
+        chunk_size = len(short_term_state_list[:-1])
     else:
       pass
 
-    for i in range(len(short_term_reward_list[:-time_size+1])):
-        short_term_present_state_list.append(      short_term_state_list [ i                       ]  )
-        short_term_future_action_list.append(      short_term_action_list[ i   : i+time_size       ]  )
-        short_term_future_reward_list.append(      short_term_reward_list[ i   : i+time_size       ]  )
-        short_term_future_state_list.append(       short_term_state_list [ i+1 : i+time_size+1     ]  )
+    for i in range(len(short_term_reward_list[:-chunk_size+1])):
+        short_term_present_state_list.append(      short_term_state_list [ i                        ]  )
+        short_term_future_action_list.append(      short_term_action_list[ i   : i+chunk_size       ]  )
+        short_term_future_reward_list.append(      short_term_reward_list[ i   : i+chunk_size       ]  )
+        short_term_future_state_list.append(       short_term_state_list [ i+1 : i+chunk_size+1     ]  )
 
     return short_term_present_state_list, short_term_future_action_list, short_term_future_reward_list, short_term_future_state_list
 

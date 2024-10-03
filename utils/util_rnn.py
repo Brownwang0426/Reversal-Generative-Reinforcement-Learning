@@ -159,40 +159,40 @@ def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
 
 
 
-def sequentialize(state_list, action_list, reward_list, time_size):
+def sequentialize(state_list, action_list, reward_list, chunk_size):
 
     sequentialized_state_list       = []
     sequentialized_action_list      = []
     sequentialized_reward_list      = []
     sequentialized_next_state_list  = []
 
-    if time_size > len(state_list[:-1]):
-        time_size = len(state_list[:-1])
+    if chunk_size > len(state_list[:-1]):
+        chunk_size = len(state_list[:-1])
     else:
       pass
 
-    # time_size_ = time_size
+    # chunk_size_ = chunk_size
     # for i in range(len(reward_list[:])):
     #     sequentialized_state_list.append(       state_list [ i ] )
-    #     sequentialized_action_list.append(      action_list[ i : i+time_size_]  )
-    #     sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+time_size_]) - 1 ]  )
-    #     sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+time_size_])     ]  )
+    #     sequentialized_action_list.append(      action_list[ i : i+chunk_size_]  )
+    #     sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+chunk_size_]) - 1 ]  )
+    #     sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+chunk_size_])     ]  )
 
     # below is a more sophisticated and effective method but will consume lots of cuda memory...
-    for j in range(time_size):
-        time_size_ = j+1
-        if time_size_== 1:
+    for j in range(chunk_size):
+        chunk_size_ = j+1
+        if chunk_size_== 1:
             for i in range(len(reward_list[:])):
                 sequentialized_state_list.append(       state_list [ i ] )
-                sequentialized_action_list.append(      action_list[ i : i+time_size_]  )
-                sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+time_size_]) - 1 ]  )
-                sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+time_size_])     ]  )
+                sequentialized_action_list.append(      action_list[ i : i+chunk_size_]  )
+                sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+chunk_size_]) - 1 ]  )
+                sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+chunk_size_])     ]  )
         else:
-            for i in range(len(reward_list[:-time_size_+1])):
+            for i in range(len(reward_list[:-chunk_size_+1])):
                 sequentialized_state_list.append(       state_list [ i ] )
-                sequentialized_action_list.append(      action_list[ i : i+time_size_]  )
-                sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+time_size_]) - 1 ]  )
-                sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+time_size_])     ]  )
+                sequentialized_action_list.append(      action_list[ i : i+chunk_size_]  )
+                sequentialized_reward_list.append(      reward_list[ i + len(action_list[i:i+chunk_size_]) - 1 ]  )
+                sequentialized_next_state_list.append(  state_list [ i + len(action_list[i:i+chunk_size_])     ]  )
 
     return sequentialized_state_list, sequentialized_action_list, sequentialized_reward_list, sequentialized_next_state_list
 
