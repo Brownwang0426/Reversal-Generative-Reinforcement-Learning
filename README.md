@@ -1,6 +1,6 @@
 # RGRL
 ## Introduction
-We introduce **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL**), a **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
+We introduce **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL**), a simple **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
 
 **RGRL** treats an agent as ***a neural net ensemble*** where ***state*** and ***action*** are ***input*** datum, and ***reward*** is ***output*** data. First, when the neural net ensemble (the agent) observes certain state, it initializes and updates its actions through error backpropagation, with given desired reward as target. Second, the agent executes the updated actions and learns the ensuing consequence (state, executed actions and actual reward). Third, based on the learned neural net ensemble, the agent starts observing new state and initializing or updating its actions again. Under this iterative updating-then-learning process, the agent gradually forms a belief approximating the real environement, allowing the agent to find the optimal solution to achieve the maximum reward in the environment. This approach is very similar to reinforcement learning in our intuitive finding. Since action is gradually generated from input layer rather than output layer, we refer to this method as **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL**).
 
