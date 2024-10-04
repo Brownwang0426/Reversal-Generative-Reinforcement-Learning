@@ -198,6 +198,7 @@ def obtain_tensor_from_list(short_term_state_list,
 
 
 
+
 def obtain_TD_error(model,
                     data_loader):
 

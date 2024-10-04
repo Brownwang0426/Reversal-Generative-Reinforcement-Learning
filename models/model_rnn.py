@@ -110,12 +110,12 @@ class build_model(nn.Module):
         if self.neural_type == 'lstm':
             s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1)
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s, s))
-            r       = r[0]
+            r       = r[:,0,:]
             s_      = s_[0]
         else:
             s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1)
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s)
-            r       = r[0]
+            r       = r[:,0,:]
             
         r  = self.reward_linear(r)   
         r  = self.output_activation(r)
@@ -130,11 +130,11 @@ class build_model(nn.Module):
 
             if self.neural_type == 'lstm':
                 r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (s_, s_))
-                r       = r[0]
+                r       = r[:,0,:]
                 s_      = s_[0]
             else:
                 r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), s_)
-                r       = r[0]
+                r       = r[:,0,:]
 
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
