@@ -32,8 +32,6 @@ def update_pre_activated_actions(epoch_for_deducing,
                                  desired_future_reward,
                                  beta,
                                  device):
-    
-    desired_future_reward = torch.ones((1, pre_activated_future_action.size(1), desired_future_reward.size(1)))
 
     state, pre_activated_future_action, desired_future_reward = state.to(device), pre_activated_future_action.to(device), desired_future_reward.to(device)
 
