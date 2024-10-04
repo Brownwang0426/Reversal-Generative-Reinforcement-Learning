@@ -84,7 +84,7 @@ def update_model(model,
                  prev_gradient_matrix,
                  EWC_lambda):
 
-    for state, future_action, future_reward, future_state, padding_mask in sub_data_loader:
+    for state, future_action, future_reward, future_state in sub_data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -108,7 +108,7 @@ def update_gradient_matrix(model,
     
     gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -185,7 +185,6 @@ def obtain_tensor_from_list(short_term_state_list,
                             short_term_future_reward_list,
                             short_term_future_state_list,
                             time_size,
-                            mask_value,
                             num_heads,
                             device):
 
@@ -194,17 +193,15 @@ def obtain_tensor_from_list(short_term_state_list,
     short_term_future_action_tensor = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
     short_term_future_reward_tensor = torch.tensor(np.array(short_term_future_reward_list), dtype=torch.float).to(device)
     short_term_future_state_tensor  = torch.tensor(np.array(short_term_future_state_list), dtype=torch.float).to(device)
-    dummy                           = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
 
-    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor, dummy
-
+    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor
 
 
 
 def obtain_TD_error(model,
                     data_loader):
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer

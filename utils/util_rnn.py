@@ -84,9 +84,9 @@ def update_model(model,
                  prev_gradient_matrix,
                  EWC_lambda):
 
-    for state, future_action, future_reward, future_state, padding_mask in sub_data_loader:
+    for state, future_action, future_reward, future_state in sub_data_loader:
 
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1)
+        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -110,9 +110,9 @@ def update_gradient_matrix(model,
     
     gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1)
+        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -120,8 +120,6 @@ def update_gradient_matrix(model,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        print(output_reward.size())
-        print(future_reward.size())
         total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()        # get grad
 
@@ -191,7 +189,6 @@ def obtain_tensor_from_list(short_term_state_list,
                             short_term_future_reward_list,
                             short_term_future_state_list,
                             time_size,
-                            mask_value,
                             num_heads,
                             device):
 
@@ -200,9 +197,8 @@ def obtain_tensor_from_list(short_term_state_list,
     short_term_future_action_tensor = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
     short_term_future_reward_tensor = torch.tensor(np.array(short_term_future_reward_list), dtype=torch.float).to(device)
     short_term_future_state_tensor  = torch.tensor(np.array(short_term_future_state_list), dtype=torch.float).to(device)
-    dummy                           = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
 
-    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor, dummy
+    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor
 
 
 
@@ -210,7 +206,7 @@ def obtain_tensor_from_list(short_term_state_list,
 def obtain_TD_error(model,
                     data_loader):
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
