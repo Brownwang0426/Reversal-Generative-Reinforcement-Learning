@@ -104,18 +104,21 @@ class build_model(nn.Module):
 
     def forward(self, s, a_list):
 
+        # s is [batch_size, feature_size] by default
+        # r is [batch_size, sequence_size, feature_size] by default
+
         r_list = list()
         s_list = list()
 
         if self.neural_type == 'lstm':
-            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1)
+            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1) # convert s to [num_layers, batch_size, feature_size]
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s, s))
-            r       = r[:,0,:]
+            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
             s_      = s_[0]
         else:
-            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1)
+            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1) # convert s to [num_layers, batch_size, feature_size]
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s)
-            r       = r[:,0,:]
+            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
             
         r  = self.reward_linear(r)   
         r  = self.output_activation(r)
@@ -123,8 +126,8 @@ class build_model(nn.Module):
         s_ = self.state_linear_(s_)   
         s_ = self.output_activation(s_)
 
-        r_list.append(r)
-        s_list.append(s_)
+        r_list.append(r)   # r_list is [sequence_size, batch_size, feature_size]
+        s_list.append(s_)  # s_list is [sequence_size, num_layers, batch_size, feature_size]
 
         for i in range(a_list.size(1)-1):
 
@@ -143,10 +146,10 @@ class build_model(nn.Module):
             s_ = self.output_activation(s_)
 
             r_list.append(r)
-            s_list.append(s_)
+            s_list.append(s_) 
 
         r_list = torch.stack(r_list, dim=1)
-        s_list = torch.stack(s_list, dim=0).permute(1, 2, 0, 3)
+        s_list = torch.stack(s_list, dim=0).permute(1, 2, 0, 3) # convert s_list to [num_layers, batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 

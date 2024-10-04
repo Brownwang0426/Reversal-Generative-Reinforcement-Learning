@@ -119,9 +119,9 @@ def update_gradient_matrix(model,
         total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()        # get grad
 
-        for name, param in model.named_parameters():
-            if name != "positional_encoding":
-                gradient_matrix[name] += param.grad
+    for name, param in model.named_parameters():
+        if name != "positional_encoding":
+            gradient_matrix[name] += param.grad
 
     gradient_matrix = {name: param / len(data_loader) for name, param in gradient_matrix.items()}
 
@@ -199,6 +199,25 @@ def obtain_tensor_from_list(short_term_state_list,
 
 
 
+# def obtain_TD_error(model,
+#                     data_loader):
+# 
+#     for state, future_action, future_reward, future_state in data_loader:
+# 
+#         model.train()
+#         selected_optimizer = model.selected_optimizer
+#         selected_optimizer.zero_grad()
+# 
+#         loss_function        = model.loss_function_
+#         output_reward, _     = model(state, future_action)
+#         total_loss           = loss_function(output_reward, future_reward).detach()
+#         total_loss           = torch.sum(torch.abs(total_loss), dim=(1, 2))
+# 
+#     return total_loss
+
+
+
+
 def obtain_TD_error(model,
                     data_loader):
 
@@ -208,12 +227,14 @@ def obtain_TD_error(model,
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
-        loss_function        = model.loss_function_
-        output_reward, _     = model(state, future_action)
-        total_loss           = loss_function(output_reward, future_reward).detach()
-        total_loss           = torch.sum(torch.abs(total_loss), dim=(1, 2))
+        loss_function                 = model.loss_function_
+        output_reward, output_state   = model(state, future_action)
+        total_loss_1                  = loss_function(output_reward, future_reward).detach()
+        total_loss_1                  = torch.sum(torch.abs(total_loss_1), dim=(1, 2))
+        total_loss_2                  = loss_function(output_state, future_state).detach()
+        total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(0, 2, 3))
 
-    return total_loss
+    return total_loss_1 + total_loss_2
 
 
 
