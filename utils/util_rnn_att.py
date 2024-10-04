@@ -25,13 +25,13 @@ from tqdm import tqdm
 
 
 
-def update_pre_activated_actions(epoch_for_deducing,
-                                 model_list,
-                                 state,
-                                 pre_activated_future_action,
-                                 desired_future_reward,
-                                 beta,
-                                 device):
+def update_pre_activated_action(epoch_for_deducing,
+                                model_list,
+                                state,
+                                pre_activated_future_action,
+                                desired_future_reward,
+                                beta,
+                                device):
     
     state, pre_activated_future_action, desired_future_reward = state.to(device), pre_activated_future_action.to(device), desired_future_reward.to(device)
 
@@ -116,7 +116,7 @@ def update_gradient_matrix(model,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) 
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()        # get grad
 
         for name, param in model.named_parameters():
@@ -130,7 +130,7 @@ def update_gradient_matrix(model,
 
 
 
-def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
+def initialize_pre_activated_action(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
