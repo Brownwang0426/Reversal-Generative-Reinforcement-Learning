@@ -229,7 +229,3 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
         writer.writerows(performance_log)
 
 
-
-
-
-
