@@ -173,11 +173,18 @@ def sequentialize(short_term_state_list, short_term_action_list, short_term_rewa
     else:
       pass
 
-    for i in range(len(short_term_reward_list[:-chunk_size+1])):
-        short_term_present_state_list.append(      short_term_state_list [ i                        ]  )
-        short_term_future_action_list.append(      short_term_action_list[ i   : i+chunk_size       ]  )
-        short_term_future_reward_list.append(      short_term_reward_list[ i   : i+chunk_size       ]  )
-        short_term_future_state_list.append(       short_term_state_list [ i+1 : i+chunk_size+1     ]  )
+    if chunk_size != 1:
+        for i in range(len(short_term_reward_list[:-chunk_size+1])):
+            short_term_present_state_list.append(      short_term_state_list [ i                        ]  )
+            short_term_future_action_list.append(      short_term_action_list[ i   : i+chunk_size       ]  )
+            short_term_future_reward_list.append(      short_term_reward_list[ i   : i+chunk_size       ]  )
+            short_term_future_state_list.append(       short_term_state_list [ i+1 : i+chunk_size+1     ]  )
+    else:
+        for i in range(len(short_term_reward_list[:])):
+            short_term_present_state_list.append(      short_term_state_list [ i                        ]  )
+            short_term_future_action_list.append(      short_term_action_list[ i   : i+chunk_size       ]  )
+            short_term_future_reward_list.append(      short_term_reward_list[ i   : i+chunk_size       ]  )
+            short_term_future_state_list.append(       short_term_state_list [ i+1 : i+chunk_size+1     ]  )
 
     return short_term_present_state_list, short_term_future_action_list, short_term_future_reward_list, short_term_future_state_list
 
