@@ -25,6 +25,34 @@ from tqdm import tqdm
 
 
 
+
+def initialize_pre_activated_action(init, noise_t, noise_r, shape):
+    input = 0
+    if   init == "random_uniform":
+        for _ in range(noise_t):
+            input += np.random.uniform(low=0, high=1, size=shape) * noise_r
+    elif init == "random_normal":
+        for _ in range(noise_t):
+            input += np.random.normal(loc=0.0, scale= 1, size= shape ) * noise_r
+    elif init == "glorot_uniform":
+        for _ in range(noise_t):
+            limit = np.sqrt(6 / (shape[1] + shape[1]))
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
+    elif init == "glorot_normal":
+        for _ in range(noise_t):
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
+    elif init == "xavier_uniform":
+        for _ in range(noise_t):
+            limit = np.sqrt(6 / (shape[1] + shape[1]))
+            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
+    elif init == "xavier_normal":
+        for _ in range(noise_t):
+            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
+    return input
+
+
+
+
 def update_pre_activated_action(epoch_for_deducing,
                                 model_list,
                                 state,
@@ -60,103 +88,6 @@ def update_pre_activated_action(epoch_for_deducing,
             pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
 
     return pre_activated_future_action
-
-
-
-
-# traditional EWC
-def EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix):
-    model_param      = model.state_dict()
-    prev_model_param = prev_model.state_dict()
-    loss = 0
-    for name, param in model.named_parameters():
-        diagonal_fisher_matrix = prev_gradient_matrix[name] ** 2
-        param_diff             = (model_param[name] - prev_model_param[name]) ** 2
-        loss                  += (diagonal_fisher_matrix * param_diff).sum()
-    return EWC_lambda * loss
-
-
-
-
-def update_model(model,
-                 sub_data_loader,
-                 prev_model,
-                 prev_gradient_matrix,
-                 EWC_lambda):
-
-    for state, future_action, future_reward, future_state in sub_data_loader:
-
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
-
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss                 += EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix)
-        total_loss.backward()     # get grad
-
-        selected_optimizer.step() # update params
-
-    return model
-
-
-
-
-def update_gradient_matrix(model,
-                           data_loader):
-    
-    gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
-
-    for state, future_action, future_reward, future_state in data_loader:
-
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
-
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss.backward()        # get grad
-
-    for name, param in model.named_parameters():
-        if name != "positional_encoding":
-            gradient_matrix[name] += param.grad
-
-    gradient_matrix = {name: param / len(data_loader) for name, param in gradient_matrix.items()}
-
-    return gradient_matrix
-
-
-
-
-def initialize_pre_activated_action(init, noise_t, noise_r, shape):
-    input = 0
-    if   init == "random_uniform":
-        for _ in range(noise_t):
-            input += np.random.uniform(low=0, high=1, size=shape) * noise_r
-    elif init == "random_normal":
-        for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= 1, size= shape ) * noise_r
-    elif init == "glorot_uniform":
-        for _ in range(noise_t):
-            limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
-    elif init == "glorot_normal":
-        for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
-    elif init == "xavier_uniform":
-        for _ in range(noise_t):
-            limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
-    elif init == "xavier_normal":
-        for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
-    return input
 
 
 
@@ -233,6 +164,76 @@ def obtain_TD_error(model,
     # therefore we leave only total_loss_1 (error for reward) for TD error.
     # However, you may try adding back total_loss_2 to see what will happen. But in our experience, it is not a good idea...
     return total_loss_1 # + total_loss_2
+
+
+
+
+# traditional EWC
+def EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix):
+    model_param      = model.state_dict()
+    prev_model_param = prev_model.state_dict()
+    loss = 0
+    for name, param in model.named_parameters():
+        diagonal_fisher_matrix = prev_gradient_matrix[name] ** 2
+        param_diff             = (model_param[name] - prev_model_param[name]) ** 2
+        loss                  += (diagonal_fisher_matrix * param_diff).sum()
+    return EWC_lambda * loss
+
+
+
+
+def update_model(model,
+                 sub_data_loader,
+                 prev_model,
+                 prev_gradient_matrix,
+                 EWC_lambda):
+
+    for state, future_action, future_reward, future_state in sub_data_loader:
+
+        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        output_reward, output_state = model(state, future_action)
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+        total_loss                 += EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix)
+        total_loss.backward()     # get grad
+
+        selected_optimizer.step() # update params
+
+    return model
+
+
+
+
+def update_gradient_matrix(model,
+                           data_loader):
+    
+    gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
+
+    for state, future_action, future_reward, future_state in data_loader:
+
+        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        output_reward, output_state = model(state, future_action)
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+        total_loss.backward()        # get grad
+
+    for name, param in model.named_parameters():
+        if name != "positional_encoding":
+            gradient_matrix[name] += param.grad
+
+    gradient_matrix = {name: param / len(data_loader) for name, param in gradient_matrix.items()}
+
+    return gradient_matrix
 
 
 
