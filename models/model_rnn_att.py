@@ -183,7 +183,7 @@ class build_model(nn.Module):
         pres_h_list = list()
         for j, layer in enumerate(self.transformer_layers):
             attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-            h_ = attention_layer(torch.zeros_like(h), torch.zeros_like(h), h, mask)
+            h_ = attention_layer(h, h, h, mask)
             h  = attention_norm_layer(h + h_)
             h_ = fully_connected_layer(h)
             h  = fully_connected_norm_layer(h + h_)
@@ -216,7 +216,7 @@ class build_model(nn.Module):
             pres_h_list = list()
             for j, layer in enumerate(self.transformer_layers):
                 attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-                h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
+                h_ = attention_layer(h, h, h, mask)
                 h  = attention_norm_layer(h + h_)
                 h_ = fully_connected_layer(h)
                 h  = fully_connected_norm_layer(h + h_)
