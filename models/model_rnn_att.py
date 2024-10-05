@@ -95,8 +95,7 @@ class build_model(nn.Module):
                  optimizer,
                  loss,
                  drop_rate,
-                 alpha,
-                 mask_value):
+                 alpha):
 
         super(build_model, self).__init__()
 
@@ -116,7 +115,6 @@ class build_model(nn.Module):
         self.loss                 = loss
         self.drop_rate            = drop_rate
         self.alpha                = alpha
-        self.mask_value           = mask_value
 
         self.bias                 = False
 
@@ -242,7 +240,7 @@ class build_model(nn.Module):
 
         r_list = torch.stack(r_list, dim=1)
         s_list = torch.stack(s_list, dim=1)
-        
+
         return r_list, s_list
 
 

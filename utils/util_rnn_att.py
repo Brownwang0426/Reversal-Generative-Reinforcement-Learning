@@ -25,16 +25,14 @@ from tqdm import tqdm
 
 
 
-def update_pre_activated_actions(epoch_for_deducing,
-                                 model_list,
-                                 state,
-                                 pre_activated_future_action,
-                                 desired_future_reward,
-                                 beta,
-                                 device):
+def update_pre_activated_action(epoch_for_deducing,
+                                model_list,
+                                state,
+                                pre_activated_future_action,
+                                desired_future_reward,
+                                beta,
+                                device):
     
-    desired_future_reward = torch.ones((1, pre_activated_future_action.size(1), desired_future_reward.size(1)))
-
     state, pre_activated_future_action, desired_future_reward = state.to(device), pre_activated_future_action.to(device), desired_future_reward.to(device)
 
     model_list_copy = copy.deepcopy(model_list)
@@ -86,7 +84,7 @@ def update_model(model,
                  prev_gradient_matrix,
                  EWC_lambda):
 
-    for state, future_action, future_reward, future_state, padding_mask in sub_data_loader:
+    for state, future_action, future_reward, future_state in sub_data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -110,7 +108,7 @@ def update_gradient_matrix(model,
     
     gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -118,12 +116,12 @@ def update_gradient_matrix(model,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) 
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()        # get grad
 
-        for name, param in model.named_parameters():
-            if name != "positional_encoding":
-                gradient_matrix[name] += param.grad
+    for name, param in model.named_parameters():
+        if name != "positional_encoding":
+            gradient_matrix[name] += param.grad
 
     gradient_matrix = {name: param / len(data_loader) for name, param in gradient_matrix.items()}
 
@@ -132,7 +130,7 @@ def update_gradient_matrix(model,
 
 
 
-def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
+def initialize_pre_activated_action(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
@@ -187,7 +185,6 @@ def obtain_tensor_from_list(short_term_state_list,
                             short_term_future_reward_list,
                             short_term_future_state_list,
                             time_size,
-                            mask_value,
                             num_heads,
                             device):
 
@@ -196,9 +193,8 @@ def obtain_tensor_from_list(short_term_state_list,
     short_term_future_action_tensor = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
     short_term_future_reward_tensor = torch.tensor(np.array(short_term_future_reward_list), dtype=torch.float).to(device)
     short_term_future_state_tensor  = torch.tensor(np.array(short_term_future_state_list), dtype=torch.float).to(device)
-    dummy                           = torch.tensor(np.array(short_term_future_action_list), dtype=torch.float).to(device)
 
-    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor, dummy
+    return short_term_state_tensor, short_term_future_action_tensor, short_term_future_reward_tensor, short_term_future_state_tensor
 
 
 
@@ -206,18 +202,24 @@ def obtain_tensor_from_list(short_term_state_list,
 def obtain_TD_error(model,
                     data_loader):
 
-    for state, future_action, future_reward, future_state, padding_mask in data_loader:
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
-        loss_function        = model.loss_function_
-        output_reward, _     = model(state, future_action)
-        total_loss           = loss_function(output_reward, future_reward).detach()
-        total_loss           = torch.sum(torch.abs(total_loss), dim=(1, 2))
+        loss_function                 = model.loss_function_
+        output_reward, output_state   = model(state, future_action)
+        total_loss_1                  = loss_function(output_reward, future_reward).detach()
+        total_loss_1                  = torch.sum(torch.abs(total_loss_1), dim=(1, 2))
+        # total_loss_2                  = loss_function(output_state, future_state).detach()
+        # total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(0, 2, 3))
 
-    return total_loss
+    # Since TD error amis to select samples that are surprising to the agent and 
+    # we think the term "surprising" might have more to do with reward other than states, 
+    # therefore we leave only total_loss_1 (error for reward) for TD error.
+    # However, you may try adding back total_loss_2 to see what will happen. But in our experience, it is not a good idea...
+    return total_loss_1 # + total_loss_2
 
 
 
@@ -227,9 +229,5 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
         writer = csv.writer(file)
         writer.writerow(['Episode', 'Summed_Reward'])
         writer.writerows(performance_log)
-
-
-
-
 
 

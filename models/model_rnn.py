@@ -40,8 +40,7 @@ class build_model(nn.Module):
                  optimizer,
                  loss,
                  drop_rate,
-                 alpha,
-                 mask_value):
+                 alpha):
 
         super(build_model, self).__init__()
 
@@ -61,23 +60,17 @@ class build_model(nn.Module):
         self.loss                 = loss
         self.drop_rate            = drop_rate
         self.alpha                = alpha
-        self.mask_value           = mask_value
 
         self.bias = False
-
 
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-        self.state_linear_in_0      = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size , bias=self.bias)
-        self.state_linear_in_1      = nn.Linear(self.hidden_neuron_size , self.hidden_neuron_size , bias=self.bias)
-        self.state_linear_out_0     = nn.Linear(self.hidden_neuron_size , self.hidden_neuron_size , bias=self.bias)
-        self.state_linear_out_1     = nn.Linear(self.hidden_neuron_size , self.h_input_neuron_size, bias=self.bias)
-        self.recurrent_layer        = neural_types[self.neural_type.lower()](self.input_neuron_size, self.hidden_neuron_size, num_layers=self.num_layers, batch_first=False, bias=self.bias, dropout=self.drop_rate)
-        self.reward_linear          = nn.Linear(self.hidden_neuron_size , self.output_neuron_size, bias=self.bias)
-
+        self.recurrent_layer        = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
+        self.reward_linear          = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
+        self.state_linear_          = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -109,36 +102,56 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
-    def forward(self, s, a, padding_mask):
+    def forward(self, s, a_list):
 
-        s          = self.state_linear_in_0(s)
-        s          = self.hidden_activation(s)
-        s          = self.state_linear_in_1(s)
-        s          = self.hidden_activation(s)
-        s          = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1)
+        # s is [batch_size, feature_size] by default
+        # r is [batch_size, sequence_size, feature_size] by default
 
-        a          = a.permute(1, 0, 2)
-        lengths    = (a != self.mask_value).any(dim=2).sum(dim=0).cpu().long() # since a is (sequence_length, batch_size, input_size), we should use sum(dim=0)
-        a          = rnn_utils.pack_padded_sequence(a, lengths, batch_first=False, enforce_sorted=False)
+        r_list = list()
+        s_list = list()
+
         if self.neural_type == 'lstm':
-            r, s   = self.recurrent_layer(a, (s, s))
+            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1) # convert s to [num_layers, batch_size, feature_size]
+            r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s, s))
+            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
+            s_      = s_[0]
         else:
-            r, s   = self.recurrent_layer(a, s)
+            s       = torch.unsqueeze(s, dim=0).repeat(self.num_layers, 1, 1) # convert s to [num_layers, batch_size, feature_size]
+            r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s)
+            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
+            
+        r  = self.reward_linear(r)   
+        r  = self.output_activation(r)
 
-        r, _       = rnn_utils.pad_packed_sequence(r, batch_first=False)
-        padding    = (0, 0, 0, 0, 0, self.input_sequence_size - r.size(0))
-        r          = F.pad(r, padding, "constant", 0)
-        r          = r.permute(1, 0, 2)
+        s_ = self.state_linear_(s_)   
+        s_ = self.output_activation(s_)
 
-        s          = self.state_linear_out_0(s)
-        s          = self.hidden_activation(s)
-        s          = self.state_linear_out_1(s)
-        s          = self.output_activation(s)
+        r_list.append(r)   # r_list is [sequence_size, batch_size, feature_size]
+        s_list.append(s_)  # s_list is [sequence_size, num_layers, batch_size, feature_size]
 
-        r          = self.reward_linear(r[:,-1])
-        r          = self.output_activation(r + self.shift)
-        
-        return r, s
+        for i in range(a_list.size(1)-1):
+
+            if self.neural_type == 'lstm':
+                r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (s_, s_))
+                r       = r[:,0,:]
+                s_      = s_[0]
+            else:
+                r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), s_)
+                r       = r[:,0,:]
+
+            r  = self.reward_linear(r)   
+            r  = self.output_activation(r)
+
+            s_ = self.state_linear_(s_)   
+            s_ = self.output_activation(s_)
+
+            r_list.append(r)
+            s_list.append(s_) 
+
+        r_list = torch.stack(r_list, dim=1)
+        s_list = torch.stack(s_list, dim=0).permute(1, 2, 0, 3) # convert s_list to [num_layers, batch_size, sequence_size, feature_size]
+
+        return r_list, s_list
 
 
     def get_activation(self,  activation):
