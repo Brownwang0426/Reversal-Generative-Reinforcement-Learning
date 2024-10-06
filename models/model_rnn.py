@@ -162,8 +162,8 @@ class build_model(nn.Module):
             r_list.append(r)
             s_list.append(s) 
 
-        r_list = torch.stack(r_list, dim=1)
-        s_list = torch.stack(s_list, dim=1)
+        r_list = torch.stack(r_list, dim=1) # r_list becomes [batch_size, sequence_size, feature_size]
+        s_list = torch.stack(s_list, dim=1) # s_list becomes [batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 
