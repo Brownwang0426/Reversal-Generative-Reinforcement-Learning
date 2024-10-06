@@ -70,7 +70,7 @@ class build_model(nn.Module):
         }
         self.recurrent_layer        = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.reward_linear          = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
-        self.state_linear_          = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.state_linears_         = nn.ModuleList([nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias) for _ in range(self.num_layers)])
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -120,11 +120,16 @@ class build_model(nn.Module):
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s)
             r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
             
-        r  = self.reward_linear(r)   
+        r  = self.reward_linear(r)    
         r  = self.output_activation(r)
 
-        s_ = self.state_linear_(s_)   
-        s_ = self.output_activation(s_)
+        # we don't let s_ share the same linear to provide more flexibility
+        layer_list = []
+        for i in range(self.num_layers):
+            o = self.state_linears_[i]( s_[i] ) 
+            o = self.output_activation(o)
+            layer_list.append(o)
+        s_ = torch.stack(layer_list, dim=0)
 
         r_list.append(r)   # r_list is [sequence_size, batch_size, feature_size]
         s_list.append(s_)  # s_list is [sequence_size, num_layers, batch_size, feature_size]
@@ -142,8 +147,13 @@ class build_model(nn.Module):
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
 
-            s_ = self.state_linear_(s_)   
-            s_ = self.output_activation(s_)
+            # we don't let s_ share the same linear to provide more flexibility
+            layer_list = []
+            for i in range(self.num_layers):
+                o = self.state_linears_[i]( s_[i] ) 
+                o = self.output_activation(o)
+                layer_list.append(o)
+            s_ = torch.stack(layer_list, dim=0)
 
             r_list.append(r)
             s_list.append(s_) 
