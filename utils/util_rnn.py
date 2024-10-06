@@ -146,8 +146,6 @@ def obtain_TD_error(model,
 
     for state, future_action, future_reward, future_state in data_loader:
 
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
-
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
@@ -190,8 +188,6 @@ def update_model(model,
 
     for state, future_action, future_reward, future_state in sub_data_loader:
 
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
-
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
@@ -215,8 +211,6 @@ def update_gradient_matrix(model,
     gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
 
     for state, future_action, future_reward, future_state in data_loader:
-
-        future_state       = torch.unsqueeze(future_state, dim=0).repeat(model.num_layers, 1, 1, 1)
 
         model.train()
         selected_optimizer = model.selected_optimizer
