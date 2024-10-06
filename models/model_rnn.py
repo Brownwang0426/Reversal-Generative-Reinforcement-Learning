@@ -123,7 +123,7 @@ class build_model(nn.Module):
         r  = self.reward_linear(r)    
         r  = self.output_activation(r)
 
-        # we don't let s_ share the same linear to provide more flexibility
+        # we don't let s_ share the same linear so rnn can provide more flexibility
         layer_list = []
         for i in range(self.num_layers):
             o = self.state_linears_[i]( s_[i] ) 
@@ -147,7 +147,7 @@ class build_model(nn.Module):
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
 
-            # we don't let s_ share the same linear to provide more flexibility
+            # we don't let s_ share the same linear so rnn can provide more flexibility
             layer_list = []
             for i in range(self.num_layers):
                 o = self.state_linears_[i]( s_[i] ) 
