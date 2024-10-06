@@ -104,6 +104,8 @@ class build_model(nn.Module):
 
     def forward(self, s, a_list):
 
+        idx = 1 # the index of the num_layers where you want to insert s
+
         # s      is [batch_size, feature_size] by default
         # a_list is [batch_size, sequence_size, feature_size] by default
 
@@ -112,13 +114,13 @@ class build_model(nn.Module):
 
         if self.neural_type == 'lstm':
             s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
-            s_[1]   = s
+            s_[idx] = s
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s_, s_)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
             s_      = s_[0]    # s_[0]    is [tuple_size=0, num_layers, batch_size, feature_size]
         else:
             s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
-            s_[1]   = s
+            s_[idx] = s
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s_)        # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
             s_      = s_       # s_       is [num_layers, batch_size, feature_size]
@@ -134,8 +136,8 @@ class build_model(nn.Module):
             layer_list.append(o)
         s_ = torch.stack(layer_list, dim=0)
 
-        r_list.append(r)      # r_list is [sequence_size, batch_size, feature_size]
-        s_list.append(s_[1])  # s_list is [sequence_size, batch_size, feature_size]
+        r_list.append(r)        # r_list is [sequence_size, batch_size, feature_size]
+        s_list.append(s_[idx])  # s_list is [sequence_size, batch_size, feature_size]
 
         for i in range(a_list.size(1)-1):
 
@@ -160,7 +162,7 @@ class build_model(nn.Module):
             s_ = torch.stack(layer_list, dim=0)
 
             r_list.append(r)
-            s_list.append(s_[1]) 
+            s_list.append(s_[idx]) 
 
         r_list = torch.stack(r_list, dim=1)
         s_list = torch.stack(s_list, dim=1)
