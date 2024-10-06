@@ -191,19 +191,19 @@ class build_model(nn.Module):
         prev_h_list = pres_h_list
 
         r  = h[:, 0]
-        s_ = h[:, 1]
+        s  = h[:, 1]
         
         r  = self.reward_linear(r)   
         r  = self.output_activation(r)
 
-        s_ = self.state_linear_(s_)   
-        s_ = self.output_activation(s_)
-
-        s  = self.state_linear(s_)
-        s  = self.hidden_activation(s)
+        s  = self.state_linear_(s)   
+        s  = self.output_activation(s)
 
         r_list.append(r)
-        s_list.append(s_)
+        s_list.append(s)
+
+        s  = self.state_linear(s)
+        s  = self.hidden_activation(s)
 
         for i in range(a_list.size(1)-1):
 
@@ -224,19 +224,19 @@ class build_model(nn.Module):
             prev_h_list = pres_h_list
 
             r  = h[:, 0]
-            s_ = h[:, 1]
+            s  = h[:, 1]
             
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
 
-            s_ = self.state_linear_(s_)   
-            s_ = self.output_activation(s_)
-
-            s  = self.state_linear(s_)
-            s  = self.hidden_activation(s)
+            s  = self.state_linear_(s)   
+            s  = self.output_activation(s)
 
             r_list.append(r)
-            s_list.append(s_)
+            s_list.append(s)
+
+            s  = self.state_linear(s)
+            s  = self.hidden_activation(s)
 
         r_list = torch.stack(r_list, dim=1)
         s_list = torch.stack(s_list, dim=1)
