@@ -115,8 +115,9 @@ class build_model(nn.Module):
         if self.neural_type == 'lstm':
             sn      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # sn is [num_layers, batch_size, feature_size]
             sn[idx] = s
-            rl, sn  = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (sn, sn)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
+            rl, sn  = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (sn, torch.zeros_like(sn))) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             r       = rl[:,0,:]  # rl[:,0,:] is [batch_size, sequence_size=0, feature_size] 
+            sn_     = sn[1]
             sn      = sn[0]      # sn[0]     is [tuple_size=0, num_layers, batch_size, feature_size]
             s       = sn[idx]
         else:
@@ -141,8 +142,9 @@ class build_model(nn.Module):
             if self.neural_type == 'lstm':
                 sn      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
                 sn[idx] = s
-                rl, sn  = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (sn, sn))
+                rl, sn  = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (sn, sn_))
                 r       = rl[:,0,:]
+                sn_     = sn[1]
                 sn      = sn[0]
                 s       = sn[idx]
             else:
