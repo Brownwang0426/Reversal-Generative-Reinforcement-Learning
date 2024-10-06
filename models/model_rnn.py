@@ -114,14 +114,14 @@ class build_model(nn.Module):
             s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
             s_[1]   = s
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s_, s_))
-            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
-            s_      = s_[0]    # s_ is [num_layers, batch_size, feature_size]
+            r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
+            s_      = s_[0]    # s_[0]    is [tuple_size=0, num_layers, batch_size, feature_size]
         else:
             s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
             s_[1]   = s
             r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s_)
-            r       = r[:,0,:] # convert r from [batch_size, sequence_size, feature_size] to [batch_size, feature_size]
-            s_      = s_       # s_ is [num_layers, batch_size, feature_size]
+            r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
+            s_      = s_       # s_       is [num_layers, batch_size, feature_size]
 
         r  = self.reward_linear(r)    
         r  = self.output_activation(r)
