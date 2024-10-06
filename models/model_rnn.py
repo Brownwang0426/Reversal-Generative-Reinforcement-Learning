@@ -70,7 +70,7 @@ class build_model(nn.Module):
         }
         self.recurrent_layer        = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.reward_linear          = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
-        self.state_linears_         = nn.ModuleList([nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias) for _ in range(self.num_layers)])
+        self.state_linear           = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias) 
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -113,56 +113,54 @@ class build_model(nn.Module):
         s_list = list()
 
         if self.neural_type == 'lstm':
-            s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
-            s_[idx] = s
-            r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (s_, s_)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
+            ns      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # ns is [num_layers, batch_size, feature_size]
+            ns[idx] = s
+            r, ns   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (ns, ns)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
-            s_      = s_[0]    # s_[0]    is [tuple_size=0, num_layers, batch_size, feature_size]
+            ns      = ns[0]    # ns[0]    is [tuple_size=0, num_layers, batch_size, feature_size]
+            s       = ns[idx]
         else:
-            s_      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # s_ is [num_layers, batch_size, feature_size]
-            s_[idx] = s
-            r, s_   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), s_)        # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
+            ns      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # ns is [num_layers, batch_size, feature_size]
+            ns[idx] = s
+            r, ns   = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), ns)        # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             r       = r[:,0,:] # r[:,0,:] is [batch_size, sequence_size=0, feature_size] 
-            s_      = s_       # s_       is [num_layers, batch_size, feature_size]
+            ns      = ns       # ns       is [num_layers, batch_size, feature_size]
+            s       = ns[idx]
 
         r  = self.reward_linear(r)    
         r  = self.output_activation(r)
 
-        # we don't let s_ share the same linear so rnn can provide more flexibility
-        layer_list = []
-        for i in range(self.num_layers):
-            o = self.state_linears_[i]( s_[i] ) 
-            o = self.output_activation(o)
-            layer_list.append(o)
-        s_ = torch.stack(layer_list, dim=0)
+        s  = self.state_linear(s) 
+        s  = self.output_activation(s)
 
-        r_list.append(r)        # r_list is [sequence_size, batch_size, feature_size]
-        s_list.append(s_[idx])  # s_list is [sequence_size, batch_size, feature_size]
+        r_list.append(r)  # r_list is [sequence_size, batch_size, feature_size]
+        s_list.append(s)  # s_list is [sequence_size, batch_size, feature_size]
 
         for i in range(a_list.size(1)-1):
 
             if self.neural_type == 'lstm':
-                r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (s_, s_))
+                ns      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
+                ns[idx] = s
+                r, ns   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), (ns, ns))
                 r       = r[:,0,:]
-                s_      = s_[0]
+                ns      = ns[0]
+                s       = ns[idx]
             else:
-                r, s_   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), s_)
+                ns      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
+                ns[idx] = s
+                r, ns   = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), ns)
                 r       = r[:,0,:]
-                s_      = s_
+                ns      = ns
+                s       = ns[idx]
 
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
 
-            # we don't let s_ share the same linear so rnn can provide more flexibility
-            layer_list = []
-            for i in range(self.num_layers):
-                o = self.state_linears_[i]( s_[i] ) 
-                o = self.output_activation(o)
-                layer_list.append(o)
-            s_ = torch.stack(layer_list, dim=0)
+            s  = self.state_linear(s) 
+            s  = self.output_activation(s)
 
             r_list.append(r)
-            s_list.append(s_[idx]) 
+            s_list.append(s) 
 
         r_list = torch.stack(r_list, dim=1)
         s_list = torch.stack(s_list, dim=1)

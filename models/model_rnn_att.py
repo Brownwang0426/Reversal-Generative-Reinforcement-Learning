@@ -174,10 +174,10 @@ class build_model(nn.Module):
         s  = self.state_linear(s)
         s  = self.hidden_activation(s)
 
-        a_ = self.action_linear(a_list[:,0])
-        a_ = self.hidden_activation(a_)
+        a  = self.action_linear(a_list[:,0])
+        a  = self.hidden_activation(a)
 
-        h  = torch.stack([s, a_], dim=0).view(a_.size(0), 2, a_.size(1))
+        h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
         h  = h + self.positional_encoding[:, :, :]
 
         pres_h_list = list()
@@ -207,10 +207,10 @@ class build_model(nn.Module):
 
         for i in range(a_list.size(1)-1):
 
-            a_ = self.action_linear(a_list[:,i+1])
-            a_ = self.hidden_activation(a_)
+            a  = self.action_linear(a_list[:,i+1])
+            a  = self.hidden_activation(a)
 
-            h  = torch.stack([s, a_], dim=0).view(a_.size(0), 2, a_.size(1))
+            h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
             h  = h + self.positional_encoding[:, :, :]
 
             pres_h_list = list()
