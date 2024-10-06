@@ -178,7 +178,8 @@ class build_model(nn.Module):
         a_ = self.hidden_activation(a_)
 
         h  = torch.stack([s, a_], dim=0).view(a_.size(0), 2, a_.size(1))
-        h  = h + self.positional_encoding[:, :, :]
+        # since each step contains only two inputs - present state and present action, we will save positional encoding.
+        # h  = h + self.positional_encoding[:, :, :] 
 
         pres_h_list = list()
         for j, layer in enumerate(self.transformer_layers):
@@ -211,12 +212,17 @@ class build_model(nn.Module):
             a_ = self.hidden_activation(a_)
 
             h  = torch.stack([s, a_], dim=0).view(a_.size(0), 2, a_.size(1))
-            h  = h + self.positional_encoding[:, :, :]
+            # Since each step contains only two inputs - present state and present action, we will save positional encoding.
+            # h  = h + self.positional_encoding[:, :, :]
 
             pres_h_list = list()
             for j, layer in enumerate(self.transformer_layers):
                 attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-                h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
+                # We decide not to use attention_layer(prev_h_list[j], prev_h_list[j], h, mask) for the following reasons:
+                #  1. Since it is not easy to track down prev_h_list[j] for the first step, we find it hard to explain why the following steps can use prev_h_list[j] from the previous step
+                #  2. Since the we use attention_layer(h, h, h, mask) for the first step, we should keep using the same method thereafter.
+                h_ = attention_layer(h, h, h, mask)
+                # h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
                 h  = attention_norm_layer(h + h_)
                 h_ = fully_connected_layer(h)
                 h  = fully_connected_norm_layer(h + h_)
