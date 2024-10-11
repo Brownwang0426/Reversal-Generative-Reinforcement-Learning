@@ -1,4 +1,4 @@
-# RGRL
+# Reversal Generative Reinforcement Learning
 ## Introduction
 We introduce **R**eversal **G**enerative **R**einforcement **L**earning (**RGRL**), a simple **model-free** and **value-function-free** reinforcement learning method, where **only** neural networks are involved.
 
