@@ -57,11 +57,11 @@ def update_pre_activated_action(epoch_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
-                                desired_future_reward,
+                                desired_reward,
                                 beta,
                                 device):
     
-    state, pre_activated_future_action, desired_future_reward = state.to(device), pre_activated_future_action.to(device), desired_future_reward.to(device)
+    state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
     model_list_copy = copy.deepcopy(model_list)
 
@@ -82,7 +82,7 @@ def update_pre_activated_action(epoch_for_deducing,
 
             loss_function       = model.loss_function
             output_reward, _    = model(state, future_action)
-            total_loss          = loss_function(output_reward, desired_future_reward)
+            total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
             total_loss.backward() # get grad
 
             pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
