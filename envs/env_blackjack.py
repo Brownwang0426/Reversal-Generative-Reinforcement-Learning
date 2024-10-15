@@ -59,5 +59,5 @@ def vectorizing_action(pre_activated_actions):  # Reminder: change this for your
     return np.eye(action_size)[action_argmax], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(reward_size, -2, 2, summed_reward)
+    reward = quantifying(reward_size, -1, 1, summed_reward)
     return reward
