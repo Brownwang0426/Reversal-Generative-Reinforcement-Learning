@@ -53,12 +53,42 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
+def obtain_model_error(model_list,
+                       state,
+                       pre_activated_future_action,
+                       desired_reward):
+
+    model_error_list = []
+
+    for model in model_list:
+
+        future_action = torch.sigmoid(pre_activated_future_action)
+
+        model.train()
+        future_action = future_action.clone().detach().requires_grad_(True)
+        if future_action.grad is not None:
+            future_action.grad.zero_()
+        for param in model.parameters():
+            param.requires_grad = False
+
+        loss_function      = model.loss_function
+        output_reward, _   = model(state, future_action)
+        total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
+
+        model_error_list.append(total_loss)
+    return torch.tensor(model_error_list)
+
+
+
+
 def update_pre_activated_action(iteration_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
                                 desired_reward,
                                 beta,
+                                PER_epsilon,
+                                PER_exponent,
                                 device):
     
     state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
@@ -67,25 +97,35 @@ def update_pre_activated_action(iteration_for_deducing,
 
     for _ in range(iteration_for_deducing):
 
-        random.shuffle(model_list_copy)
 
-        for model in model_list_copy:
 
-            future_action = torch.sigmoid(pre_activated_future_action)
 
-            model.train()
-            future_action = future_action.clone().detach().requires_grad_(True)
-            if future_action.grad is not None:
-                future_action.grad.zero_()
-            for param in model.parameters():
-                param.requires_grad = False
+        model_error      = obtain_model_error(model_list_copy, state, pre_activated_future_action, desired_reward)
+        index            = np.argmin(model_error.cpu().numpy())
 
-            loss_function       = model.loss_function
-            output_reward, _    = model(state, future_action)
-            total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
-            total_loss.backward() # get grad
 
-            pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
+
+
+        model            = model_list_copy[index]
+
+
+
+
+        future_action    = torch.sigmoid(pre_activated_future_action)
+
+        model.train()
+        future_action = future_action.clone().detach().requires_grad_(True)
+        if future_action.grad is not None:
+            future_action.grad.zero_()
+        for param in model.parameters():
+            param.requires_grad = False
+
+        loss_function       = model.loss_function
+        output_reward, _    = model(state, future_action)
+        total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
+        total_loss.backward() # get grad
+
+        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
 
     return pre_activated_future_action
 
@@ -161,7 +201,8 @@ def obtain_TD_error(model,
     # we think the term "surprising" might have more to do with reward other than states, 
     # therefore we leave only total_loss_1 (error for reward) for TD error.
     # However, you may try adding back total_loss_2 to see what will happen. But in our experience, it is not a good idea...
-    return total_loss_1 # + total_loss_2
+    TD_error = total_loss_1 # + total_loss_2
+    return TD_error 
 
 
 
@@ -181,22 +222,16 @@ def update_model(iteration_for_learning,
 
 
         TD_error         = obtain_TD_error(model, data_loader)
-        TD_error         = (TD_error.cpu().numpy() + PER_epsilon) ** PER_exponent
-        TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(dataset)), 
-                                            p=TD_error_p, 
-                                            size=1, 
-                                            replace=True)[0]
-        index            = np.argmax(TD_error_p)
+        index            = np.argmax(TD_error.cpu().numpy())
 
 
 
 
-        pair          = dataset[index]
-        state         = pair[0].unsqueeze(0)
-        future_action = pair[1].unsqueeze(0)
-        future_reward = pair[2].unsqueeze(0)
-        future_state  = pair[3].unsqueeze(0)
+        pair             = dataset[index]
+        state            = pair[0].unsqueeze(0)
+        future_action    = pair[1].unsqueeze(0)
+        future_reward    = pair[2].unsqueeze(0)
+        future_state     = pair[3].unsqueeze(0)
 
 
 
