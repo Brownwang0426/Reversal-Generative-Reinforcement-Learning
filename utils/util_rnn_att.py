@@ -187,6 +187,7 @@ def update_model(iteration_for_learning,
                                             p=TD_error_p, 
                                             size=1, 
                                             replace=True)[0]
+        index            = np.argmax(TD_error_p)
 
 
 
