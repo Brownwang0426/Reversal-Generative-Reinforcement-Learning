@@ -210,7 +210,6 @@ def update_model(iteration_for_learning,
                  dataset,
                  data_loader,
                  model,
-                 batch_size,
                  PER_epsilon,
                  PER_exponent):
 
@@ -224,7 +223,7 @@ def update_model(iteration_for_learning,
 
 
 
-        
+
         # TD_error         =(TD_error.cpu().numpy() + PER_epsilon) ** PER_exponent
         # TD_error_p       = TD_error / np.sum(TD_error)
         # index            = np.random.choice(range(len(dataset)), 

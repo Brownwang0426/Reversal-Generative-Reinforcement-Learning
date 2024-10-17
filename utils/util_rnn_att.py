@@ -210,7 +210,6 @@ def update_model(iteration_for_learning,
                  dataset,
                  data_loader,
                  model,
-                 batch_size,
                  PER_epsilon,
                  PER_exponent):
 
