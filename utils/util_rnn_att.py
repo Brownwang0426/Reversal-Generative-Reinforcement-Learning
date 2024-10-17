@@ -53,30 +53,30 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def obtain_model_error(model_list,
-                       state,
-                       pre_activated_future_action,
-                       desired_reward):
-
-    model_error_list = []
-
-    for model in model_list:
-
-        future_action = torch.sigmoid(pre_activated_future_action)
-
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
-
-        loss_function      = model.loss_function
-        output_reward, _   = model(state, future_action)
-        total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
-
-        model_error_list.append(total_loss)
-    return torch.tensor(model_error_list)
+# def obtain_model_error(model_list,
+#                        state,
+#                        pre_activated_future_action,
+#                        desired_reward):
+# 
+#     model_error_list = []
+# 
+#     for model in model_list:
+# 
+#         future_action = torch.sigmoid(pre_activated_future_action)
+# 
+#         model.train()
+#         future_action = future_action.clone().detach().requires_grad_(True)
+#         if future_action.grad is not None:
+#             future_action.grad.zero_()
+#         for param in model.parameters():
+#             param.requires_grad = False
+# 
+#         loss_function      = model.loss_function
+#         output_reward, _   = model(state, future_action)
+#         total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
+# 
+#         model_error_list.append(total_loss)
+#     return torch.tensor(model_error_list)
 
 
 
@@ -87,8 +87,6 @@ def update_pre_activated_action(iteration_for_deducing,
                                 pre_activated_future_action,
                                 desired_reward,
                                 beta,
-                                PER_epsilon,
-                                PER_exponent,
                                 device):
     
     state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
@@ -100,8 +98,9 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-        model_error      = obtain_model_error(model_list_copy, state, pre_activated_future_action, desired_reward)
-        index            = np.argmin(model_error.cpu().numpy())
+        # model_error      = obtain_model_error(model_list_copy, state, pre_activated_future_action, desired_reward)
+        # index            = np.argmin(model_error.cpu().numpy())
+        index            = np.random.randint(len(model_list_copy))
 
 
 
@@ -222,6 +221,15 @@ def update_model(iteration_for_learning,
 
 
         TD_error         = obtain_TD_error(model, data_loader)
+
+
+
+        
+        # TD_error         =(TD_error.cpu().numpy() + PER_epsilon) ** PER_exponent
+        # TD_error_p       = TD_error / np.sum(TD_error)
+        # index            = np.random.choice(range(len(dataset)), 
+        #                                     p=TD_error_p, 
+        #                                     size=1)
         index            = np.argmax(TD_error.cpu().numpy())
 
 
