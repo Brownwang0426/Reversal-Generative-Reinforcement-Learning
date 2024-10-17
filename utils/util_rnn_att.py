@@ -53,7 +53,7 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def update_pre_activated_action(epoch_for_deducing,
+def update_pre_activated_action(iteration_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
@@ -65,7 +65,7 @@ def update_pre_activated_action(epoch_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for epoch in range(epoch_for_deducing):
+    for _ in range(iteration_for_deducing):
 
         random.shuffle(model_list_copy)
 
@@ -180,13 +180,42 @@ def EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix):
 
 
 
-def update_model(model,
-                 sub_data_loader,
+def update_model(iteration_for_learning,
+                 dataset,
+                 data_loader,
+                 model,
+                 batch_size,
+                 PER_epsilon,
+                 PER_exponent,
                  prev_model,
                  prev_gradient_matrix,
                  EWC_lambda):
 
-    for state, future_action, future_reward, future_state in sub_data_loader:
+
+    for _ in range(iteration_for_learning):
+
+
+
+
+        TD_error         = obtain_TD_error(model, data_loader)
+        TD_error         = (TD_error.cpu().numpy() + PER_epsilon) ** PER_exponent
+        TD_error_p       = TD_error / np.sum(TD_error)
+        index            = np.random.choice(range(len(dataset)), 
+                                            p=TD_error_p, 
+                                            size=1, 
+                                            replace=True)[0]
+
+
+
+
+        pair          = dataset[index]
+        state         = pair[0].unsqueeze(0)
+        future_action = pair[1].unsqueeze(0)
+        future_reward = pair[2].unsqueeze(0)
+        future_state  = pair[3].unsqueeze(0)
+
+
+
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -237,5 +266,7 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
         writer = csv.writer(file)
         writer.writerow(['Episode', 'Summed_Reward'])
         writer.writerows(performance_log)
+
+
 
 
