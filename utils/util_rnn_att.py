@@ -166,30 +166,13 @@ def obtain_TD_error(model,
 
 
 
-# traditional EWC
-def EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix):
-    model_param      = model.state_dict()
-    prev_model_param = prev_model.state_dict()
-    loss = 0
-    for name, param in model.named_parameters():
-        diagonal_fisher_matrix = prev_gradient_matrix[name] ** 2
-        param_diff             = (model_param[name] - prev_model_param[name]) ** 2
-        loss                  += (diagonal_fisher_matrix * param_diff).sum()
-    return EWC_lambda * loss
-
-
-
-
 def update_model(iteration_for_learning,
                  dataset,
                  data_loader,
                  model,
                  batch_size,
                  PER_epsilon,
-                 PER_exponent,
-                 prev_model,
-                 prev_gradient_matrix,
-                 EWC_lambda):
+                 PER_exponent):
 
 
     for _ in range(iteration_for_learning):
@@ -224,39 +207,11 @@ def update_model(iteration_for_learning,
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
         total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss                 += EWC_loss(EWC_lambda, model, prev_model, prev_gradient_matrix)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
 
     return model
-
-
-
-
-def update_gradient_matrix(model,
-                           data_loader):
-    
-    gradient_matrix = {name: torch.zeros_like(param) for name, param in model.named_parameters()}
-
-    for state, future_action, future_reward, future_state in data_loader:
-
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss.backward()        # get grad
-
-    for name, param in model.named_parameters():
-        if name != "positional_encoding":
-            gradient_matrix[name] += param.grad
-
-    gradient_matrix = {name: param / len(data_loader) for name, param in gradient_matrix.items()}
-
-    return gradient_matrix
 
 
 

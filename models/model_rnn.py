@@ -39,6 +39,7 @@ class build_model(nn.Module):
                  initializer,
                  optimizer,
                  loss,
+                 bias,
                  drop_rate,
                  alpha):
 
@@ -58,10 +59,10 @@ class build_model(nn.Module):
         self.initializer          = initializer
         self.optimizer            = optimizer
         self.loss                 = loss
+        self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
 
-        self.bias = False
 
         neural_types = {
             'rnn': nn.RNN,

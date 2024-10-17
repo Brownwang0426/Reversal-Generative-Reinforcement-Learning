@@ -94,6 +94,7 @@ class build_model(nn.Module):
                  initializer,
                  optimizer,
                  loss,
+                 bias,
                  drop_rate,
                  alpha):
 
@@ -113,10 +114,10 @@ class build_model(nn.Module):
         self.initializer          = initializer
         self.optimizer            = optimizer
         self.loss                 = loss
+        self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
 
-        self.bias                 = False
 
         self.state_linear         = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
