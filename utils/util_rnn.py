@@ -195,16 +195,10 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss_1                  = loss_function(output_reward, future_reward).detach()
-        total_loss_1                  = torch.sum(torch.abs(total_loss_1), dim=(1, 2))
-        # total_loss_2                  = loss_function(output_state, future_state).detach()
-        # total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(0, 2, 3))
-
-    # Since TD error amis to select samples that are surprising to the agent and 
-    # we think the term "surprising" might have more to do with reward other than states, 
-    # therefore we leave only total_loss_1 (error for reward) for TD error.
-    # However, you may try adding back total_loss_2 to see what will happen. But in our experience, it is not a good idea...
-    TD_error = total_loss_1 # + total_loss_2
+        total_loss                    = loss_function(output_reward[:, -1, :], future_reward[:, -1, :]).detach()
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=1) 
+        TD_error                      = total_loss
+        
     return TD_error 
 
 
