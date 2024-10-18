@@ -53,30 +53,30 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def obtain_model_error(model_list,
-                       state,
-                       pre_activated_future_action,
-                       desired_reward):
-
-    model_error_list = []
-
-    for model in model_list:
-
-        future_action = torch.sigmoid(pre_activated_future_action)
-
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
-
-        loss_function      = model.loss_function
-        output_reward, _   = model(state, future_action)
-        total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
-        model_error_list.append(total_loss)
-
-    return torch.tensor(model_error_list)
+# def obtain_model_error(model_list,
+#                        state,
+#                        pre_activated_future_action,
+#                        desired_reward):
+# 
+#     model_error_list = []
+# 
+#     for model in model_list:
+# 
+#         future_action = torch.sigmoid(pre_activated_future_action)
+# 
+#         model.train()
+#         future_action = future_action.clone().detach().requires_grad_(True)
+#         if future_action.grad is not None:
+#             future_action.grad.zero_()
+#         for param in model.parameters():
+#             param.requires_grad = False
+# 
+#         loss_function      = model.loss_function
+#         output_reward, _   = model(state, future_action)
+#         total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
+#         model_error_list.append(total_loss)
+# 
+#     return torch.tensor(model_error_list)
 
 
 
@@ -98,13 +98,13 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-        model_error      = obtain_model_error(model_list_copy, state, pre_activated_future_action, desired_reward)
-        model_error      =(model_error.cpu().numpy() + 0.00000001) ** 2
-        model_error_p    = model_error / np.sum(model_error)
-        index            = np.random.choice(range(len(model_list_copy)), 
-                                            p=model_error_p, 
-                                            size=1)[0]
-        # index            = np.random.randint(len(model_list_copy))
+        # model_error      = obtain_model_error(model_list_copy, state, pre_activated_future_action, desired_reward)
+        # model_error      =(model_error.cpu().numpy() + 0.000001   ) ** (-1)
+        # model_error_p    = model_error / np.sum(model_error)
+        # index            = np.random.choice(range(len(model_list_copy)), 
+        #                                     p=model_error_p, 
+        #                                     size=1)[0]
+        index            = np.random.randint(len(model_list_copy))
 
 
 
