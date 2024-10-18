@@ -197,9 +197,9 @@ def obtain_TD_error(model,
         output_reward, output_state   = model(state, future_action)
         total_loss_1                  = loss_function(output_reward, future_reward).detach()
         total_loss_1                  = torch.sum(torch.abs(total_loss_1), dim=(1, 2)) / future_reward.size(2)
-        total_loss_2                  = loss_function(output_state, future_state).detach()
-        total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(1, 2)) / future_state.size(2)
-        TD_error                      = total_loss_1 + total_loss_2 
+        # total_loss_2                  = loss_function(output_state, future_state).detach()
+        # total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(1, 2)) / future_state.size(2)
+        TD_error                      = total_loss_1 # + total_loss_2 
 
     return TD_error 
 
