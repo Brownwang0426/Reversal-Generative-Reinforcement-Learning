@@ -253,9 +253,9 @@ def obtain_TD_error(model,
             loss_function                 = model.loss_function
             output_reward, output_state   = model(state, future_action)
             total_loss_1                  = loss_function(output_reward, future_reward).detach()
-            total_loss_1                  = total_loss_1 / future_reward.size(2)
+            total_loss_1                  = total_loss_1 / (future_reward.size(1) * future_reward.size(2))
             total_loss_2                  = loss_function(output_state, future_state).detach()
-            total_loss_2                  = total_loss_2 / future_state.size(2)
+            total_loss_2                  = total_loss_2 / (future_state.size(1) * future_state.size(2))
             TD_error.append(total_loss_1.cpu() + total_loss_2.cpu())   
         elif TD_error_type == 3:
             loss_function                 = model.loss_function
