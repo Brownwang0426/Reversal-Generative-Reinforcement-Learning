@@ -242,13 +242,19 @@ def obtain_TD_error(model,
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
+        # loss_function                 = model.loss_function_
+        # output_reward, output_state   = model(state, future_action)
+        # total_loss_1                  = loss_function(output_reward, future_reward).detach()
+        # total_loss_1                  = torch.sum(torch.abs(total_loss_1)) # / future_reward.size(2)
+        # total_loss_2                  = loss_function(output_state, future_state).detach()
+        # total_loss_2                  = torch.sum(torch.abs(total_loss_2)) # / future_state.size(2)
+        # TD_error.append(total_loss_1.cpu() + total_loss_2.cpu())   
+
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss_1                  = loss_function(output_reward, future_reward).detach()
-        total_loss_1                  = torch.sum(torch.abs(total_loss_1)) # / future_reward.size(2)
-        total_loss_2                  = loss_function(output_state, future_state).detach()
-        total_loss_2                  = torch.sum(torch.abs(total_loss_2)) # / future_state.size(2)
-        TD_error.append(total_loss_1.cpu() + total_loss_2.cpu())                          
+        total_loss_1                  = loss_function(output_reward[:, -1, :], future_reward[:, -1, :]).detach()
+        total_loss_1                  = torch.sum(torch.abs(total_loss_1))
+        TD_error.append(total_loss_1.cpu())                      
         
     return np.array(TD_error)
 
@@ -282,7 +288,7 @@ def update_model(iteration_for_learning,
 
 
 
-    for i, index in tqdm(enumerate(index_list)):
+    for i, index in enumerate(index_list):
 
 
 
