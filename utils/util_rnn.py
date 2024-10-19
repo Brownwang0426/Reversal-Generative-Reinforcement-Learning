@@ -185,7 +185,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-def sequentialize(state_list, action_list, reward_list, chunk_size, device):
+def sequentialize(state_list, action_list, reward_list, chunk_size):
 
     present_state_list = []
     future_action_list = []
@@ -197,20 +197,18 @@ def sequentialize(state_list, action_list, reward_list, chunk_size, device):
     else:
       pass
     
-    for j in range(chunk_size):
-        chunk_size_ = 1 + j
-        if chunk_size_ != 1:
-            for i in range(len(reward_list[:-chunk_size_+1])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
-        else:
-            for i in range(len(reward_list[:])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
+    if chunk_size != 1:
+        for i in range(len(reward_list[:-chunk_size+1])):
+            present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+            future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+            future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+            future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
+    else:
+        for i in range(len(reward_list[:])):
+            present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+            future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+            future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+            future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -221,60 +219,33 @@ def obtain_TD_error(model,
                     long_term_sequentialized_state_list   ,
                     long_term_sequentialized_action_list  ,
                     long_term_sequentialized_reward_list  ,
-                    long_term_sequentialized_n_state_list ):
+                    long_term_sequentialized_n_state_list ,
+                    device):
 
-    TD_error = list()
+    long_term_sequentialized_state_tensor   = torch.tensor(np.array(long_term_sequentialized_state_list  ), dtype=torch.float).to(device)  
+    long_term_sequentialized_action_tensor  = torch.tensor(np.array(long_term_sequentialized_action_list ), dtype=torch.float).to(device)  
+    long_term_sequentialized_reward_tensor  = torch.tensor(np.array(long_term_sequentialized_reward_list ), dtype=torch.float).to(device)  
+    long_term_sequentialized_n_state_tensor = torch.tensor(np.array(long_term_sequentialized_n_state_list), dtype=torch.float).to(device)  
 
-    for i in range(len(long_term_sequentialized_action_list)):
+    dataset      = TensorDataset(long_term_sequentialized_state_tensor     ,
+                                 long_term_sequentialized_action_tensor    ,
+                                 long_term_sequentialized_reward_tensor    ,
+                                 long_term_sequentialized_n_state_tensor   )
+    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-
-
-
-        state            = long_term_sequentialized_state_list   [i].unsqueeze(0)
-        future_action    = long_term_sequentialized_action_list  [i].unsqueeze(0)
-        future_reward    = long_term_sequentialized_reward_list  [i].unsqueeze(0)
-        future_state     = long_term_sequentialized_n_state_list [i].unsqueeze(0)
-
-
-
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
-        TD_error_type = 5
-        if TD_error_type == 1:
-            loss_function                 = model.loss_function
-            output_reward, output_state   = model(state, future_action)
-            total_loss_1                  = loss_function(output_reward, future_reward).detach()
-            total_loss_2                  = loss_function(output_state, future_state).detach()
-            TD_error.append(total_loss_1.cpu() + total_loss_2.cpu())   
-        elif TD_error_type == 2:
-            loss_function                 = model.loss_function
-            output_reward, output_state   = model(state, future_action)
-            total_loss_1                  = loss_function(output_reward, future_reward).detach()
-            total_loss_1                  = total_loss_1 / (future_reward.size(1) * future_reward.size(2))
-            total_loss_2                  = loss_function(output_state, future_state).detach()
-            total_loss_2                  = total_loss_2 / (future_state.size(1) * future_state.size(2))
-            TD_error.append(total_loss_1.cpu() + total_loss_2.cpu())   
-        elif TD_error_type == 3:
-            loss_function                 = model.loss_function
-            output_reward, output_state   = model(state, future_action)
-            total_loss_1                  = loss_function(output_reward[:, -1, :], future_reward[:, -1, :]).detach()
-            TD_error.append(total_loss_1.cpu())                      
-        elif TD_error_type == 4:
-            loss_function                 = model.loss_function
-            output_reward, output_state   = model(state, future_action)
-            total_loss_1                  = loss_function(output_reward, future_reward).detach()
-            TD_error.append(total_loss_1.cpu())   
-        elif TD_error_type == 5:
-            loss_function                 = model.loss_function
-            output_reward, output_state   = model(state, future_action)
-            total_loss_1                  = loss_function(output_reward, future_reward).detach()
-            total_loss_1                  = total_loss_1 / future_reward.size(1)
-            TD_error.append(total_loss_1.cpu())   
+        loss_function                 = model.loss_function_
+        output_reward, output_state   = model(state, future_action)
+        total_loss                    = loss_function(output_reward, future_reward)
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+        TD_error                      = np.array(total_loss.detach().cpu())
 
-    return np.array(TD_error)
+    return TD_error
 
 
 
@@ -286,35 +257,37 @@ def update_model(iteration_for_learning,
                  long_term_sequentialized_n_state_list ,
                  model,
                  PER_epsilon,
-                 PER_exponent):
+                 PER_exponent,
+                 device):
 
 
 
 
-    TD_error         = obtain_TD_error(model, 
-                                       long_term_sequentialized_state_list   ,
-                                       long_term_sequentialized_action_list  ,
-                                       long_term_sequentialized_reward_list  ,
-                                       long_term_sequentialized_n_state_list  )
-    TD_error         =(TD_error + PER_epsilon) ** PER_exponent
-    TD_error_p       = TD_error / np.sum(TD_error)
-    index_list       = np.random.choice(range(len(long_term_sequentialized_action_list)), 
-                                        p=TD_error_p, 
-                                        size=iteration_for_learning,
-                                        replace=True)
+    for _ in range(iteration_for_learning):
 
 
 
 
-    for i, index in enumerate(index_list):
+        TD_error         = obtain_TD_error(model, 
+                                           long_term_sequentialized_state_list   ,
+                                           long_term_sequentialized_action_list  ,
+                                           long_term_sequentialized_reward_list  ,
+                                           long_term_sequentialized_n_state_list ,
+                                           device)
+        TD_error         =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error_p       = TD_error / np.sum(TD_error)
+        index            = np.random.choice(range(len(long_term_sequentialized_action_list)), 
+                                            p=TD_error_p, 
+                                            size=1,
+                                            replace=True)[0]
 
 
 
 
-        state            = long_term_sequentialized_state_list   [index].unsqueeze(0)
-        future_action    = long_term_sequentialized_action_list  [index].unsqueeze(0)
-        future_reward    = long_term_sequentialized_reward_list  [index].unsqueeze(0)
-        future_state     = long_term_sequentialized_n_state_list [index].unsqueeze(0)
+        state            = long_term_sequentialized_state_list   [index].unsqueeze(0).to(device)
+        future_action    = long_term_sequentialized_action_list  [index].unsqueeze(0).to(device)
+        future_reward    = long_term_sequentialized_reward_list  [index].unsqueeze(0).to(device)
+        future_state     = long_term_sequentialized_n_state_list [index].unsqueeze(0).to(device)
 
 
 
