@@ -212,17 +212,33 @@ def sequentialize(state_list, action_list, reward_list, chunk_size):
 
 
 
+def group_list(replay_list_all):
+    # Using defaultdict to group tensors by size (fast and efficient)
+    replay_dict_all = defaultdict(list)
+    # Group tuples by the shape of their tensors
+    for tensors in replay_list_all:
+        # Use the shape of the first tensor in the tuple as the key for grouping (you can change this to fit your needs)
+        shape_key = tuple(tensor.shape for tensor in tensors)
+        replay_dict_all[shape_key].append(tensors)
+    return replay_dict_all
+
+
+
+
 def obtain_TD_error(model,
-                    long_term_sequentialized_state_list   ,
-                    long_term_sequentialized_action_list  ,
-                    long_term_sequentialized_reward_list  ,
-                    long_term_sequentialized_n_state_list ,
+                    long_term_sequentialized_state   ,
+                    long_term_sequentialized_action  ,
+                    long_term_sequentialized_reward  ,
+                    long_term_sequentialized_n_state ,
                     device):
 
-    long_term_sequentialized_state_tensor   = torch.tensor(np.array(long_term_sequentialized_state_list  ), dtype=torch.float).to(device)  
-    long_term_sequentialized_action_tensor  = torch.tensor(np.array(long_term_sequentialized_action_list ), dtype=torch.float).to(device)  
-    long_term_sequentialized_reward_tensor  = torch.tensor(np.array(long_term_sequentialized_reward_list ), dtype=torch.float).to(device)  
-    long_term_sequentialized_n_state_tensor = torch.tensor(np.array(long_term_sequentialized_n_state_list), dtype=torch.float).to(device)  
+
+
+
+    long_term_sequentialized_state_tensor   = torch.tensor(np.array(long_term_sequentialized_state  ), dtype=torch.float).to(device)  
+    long_term_sequentialized_action_tensor  = torch.tensor(np.array(long_term_sequentialized_action ), dtype=torch.float).to(device)  
+    long_term_sequentialized_reward_tensor  = torch.tensor(np.array(long_term_sequentialized_reward ), dtype=torch.float).to(device)  
+    long_term_sequentialized_n_state_tensor = torch.tensor(np.array(long_term_sequentialized_n_state), dtype=torch.float).to(device)  
 
     dataset      = TensorDataset(long_term_sequentialized_state_tensor     ,
                                  long_term_sequentialized_action_tensor    ,
@@ -248,32 +264,34 @@ def obtain_TD_error(model,
 
 
 def update_model(iteration_for_learning,
-                 long_term_sequentialized_state_list   ,
-                 long_term_sequentialized_action_list  ,
-                 long_term_sequentialized_reward_list  ,
-                 long_term_sequentialized_n_state_list ,
+                 list_tuple,
                  model,
                  PER_epsilon,
                  PER_exponent,
                  device):
 
 
+    dict_tuple = group_list(list_tuple)
+    
+
+    for _ in range(int(iteration_for_learning)):
 
 
-    for _ in range(iteration_for_learning):
+        list_tuple       = random.choice(list(dict_tuple.values())) # list_tuple is a list of tuples of state, action and reward of the same time_size
+        list_tuple       = list(zip(*list_tuple))
 
 
 
 
         TD_error         = obtain_TD_error(model, 
-                                           long_term_sequentialized_state_list   ,
-                                           long_term_sequentialized_action_list  ,
-                                           long_term_sequentialized_reward_list  ,
-                                           long_term_sequentialized_n_state_list ,
+                                           list_tuple[0] ,
+                                           list_tuple[1] ,
+                                           list_tuple[2] ,
+                                           list_tuple[3] ,
                                            device)
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(long_term_sequentialized_action_list)), 
+        index            = np.random.choice(range(len(list_tuple[0])), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
@@ -281,10 +299,10 @@ def update_model(iteration_for_learning,
 
 
 
-        state            = long_term_sequentialized_state_list   [index].unsqueeze(0).to(device)
-        future_action    = long_term_sequentialized_action_list  [index].unsqueeze(0).to(device)
-        future_reward    = long_term_sequentialized_reward_list  [index].unsqueeze(0).to(device)
-        future_state     = long_term_sequentialized_n_state_list [index].unsqueeze(0).to(device)
+        state            = list_tuple[0][index].unsqueeze(0).to(device)
+        future_action    = list_tuple[1][index].unsqueeze(0).to(device)
+        future_reward    = list_tuple[2][index].unsqueeze(0).to(device)
+        future_state     = list_tuple[3][index].unsqueeze(0).to(device)
 
 
 
