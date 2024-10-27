@@ -102,7 +102,7 @@ def update_pre_activated_action_(iteration_for_deducing,
                                               state, 
                                               pre_activated_future_action, 
                                               desired_reward)
-        model_error      =(model_error + 0.000001) ** (-1)
+        model_error      =(model_error + 0.000001) ** (-2)
         model_error_p    = model_error / np.sum(model_error)
         index            = np.random.choice(range(len(model_list_copy)), 
                                             p=model_error_p, 
