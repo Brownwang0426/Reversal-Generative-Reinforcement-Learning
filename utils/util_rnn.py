@@ -67,10 +67,9 @@ def update_pre_activated_action(iteration_for_deducing,
 
     for _ in range(iteration_for_deducing):
 
-        for model in model_list_copy:
+        random.shuffle(model_list_copy)
 
-        # index            = np.random.randint(len(model_list_copy))
-        # model            = model_list_copy[index]
+        for model in model_list_copy:
 
             future_action    = torch.sigmoid(pre_activated_future_action)
 
@@ -192,9 +191,6 @@ def update_model(iteration_for_learning,
     for _ in range(int(iteration_for_learning)):
 
         for model in model_list:
-
-        # m_index          = np.random.randint(len(model_list))
-        # model            = model_list[m_index]
 
             state            = state_tuple   [t_index].unsqueeze(0).to(device)
             future_action    = action_tuple  [t_index].unsqueeze(0).to(device)
