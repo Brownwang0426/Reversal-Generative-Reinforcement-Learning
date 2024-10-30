@@ -53,7 +53,7 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def update_pre_activated_action(iteration_for_deducing,
+def update_pre_activated_action(epoch_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
@@ -65,7 +65,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for _ in range(iteration_for_deducing):
+    for _ in range(epoch_for_deducing):
 
         random.shuffle(model_list_copy)
 
@@ -175,7 +175,7 @@ def obtain_TD_error(model_list,
 
 
 
-def update_model(iteration_for_learning,
+def update_model(epoch_for_learning,
                  model_list,
                  list_tuple,
                  t_index,
@@ -188,7 +188,9 @@ def update_model(iteration_for_learning,
     reward_tuple         = list_tuple[2]
     n_state_tuple        = list_tuple[3]
 
-    for _ in range(int(iteration_for_learning)):
+    for _ in range(int(epoch_for_learning)):
+
+        random.shuffle(model_list)
 
         for model in model_list:
 
