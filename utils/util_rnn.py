@@ -53,92 +53,7 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def obtain_model_error(model_list,
-                       state,
-                       pre_activated_future_action,
-                       desired_reward):
-
-    model_error_list = []
-
-    for model in model_list:
-
-        future_action = torch.sigmoid(pre_activated_future_action)
-
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
-
-        loss_function      = model.loss_function
-        output_reward, _   = model(state, future_action)
-        total_loss         = loss_function(output_reward[:, -1, :], desired_reward)
-        model_error_list.append(total_loss.detach().cpu())
-
-    return np.array(model_error_list)
-
-
-
-
-def update_pre_activated_action_(iteration_for_deducing,
-                                model_list,
-                                state,
-                                pre_activated_future_action,
-                                desired_reward,
-                                beta,
-                                device):
-
-    state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
-    
-    model_list_copy = copy.deepcopy(model_list)
-
-    for _ in range(iteration_for_deducing):
-
-
-
-
-        model_error      = obtain_model_error(model_list_copy, 
-                                              state, 
-                                              pre_activated_future_action, 
-                                              desired_reward)
-        model_error      =(model_error + 0.000001) ** (-2)
-        model_error_p    = model_error / np.sum(model_error)
-        index            = np.random.choice(range(len(model_list_copy)), 
-                                            p=model_error_p, 
-                                            size=1,
-                                            replace=True)[0]
-
-
-
-
-        model            = model_list_copy[index]
-
-
-
-
-        future_action = torch.sigmoid(pre_activated_future_action)
-
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
-
-        loss_function       = model.loss_function
-        output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
-        total_loss.backward() # get grad
-
-        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
-
-    return pre_activated_future_action
-
-
-
-
-def update_pre_activated_action(iteration_for_deducing,
+def update_pre_activated_action(epoch_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
@@ -150,32 +65,27 @@ def update_pre_activated_action(iteration_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for _ in range(iteration_for_deducing):
+    for _ in range(epoch_for_deducing):
 
+        random.shuffle(model_list_copy)
 
+        for model in model_list_copy:
 
+            future_action    = torch.sigmoid(pre_activated_future_action)
 
-        index            = np.random.randint(len(model_list_copy))
-        model            = model_list_copy[index]
+            model.train()
+            future_action = future_action.clone().detach().requires_grad_(True)
+            if future_action.grad is not None:
+                future_action.grad.zero_()
+            for param in model.parameters():
+                param.requires_grad = False
 
+            loss_function       = model.loss_function
+            output_reward, _    = model(state, future_action)
+            total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
+            total_loss.backward() # get grad
 
-
-
-        future_action    = torch.sigmoid(pre_activated_future_action)
-
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
-
-        loss_function       = model.loss_function
-        output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
-        total_loss.backward() # get grad
-
-        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
+            pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
 
     return pre_activated_future_action
 
@@ -212,46 +122,63 @@ def sequentialize(state_list, action_list, reward_list, chunk_size):
 
 
 
-def obtain_TD_error(model,
-                    state_tuple  ,
-                    action_tuple ,
-                    reward_tuple ,
-                    n_state_tuple,
+def obtain_TD_error(model_list,
+                    list_tuple,
+                    PER_epsilon,
+                    PER_exponent,
                     device):
+
+    list_tuple     = list(zip(*list_tuple))
+
+    state_tuple    = list_tuple[0]
+    action_tuple   = list_tuple[1]
+    reward_tuple   = list_tuple[2]
+    n_state_tuple  = list_tuple[3]
 
     state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
     action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
     reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
     n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
 
-    dataset      = TensorDataset(state_tensor     ,
-                                 action_tensor    ,
-                                 reward_tensor    ,
-                                 n_state_tensor   )
-    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+    dataset        = TensorDataset(state_tensor     ,
+                                   action_tensor    ,
+                                   reward_tensor    ,
+                                   n_state_tensor   )
+    data_loader    = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-    for state, future_action, future_reward, future_state in data_loader:
+    TD_error_all   = 0
+    for model in model_list:
+        
+        for state, future_action, future_reward, future_state in data_loader:
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-        loss_function                 = model.loss_function_
-        output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward)
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-        TD_error                      = np.array(total_loss.detach().cpu()) 
+            loss_function                 = model.loss_function_
+            output_reward, output_state   = model(state, future_action)
+            total_loss                    = loss_function(output_reward, future_reward)
+            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+            TD_error                      = np.array(total_loss.detach().cpu()) 
 
-    return TD_error
+        TD_error_all += TD_error
+    TD_error_all      =(TD_error_all + PER_epsilon) ** PER_exponent
+    TD_error_p        = TD_error_all / np.sum(TD_error_all)
+
+    index = np.random.choice(range(len(dataset)), 
+                             p=TD_error_p, 
+                             size=1,
+                             replace=True)[0]
+
+    return index 
 
 
 
 
-def update_model(iteration_for_learning,
+def update_model(epoch_for_learning,
+                 model_list,
                  list_tuple,
-                 model,
-                 PER_epsilon,
-                 PER_exponent,
+                 t_index,
                  device):
 
     list_tuple           = list(zip(*list_tuple))
@@ -261,47 +188,29 @@ def update_model(iteration_for_learning,
     reward_tuple         = list_tuple[2]
     n_state_tuple        = list_tuple[3]
 
-    for _ in range(int(iteration_for_learning)):
+    for _ in range(int(epoch_for_learning)):
 
+        random.shuffle(model_list)
 
+        for model in model_list:
 
+            state            = state_tuple   [t_index].unsqueeze(0).to(device)
+            future_action    = action_tuple  [t_index].unsqueeze(0).to(device)
+            future_reward    = reward_tuple  [t_index].unsqueeze(0).to(device)
+            future_state     = n_state_tuple [t_index].unsqueeze(0).to(device)
 
-        TD_error         = obtain_TD_error (model, 
-                                            state_tuple   ,
-                                            action_tuple  ,
-                                            reward_tuple  ,
-                                            n_state_tuple ,
-                                            device)
-        TD_error         =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(state_tuple)), 
-                                            p=TD_error_p, 
-                                            size=1,
-                                            replace=True)[0]
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
+            loss_function               = model.loss_function
+            output_reward, output_state = model(state, future_action)
+            total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+            total_loss.backward()     # get grad
 
+            selected_optimizer.step() # update params
 
-
-        state            = state_tuple   [index].unsqueeze(0).to(device)
-        future_action    = action_tuple  [index].unsqueeze(0).to(device)
-        future_reward    = reward_tuple  [index].unsqueeze(0).to(device)
-        future_state     = n_state_tuple [index].unsqueeze(0).to(device)
-
-
-
-
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss.backward()     # get grad
-
-        selected_optimizer.step() # update params
-
-    return model
+    return model_list
 
 
 
