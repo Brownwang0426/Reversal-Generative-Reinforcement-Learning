@@ -44,8 +44,8 @@ def quantifying(array_size, min_value, max_value, value):
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(100, -1.2 , 0.6 , state[0])
-    state_1 = quantifying(100, -0.07, 0.07, state[1])
+    state_0 = quantifying(100, -0.6 , 0.6 , state[0])
+    state_1 = quantifying(100, -0.1, 0.1, state[1])
     state   = np.concatenate((state_0, state_1 ))
     return state
 
@@ -55,5 +55,5 @@ def vectorizing_action(pre_activated_actions):  # Reminder: change this for your
     return np.eye(action_size)[action_argmax], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(reward_size, -1.2, 0.6, state[0])
+    reward = quantifying(reward_size, -0.6, 0.6, state[0])
     return reward
