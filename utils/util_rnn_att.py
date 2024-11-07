@@ -212,37 +212,55 @@ def sequentialize(state_list, action_list, reward_list, chunk_size):
 
 
 
-def obtain_TD_error(model,
-                    state_tuple  ,
-                    action_tuple ,
-                    reward_tuple ,
-                    n_state_tuple,
+def obtain_TD_error(model_list,
+                    list_tuple,
+                    PER_epsilon,
+                    PER_exponent,
                     device):
+
+    list_tuple     = list(zip(*list_tuple))
+
+    state_tuple    = list_tuple[0]
+    action_tuple   = list_tuple[1]
+    reward_tuple   = list_tuple[2]
+    n_state_tuple  = list_tuple[3]
 
     state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
     action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
     reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
     n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
 
-    dataset      = TensorDataset(state_tensor     ,
-                                 action_tensor    ,
-                                 reward_tensor    ,
-                                 n_state_tensor   )
-    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+    dataset        = TensorDataset(state_tensor     ,
+                                   action_tensor    ,
+                                   reward_tensor    ,
+                                   n_state_tensor   )
+    data_loader    = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-    for state, future_action, future_reward, future_state in data_loader:
+    TD_error_all   = 0
+    for model in model_list:
+        
+        for state, future_action, future_reward, future_state in data_loader:
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-        loss_function                 = model.loss_function_
-        output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward)
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-        TD_error                      = np.array(total_loss.detach().cpu()) 
+            loss_function                 = model.loss_function_
+            output_reward, output_state   = model(state, future_action)
+            total_loss                    = loss_function(output_reward, future_reward)
+            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+            TD_error                      = np.array(total_loss.detach().cpu()) 
 
-    return TD_error
+        TD_error_all += TD_error
+    TD_error_all      =(TD_error_all + PER_epsilon) ** PER_exponent
+    TD_error_p        = TD_error_all / np.sum(TD_error_all)
+
+    index = np.random.choice(range(len(dataset)), 
+                             p=TD_error_p, 
+                             size=1,
+                             replace=True)[0]
+
+    return index 
 
 
 
