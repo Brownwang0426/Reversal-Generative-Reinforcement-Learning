@@ -43,10 +43,10 @@ def quantifying(start_value, end_value, array_size, min_value, max_value, value)
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying_tanh(-1, 1, 100, -4.8  , 4.8   , state[0])
-    state_1 = quantifying_tanh(-1, 1, 100, -3.75 , 3.75  , state[1])
-    state_2 = quantifying_tanh(-1, 1, 100, -0.418, 0.418 , state[2])
-    state_3 = quantifying_tanh(-1, 1, 100, -3.75 , 3.75  , state[3])
+    state_0 = quantifying(-1, 1, 100, -4.8  , 4.8   , state[0])
+    state_1 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[1])
+    state_2 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2])
+    state_3 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3])
     state   = np.concatenate((state_0, state_1, state_2, state_3))
     return state
 
