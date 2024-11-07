@@ -173,7 +173,7 @@ class build_model(nn.Module):
         s_list = list()
 
         s  = self.state_linear(s)
-        s  = self.hidden_activation(s)
+        s  = torch.tanh(s)
 
         a  = self.action_linear(a_list[:,0])
         a  = self.hidden_activation(a)
@@ -204,7 +204,7 @@ class build_model(nn.Module):
         s_list.append(s)
 
         s  = self.state_linear(s)
-        s  = self.hidden_activation(s)
+        s  = torch.tanh(s)
 
         for i in range(a_list.size(1)-1):
 
@@ -237,7 +237,7 @@ class build_model(nn.Module):
             s_list.append(s)
 
             s  = self.state_linear(s)
-            s  = self.hidden_activation(s)
+            s  = torch.tanh(s)
 
         r_list = torch.stack(r_list, dim=1) # r_list becomes [batch_size, sequence_size, feature_size]
         s_list = torch.stack(s_list, dim=1) # s_list becomes [batch_size, sequence_size, feature_size]
