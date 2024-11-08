@@ -1,4 +1,3 @@
-
 import gym
 
 import numpy as np
@@ -23,6 +22,8 @@ import gc
 import time
 from tqdm import tqdm
 
+import itertools
+
 """
 # Function for vectorizing
 Crucial function regarding how you manipulate or shape your state, action and reward
@@ -34,19 +35,19 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(array_size, min_value, max_value, value):
-    array    = np.zeros(array_size) 
+def quantifying(start_value, end_value, array_size, min_value, max_value, value):
+    array    = np.zeros(array_size) + start_value
     interval = (max_value - min_value) / array_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
-        array[ : index] = 1
+        array[ : index] = end_value
     return array
 
 def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(100, -4.8  , 4.8   , state[0])
-    state_1 = quantifying(100, -3.75 , 3.75  , state[1])
-    state_2 = quantifying(100, -0.418, 0.418 , state[2])
-    state_3 = quantifying(100, -3.75 , 3.75  , state[3])
+    state_0 = quantifying(-1, 1, 100, -4.8  , 4.8   , state[0])
+    state_1 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[1])
+    state_2 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2])
+    state_3 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3])
     state   = np.concatenate((state_0, state_1, state_2, state_3))
     return state
 
