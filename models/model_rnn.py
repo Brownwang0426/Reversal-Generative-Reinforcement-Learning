@@ -137,7 +137,7 @@ class build_model(nn.Module):
         r  = self.output_activation(r)
 
         # s  = self.state_linear(s) 
-        # s  = torch.tanh(s)
+        # s  = self.hidden_activation(s)
 
         r_list.append(r)  # r_list is [sequence_size, batch_size, feature_size]
         s_list.append(s)  # s_list is [sequence_size, batch_size, feature_size]
@@ -161,7 +161,7 @@ class build_model(nn.Module):
             r  = self.output_activation(r)
 
             # s  = self.state_linear(s) 
-            # s  = torch.tanh(s)
+            # s  = self.hidden_activation(s)
 
             r_list.append(r)
             s_list.append(s) 

@@ -198,7 +198,7 @@ class build_model(nn.Module):
         r  = self.output_activation(r)
 
         s  = self.state_linear_(s)   
-        s  = self.output_activation(s)
+        s  = self.hidden_activation(s)
 
         r_list.append(r)
         s_list.append(s)
@@ -231,7 +231,7 @@ class build_model(nn.Module):
             r  = self.output_activation(r)
 
             s  = self.state_linear_(s)   
-            s  = self.output_activation(s)
+            s  = self.hidden_activation(s)
 
             r_list.append(r)
             s_list.append(s)

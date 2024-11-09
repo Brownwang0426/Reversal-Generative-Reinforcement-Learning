@@ -184,10 +184,10 @@ def update_model(iteration_for_learning,
                                             size=1,
                                             replace=True)[0]
 
-        state            = state_tensor  [index].unsqueeze(0).to(device)
-        future_action    = action_tensor [index].unsqueeze(0).to(device)
-        future_reward    = reward_tensor [index].unsqueeze(0).to(device)
-        future_state     = n_state_tensor[index].unsqueeze(0).to(device)
+        state            = state_tensor  [index].unsqueeze(0)
+        future_action    = action_tensor [index].unsqueeze(0)
+        future_reward    = reward_tensor [index].unsqueeze(0)
+        future_state     = n_state_tensor[index].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
