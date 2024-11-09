@@ -122,21 +122,16 @@ def sequentialize(state_list, action_list, reward_list, chunk_size):
 
 
 def obtain_TD_error(model,
-                    long_term_sequentialized_state_list   ,
-                    long_term_sequentialized_action_list  ,
-                    long_term_sequentialized_reward_list  ,
-                    long_term_sequentialized_n_state_list ,
-                    device):
+                    state_tensor   ,
+                    action_tensor  ,
+                    reward_tensor  ,
+                    n_state_tensor 
+                    ):
 
-    long_term_sequentialized_state_tensor   = torch.tensor(np.array(long_term_sequentialized_state_list  ), dtype=torch.float).to(device)  
-    long_term_sequentialized_action_tensor  = torch.tensor(np.array(long_term_sequentialized_action_list ), dtype=torch.float).to(device)  
-    long_term_sequentialized_reward_tensor  = torch.tensor(np.array(long_term_sequentialized_reward_list ), dtype=torch.float).to(device)  
-    long_term_sequentialized_n_state_tensor = torch.tensor(np.array(long_term_sequentialized_n_state_list), dtype=torch.float).to(device)  
-
-    dataset      = TensorDataset(long_term_sequentialized_state_tensor     ,
-                                 long_term_sequentialized_action_tensor    ,
-                                 long_term_sequentialized_reward_tensor    ,
-                                 long_term_sequentialized_n_state_tensor   )
+    dataset      = TensorDataset(state_tensor  ,
+                                 action_tensor ,
+                                 reward_tensor ,
+                                 n_state_tensor)
     data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
     for state, future_action, future_reward, future_state in data_loader:
@@ -157,34 +152,42 @@ def obtain_TD_error(model,
 
 
 def update_model(iteration_for_learning,
-                 long_term_sequentialized_state_list   ,
-                 long_term_sequentialized_action_list  ,
-                 long_term_sequentialized_reward_list  ,
-                 long_term_sequentialized_n_state_list ,
+                 list_tuple,
                  model,
                  PER_epsilon,
                  PER_exponent,
                  device):
 
+    list_tuple     = list(zip(*list_tuple))
+
+    state_tuple    = list_tuple[0]
+    action_tuple   = list_tuple[1]
+    reward_tuple   = list_tuple[2]
+    n_state_tuple  = list_tuple[3]
+
+    state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
+    action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
+    reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
+    n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
+
     for _ in range(iteration_for_learning):
 
         TD_error         = obtain_TD_error(model, 
-                                           long_term_sequentialized_state_list   ,
-                                           long_term_sequentialized_action_list  ,
-                                           long_term_sequentialized_reward_list  ,
-                                           long_term_sequentialized_n_state_list ,
-                                           device)
+                                           state_tensor    ,
+                                           action_tensor   ,
+                                           reward_tensor   ,
+                                           n_state_tensor  )
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(long_term_sequentialized_action_list)), 
+        index            = np.random.choice(range(len(state_tuple)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
 
-        state            = long_term_sequentialized_state_list   [index].unsqueeze(0).to(device)
-        future_action    = long_term_sequentialized_action_list  [index].unsqueeze(0).to(device)
-        future_reward    = long_term_sequentialized_reward_list  [index].unsqueeze(0).to(device)
-        future_state     = long_term_sequentialized_n_state_list [index].unsqueeze(0).to(device)
+        state            = state_tensor  [index].unsqueeze(0).to(device)
+        future_action    = action_tensor [index].unsqueeze(0).to(device)
+        future_reward    = reward_tensor [index].unsqueeze(0).to(device)
+        future_state     = n_state_tensor[index].unsqueeze(0).to(device)
 
         model.train()
         selected_optimizer = model.selected_optimizer
