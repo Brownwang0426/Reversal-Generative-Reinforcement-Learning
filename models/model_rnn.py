@@ -115,8 +115,8 @@ class build_model(nn.Module):
         s_list = list()
 
         if self.neural_type == 'lstm':
-            cl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
-            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # sl is [num_layers, batch_size, feature_size]
+            cl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
+            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1 # sl is [num_layers, batch_size, feature_size]
             sl[idx] = s
             rl, scl = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (sl, cl)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             sl      = scl[0]     # sl[0]     is [tuple_size=0, num_layers, batch_size, feature_size]
@@ -125,7 +125,7 @@ class build_model(nn.Module):
             s       = sl[idx]
             c       = cl[idx]
         else:
-            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) # sl is [num_layers, batch_size, feature_size]
+            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1 # sl is [num_layers, batch_size, feature_size]
             sl[idx] = s
             r , sl  = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), sl)        # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             sl      = sl         # sl        is [num_layers, batch_size, feature_size]
@@ -159,8 +159,10 @@ class build_model(nn.Module):
             r_list.append(r)
             s_list.append(s) 
 
-        r_list = torch.stack(r_list, dim=1) # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = torch.stack(s_list, dim=1) # s_list becomes [batch_size, sequence_size, feature_size]
+        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+        r_list = r_list.permute(1, 0, 2) # r_list becomes [batch_size, sequence_size, feature_size]
+        s_list = s_list.permute(1, 0, 2) # s_list becomes [batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 
