@@ -1,4 +1,3 @@
-
 import gym
 
 import numpy as np
@@ -22,6 +21,9 @@ import random
 import gc
 import time
 from tqdm import tqdm
+from collections import defaultdict
+
+import itertools
 
 
 
@@ -91,30 +93,32 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-def sequentialize(state_list, action_list, reward_list, chunk_size):
+def sequentialize(state_list, action_list, reward_list, chunk_size_):
 
     present_state_list = []
     future_action_list = []
     future_reward_list = []
     future_state_list  = []
 
-    if chunk_size > len(state_list[:-1]):
-        chunk_size = len(state_list[:-1])
+    if chunk_size_ > len(state_list[:-1]):
+        chunk_size_ = len(state_list[:-1])
     else:
       pass
     
-    if chunk_size != 1:
-        for i in range(len(reward_list[:-chunk_size+1])):
-            present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-            future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-            future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-            future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
-    else:
-        for i in range(len(reward_list[:])):
-            present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-            future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-            future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-            future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
+    for j in range(chunk_size_):
+        chunk_size = j + 1
+        if chunk_size != 1:
+            for i in range(len(reward_list[:-chunk_size+1])):
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
+        else:
+            for i in range(len(reward_list[:])):
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -158,19 +162,40 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-    list_tuple     = list(zip(*list_tuple))
 
-    state_tuple    = list_tuple[0]
-    action_tuple   = list_tuple[1]
-    reward_tuple   = list_tuple[2]
-    n_state_tuple  = list_tuple[3]
 
-    state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
-    action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
-    reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
-    n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
+
+
+    # Dictionary to store classified tuples by lengths of A, B, C, and D
+    classified_by_lengths = defaultdict(list)
+    # Classify tuples by the lengths of A, B, C, and D
+    for item in list_tuple:
+        A, B, C, D = item
+        lengths = (len(A), len(B), len(C), len(D))
+        classified_by_lengths[lengths].append(item)
+    # Convert to a regular dictionary for easier printing and handling
+    classified_by_lengths = dict(classified_by_lengths)
+
+
+
 
     for _ in range(iteration_for_learning):
+
+        # Step 1: Randomly select a key
+        random_key = random.choice(list(classified_by_lengths.keys()))
+
+        # Step 2: Randomly select an item from the list associated with the chosen key
+        list_tuple = classified_by_lengths[random_key]
+
+        list_tuple     = list(zip(*list_tuple))
+        state_tuple    = list_tuple[0]
+        action_tuple   = list_tuple[1]
+        reward_tuple   = list_tuple[2]
+        n_state_tuple  = list_tuple[3]
+        state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
+        action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
+        reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
+        n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
 
         TD_error         = obtain_TD_error(model, 
                                            state_tensor    ,

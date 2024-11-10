@@ -1,4 +1,3 @@
-
 import gym
 
 import numpy as np
@@ -22,6 +21,9 @@ import random
 import gc
 import time
 from tqdm import tqdm
+from collections import defaultdict
+
+import itertools
 
 """
 # Function for vectorizing
