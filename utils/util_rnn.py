@@ -162,10 +162,6 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-
-
-
-
     # Dictionary to store classified tuples by lengths of A, B, C, and D
     classified_by_lengths = defaultdict(list)
     # Classify tuples by the lengths of A, B, C, and D
@@ -175,9 +171,6 @@ def update_model(iteration_for_learning,
         classified_by_lengths[lengths].append(item)
     # Convert to a regular dictionary for easier printing and handling
     classified_by_lengths = dict(classified_by_lengths)
-
-
-
 
     for _ in range(iteration_for_learning):
 

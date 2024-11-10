@@ -73,7 +73,6 @@ class build_model(nn.Module):
         }
         self.recurrent_layer        = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.reward_linear          = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
-        # self.state_linear           = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias) 
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -136,9 +135,6 @@ class build_model(nn.Module):
         r  = self.reward_linear(r)    
         r  = self.output_activation(r)
 
-        # s  = self.state_linear(s) 
-        # s  = self.hidden_activation(s)
-
         r_list.append(r)  # r_list is [sequence_size, batch_size, feature_size]
         s_list.append(s)  # s_list is [sequence_size, batch_size, feature_size]
 
@@ -159,9 +155,6 @@ class build_model(nn.Module):
                 
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
-
-            # s  = self.state_linear(s) 
-            # s  = self.hidden_activation(s)
 
             r_list.append(r)
             s_list.append(s) 
