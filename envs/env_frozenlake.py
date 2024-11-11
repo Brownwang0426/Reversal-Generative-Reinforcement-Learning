@@ -54,10 +54,16 @@ def vectorizing_action(pre_activated_actions):  # Reminder: change this for your
     return np.eye(action_size)[action_argmax], action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    x, y          = divmod(state, 4)
-    distance      = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
-    max_distance  = np.sqrt(3**2 + 3**2)  # 4.24
-    idx           = int(100 * (1 - (distance / max_distance)))
-    reward        = np.zeros(reward_size)
-    reward[0: idx] = 1
+    if done: 
+        if (state == 15):         # If the agent reaches goal
+            reward = np.ones(reward_size)
+        else:
+            reward = np.zeros(reward_size)
+    else:
+        x, y = divmod(state, 4)
+        distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
+        max_distance = np.sqrt(3**2 + 3**2)  # 4.24
+        idx = int(100 * (1 - (distance / max_distance)))
+        reward = np.zeros(reward_size)
+        reward[0: idx        ] = 1
     return reward
