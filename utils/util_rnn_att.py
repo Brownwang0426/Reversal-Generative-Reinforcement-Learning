@@ -138,9 +138,7 @@ def obtain_TD_error(model,
 
     for state, future_action, future_reward, future_state in data_loader:
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+        model.eval()
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
