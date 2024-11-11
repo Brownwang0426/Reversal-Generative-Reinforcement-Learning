@@ -116,7 +116,7 @@ class build_model(nn.Module):
 
         if self.neural_type == 'lstm':
             cl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
-            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1 # sl is [num_layers, batch_size, feature_size]
+            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        # sl is [num_layers, batch_size, feature_size]
             sl[idx] = s
             rl, scl = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), (sl, cl)) # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             sl      = scl[0]     # sl[0]     is [tuple_size=0, num_layers, batch_size, feature_size]
@@ -125,9 +125,9 @@ class build_model(nn.Module):
             s       = sl[idx]
             c       = cl[idx]
         else:
-            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1 # sl is [num_layers, batch_size, feature_size]
+            sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        # sl is [num_layers, batch_size, feature_size]
             sl[idx] = s
-            rl , sl = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), sl)        # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
+            rl , sl = self.recurrent_layer(a_list[:, 0, :].unsqueeze(1), sl)       # a_list[:, 0, :] is [batch_size, sequence_size=0, feature_size]
             sl      = sl         # sl        is [num_layers, batch_size, feature_size]
             r       = rl[:,0,:]  # rl[:,0,:] is [batch_size, sequence_size=0, feature_size] 
             s       = sl[idx]
@@ -148,6 +148,8 @@ class build_model(nn.Module):
                 s       = sl[idx]
                 c       = cl[idx]
             else:
+                # sl      = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1 # sl is [num_layers, batch_size, feature_size]
+                # sl[idx] = s
                 rl, sl  = self.recurrent_layer(a_list[:, i+1, :].unsqueeze(1), sl)
                 sl      = sl
                 r       = rl[:,0,:]
