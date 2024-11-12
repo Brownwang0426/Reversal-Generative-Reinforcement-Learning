@@ -160,33 +160,36 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-    # Dictionary to store classified tuples by lengths of A, B, C, and D
+    # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)] where s, a, r, ns are 1d tensor
+
     classified_by_lengths = defaultdict(list)
-    # Classify tuples by the lengths of A, B, C, and D
     for item in list_tuple:
-        A, B, C, D = item
-        lengths = (len(A), len(B), len(C), len(D))
+        s, a, r, ns = item
+        lengths     = (len(s), len(a), len(r), len(ns))
         classified_by_lengths[lengths].append(item)
-    # Convert to a regular dictionary for easier printing and handling
     classified_by_lengths = dict(classified_by_lengths)
+
+    for key in list(classified_by_lengths.keys()):
+        list_tuple       = classified_by_lengths[key] # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
+        list_tuple       = list(zip(*list_tuple))     # list_tuple - [(s, ..., s), (a, ..., a), (r, ..., r), (ns, ..., ns)]
+        state_tuple      = list_tuple[0] # (s,  ..., s)
+        action_tuple     = list_tuple[1] # (a,  ..., a)
+        reward_tuple     = list_tuple[2] # (r,  ..., r)
+        n_state_tuple    = list_tuple[3] # (ns, ..., ns)
+        state_tensor     = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)   # 2d tensor [s,  ..., s]
+        action_tensor    = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)   # 2d tensor [a,  ..., a]
+        reward_tensor    = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)   # 2d tensor [r,  ..., r]
+        n_state_tensor   = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)   # 2d tensor [ns, ..., ns]
+        classified_by_lengths[key] = [state_tensor, action_tensor, reward_tensor, n_state_tensor]
 
     for _ in range(iteration_for_learning):
 
-        # Step 1: Randomly select a key
-        random_key = random.choice(list(classified_by_lengths.keys()))
-
-        # Step 2: Randomly select an item from the list associated with the chosen key
-        list_tuple = classified_by_lengths[random_key]
-
-        list_tuple     = list(zip(*list_tuple))
-        state_tuple    = list_tuple[0]
-        action_tuple   = list_tuple[1]
-        reward_tuple   = list_tuple[2]
-        n_state_tuple  = list_tuple[3]
-        state_tensor   = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)  
-        action_tensor  = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)  
-        reward_tensor  = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)  
-        n_state_tensor = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)  
+        random_key       = random.choice(list(classified_by_lengths.keys()))
+        list_tensor      = classified_by_lengths[random_key]
+        state_tensor     = list_tensor[0] # 2d tensor [s,  ..., s]
+        action_tensor    = list_tensor[1] # 2d tensor [a,  ..., a]
+        reward_tensor    = list_tensor[2] # 2d tensor [r,  ..., r]
+        n_state_tensor   = list_tensor[3] # 2d tensor [ns, ..., ns]
 
         TD_error         = obtain_TD_error(model, 
                                            state_tensor    ,
@@ -195,7 +198,7 @@ def update_model(iteration_for_learning,
                                            n_state_tensor  )
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(state_tuple)), 
+        index            = np.random.choice(range(len(state_tensor)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
