@@ -1,4 +1,3 @@
-
 import gym
 
 import numpy as np
@@ -22,6 +21,9 @@ import random
 import gc
 import time
 from tqdm import tqdm
+from collections import defaultdict
+
+import itertools
 
 
 
@@ -175,40 +177,9 @@ class build_model(nn.Module):
         s  = self.state_linear(s)
         s  = self.hidden_activation(s)
 
-        a  = self.action_linear(a_list[:,0])
-        a  = self.hidden_activation(a)
+        for i in range(a_list.size(1)):
 
-        h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
-        h  = h + self.positional_encoding[:, :, :]
-
-        pres_h_list = list()
-        for j, layer in enumerate(self.transformer_layers):
-            attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-            h_ = attention_layer(torch.zeros_like(h), torch.zeros_like(h), h, mask)
-            h  = attention_norm_layer(h + h_)
-            h_ = fully_connected_layer(h)
-            h  = fully_connected_norm_layer(h + h_)
-            pres_h_list.append(h)
-        prev_h_list = pres_h_list
-
-        r  = h[:, 0]
-        s  = h[:, 1]
-        
-        r  = self.reward_linear(r)   
-        r  = self.output_activation(r)
-
-        s  = self.state_linear_(s)   
-        s  = self.output_activation(s)
-
-        r_list.append(r)
-        s_list.append(s)
-
-        s  = self.state_linear(s)
-        s  = self.hidden_activation(s)
-
-        for i in range(a_list.size(1)-1):
-
-            a  = self.action_linear(a_list[:,i+1])
+            a  = self.action_linear(a_list[:,i])
             a  = self.hidden_activation(a)
 
             h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
@@ -217,7 +188,10 @@ class build_model(nn.Module):
             pres_h_list = list()
             for j, layer in enumerate(self.transformer_layers):
                 attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-                h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
+                if i == 0:
+                    h_ = attention_layer(torch.zeros_like(h), torch.zeros_like(h), h, mask)
+                else:
+                    h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
                 h  = attention_norm_layer(h + h_)
                 h_ = fully_connected_layer(h)
                 h  = fully_connected_norm_layer(h + h_)
@@ -231,7 +205,7 @@ class build_model(nn.Module):
             r  = self.output_activation(r)
 
             s  = self.state_linear_(s)   
-            s  = self.output_activation(s)
+            s  = self.hidden_activation(s)
 
             r_list.append(r)
             s_list.append(s)
@@ -239,8 +213,10 @@ class build_model(nn.Module):
             s  = self.state_linear(s)
             s  = self.hidden_activation(s)
 
-        r_list = torch.stack(r_list, dim=1) # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = torch.stack(s_list, dim=1) # s_list becomes [batch_size, sequence_size, feature_size]
+        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
+        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 
