@@ -83,7 +83,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward, desired_reward)
+        total_loss          = loss_function(output_reward[:, -1, :], desired_reward)
         total_loss.backward() # get grad
 
         pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
@@ -144,12 +144,9 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss_1                  = loss_function(output_reward, future_reward) 
-        total_loss_1                  = torch.sum(torch.abs(total_loss_1), dim=(1, 2))
-        total_loss_2                  = loss_function(output_state, future_state)
-        total_loss_2                  = torch.sum(torch.abs(total_loss_2), dim=(1, 2))
-        TD_error                      = np.array(total_loss_1.detach().cpu())
-        # TD_error                      = np.array(total_loss_1.detach().cpu())/reward_tensor.size(1) + np.array(total_loss_2.detach().cpu())/(2*n_state_tensor.size(1))
+        total_loss                    = loss_function(output_reward[:, -1, :], future_reward[:, -1, :]) 
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
+        TD_error                      = np.array(total_loss.detach().cpu())
 
     return TD_error
 
