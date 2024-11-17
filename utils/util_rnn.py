@@ -215,7 +215,6 @@ def update_model(iteration_for_learning,
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
         total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        # total_loss                  = loss_function(output_reward, future_reward)/reward_tensor.size(1) + loss_function(output_state, future_state)/(2*n_state_tensor.size(1))
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params

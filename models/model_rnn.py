@@ -25,6 +25,16 @@ from collections import defaultdict
 
 import itertools
 
+"""
+# Model for agent
+Crucial model regarding how you set up your agent's neural network
+
+- We suggest you prerpare enough layers between present state and next state.
+- We suggest you prerpare enough layers between state and reward.
+- We suggest you prerpare enough layers between state and action.
+- In our experience, how the neural net of the agent handles the information flow toward reward will have immense impact on the performance of the agent. 
+"""
+
 class build_model(nn.Module):
     def __init__(self,
                  h_input_neuron_size,
