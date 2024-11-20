@@ -151,14 +151,12 @@ def obtain_TD_error(model_list,
         
         for state, future_action, future_reward, future_state in data_loader:
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+            model.eval()
 
             loss_function                 = model.loss_function_
             output_reward, output_state   = model(state, future_action)
-            total_loss                    = loss_function(output_reward, future_reward)
-            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+            total_loss                    = loss_function(output_reward[:, -1, :], future_reward[:, -1, :])
+            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
             TD_error                      = np.array(total_loss.detach().cpu()) 
 
         TD_error_all += TD_error
