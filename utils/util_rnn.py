@@ -55,7 +55,7 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def update_pre_activated_action(iteration_for_deducing,
+def update_pre_activated_action(epcoh_for_deducing,
                                 model_list,
                                 state,
                                 pre_activated_future_action,
@@ -67,26 +67,27 @@ def update_pre_activated_action(iteration_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for _ in range(iteration_for_deducing):
+    for _ in range(epcoh_for_deducing):
 
-        index            = np.random.randint(len(model_list_copy))
-        model            = model_list_copy[index]
+        random.shuffle(model_list_copy)
 
-        future_action    = torch.sigmoid(pre_activated_future_action)
+        for model in model_list_copy:
 
-        model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
-        for param in model.parameters():
-            param.requires_grad = False
+            future_action    = torch.sigmoid(pre_activated_future_action)
 
-        loss_function       = model.loss_function
-        output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward, desired_reward)
-        total_loss.backward() # get grad
+            model.train()
+            future_action = future_action.clone().detach().requires_grad_(True)
+            if future_action.grad is not None:
+                future_action.grad.zero_()
+            for param in model.parameters():
+                param.requires_grad = False
 
-        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
+            loss_function       = model.loss_function
+            output_reward, _    = model(state, future_action)
+            total_loss          = loss_function(output_reward, desired_reward)
+            total_loss.backward() # get grad
+
+            pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
 
     return pre_activated_future_action
 
@@ -125,101 +126,87 @@ def sequentialize(state_list, action_list, reward_list, chunk_size_):
 
 
 
-def obtain_TD_error(model,
-                    state_tensor   ,
-                    action_tensor  ,
-                    reward_tensor  ,
-                    n_state_tensor 
-                    ):
+def obtain_TD_error(model_list,
+                    list_tensor,
+                    PER_epsilon,
+                    PER_exponent,
+                    device):
 
-    dataset      = TensorDataset(state_tensor  ,
-                                 action_tensor ,
-                                 reward_tensor ,
-                                 n_state_tensor)
-    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+    state_tensor   = list_tensor[0]
+    action_tensor  = list_tensor[1]
+    reward_tensor  = list_tensor[2]
+    n_state_tensor = list_tensor[3]
 
-    for state, future_action, future_reward, future_state in data_loader:
+    dataset        = TensorDataset(state_tensor     ,
+                                   action_tensor    ,
+                                   reward_tensor    ,
+                                   n_state_tensor   )
+    data_loader    = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-        model.eval()
+    TD_error_all   = 0
+    for model in model_list:
+        
+        for state, future_action, future_reward, future_state in data_loader:
 
-        loss_function                 = model.loss_function_
-        output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward) 
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-        TD_error                      = np.array(total_loss.detach().cpu())
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-    return TD_error
+            loss_function                 = model.loss_function_
+            output_reward, output_state   = model(state, future_action)
+            total_loss                    = loss_function(output_reward, future_reward)
+            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+            TD_error                      = np.array(total_loss.detach().cpu()) 
+
+        TD_error_all += TD_error
+    TD_error_all      =(TD_error_all + PER_epsilon) ** PER_exponent
+    TD_error_p        = TD_error_all / np.sum(TD_error_all)
+
+    index = np.random.choice(range(len(dataset)), 
+                             p=TD_error_p, 
+                             size=1,
+                             replace=True)[0]
+
+    return index 
 
 
 
 
-def update_model(iteration_for_learning,
-                 list_tuple,
-                 model,
-                 PER_epsilon,
-                 PER_exponent,
+def update_model(epoch_for_learning,
+                 model_list,
+                 list_tensor,
+                 index,
                  device):
 
-    # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)] where s, a, r, ns are 1d tensor
+    state_tensor        = list_tensor[0]
+    action_tensor       = list_tensor[1]
+    reward_tensor       = list_tensor[2]
+    n_state_tensor      = list_tensor[3]
 
-    classified_by_lengths = defaultdict(list)
-    for item in list_tuple:
-        s, a, r, ns = item
-        lengths     = (len(s), len(a), len(r), len(ns))
-        classified_by_lengths[lengths].append(item)
-    classified_by_lengths = dict(classified_by_lengths)
+    for _ in range(int(epoch_for_learning)):
 
-    for key in list(classified_by_lengths.keys()):
-        list_tuple       = classified_by_lengths[key] # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
-        list_tuple       = list(zip(*list_tuple))     # list_tuple - [(s, ..., s), (a, ..., a), (r, ..., r), (ns, ..., ns)]
-        state_tuple      = list_tuple[0] # (s,  ..., s)
-        action_tuple     = list_tuple[1] # (a,  ..., a)
-        reward_tuple     = list_tuple[2] # (r,  ..., r)
-        n_state_tuple    = list_tuple[3] # (ns, ..., ns)
-        state_tensor     = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)   # 2d tensor [s,  ..., s]
-        action_tensor    = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)   # 2d tensor [a,  ..., a]
-        reward_tensor    = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)   # 2d tensor [r,  ..., r]
-        n_state_tensor   = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)   # 2d tensor [ns, ..., ns]
-        classified_by_lengths[key] = [state_tensor, action_tensor, reward_tensor, n_state_tensor]
+        random.shuffle(model_list)
 
-    for _ in range(iteration_for_learning):
+        for model in model_list:
 
-        random_key       = random.choice(list(classified_by_lengths.keys()))
-        list_tensor      = classified_by_lengths[random_key]
-        state_tensor     = list_tensor[0] # 2d tensor [s,  ..., s]
-        action_tensor    = list_tensor[1] # 2d tensor [a,  ..., a]
-        reward_tensor    = list_tensor[2] # 2d tensor [r,  ..., r]
-        n_state_tensor   = list_tensor[3] # 2d tensor [ns, ..., ns]
+            state            = state_tensor   [index].unsqueeze(0).to(device)
+            future_action    = action_tensor  [index].unsqueeze(0).to(device)
+            future_reward    = reward_tensor  [index].unsqueeze(0).to(device)
+            future_state     = n_state_tensor [index].unsqueeze(0).to(device)
 
-        TD_error         = obtain_TD_error(model, 
-                                           state_tensor    ,
-                                           action_tensor   ,
-                                           reward_tensor   ,
-                                           n_state_tensor  )
-        TD_error         =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(state_tensor)), 
-                                            p=TD_error_p, 
-                                            size=1,
-                                            replace=True)[0]
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-        state            = state_tensor  [index].unsqueeze(0)
-        future_action    = action_tensor [index].unsqueeze(0)
-        future_reward    = reward_tensor [index].unsqueeze(0)
-        future_state     = n_state_tensor[index].unsqueeze(0)
+            loss_function               = model.loss_function
+            output_reward, output_state = model(state, future_action)
+            total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+            total_loss.backward()     # get grad
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+            selected_optimizer.step() # update params
 
-        loss_function               = model.loss_function
-        output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-        total_loss.backward()     # get grad
+    return model_list
 
-        selected_optimizer.step() # update params
-
-    return model
 
 
 
