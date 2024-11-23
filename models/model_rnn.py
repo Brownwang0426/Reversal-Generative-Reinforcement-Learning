@@ -240,6 +240,8 @@ class build_model(nn.Module):
         rl  = self.linear_layer_2(rl)
         rl  = self.output_activation(rl)
         
+        rl  = rl[:, :ori_size, :]
+
         return rl, sl
 
     def generate_positional_encoding(self, max_len, model_dim):
