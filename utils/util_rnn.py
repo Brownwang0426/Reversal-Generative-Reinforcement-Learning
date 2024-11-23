@@ -144,8 +144,8 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward[:, -1, :]) 
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
+        total_loss                    = loss_function(output_reward, future_reward) 
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
         TD_error                      = np.array(total_loss.detach().cpu())
 
     return TD_error
@@ -214,7 +214,7 @@ def update_model(iteration_for_learning,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward[:, -1, :]) + loss_function(output_state, future_state)
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params

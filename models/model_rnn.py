@@ -140,7 +140,7 @@ class build_model(nn.Module):
         self.norm_layer_1         = nn.LayerNorm(self.h_input_neuron_size)
         self.linear_layer_1       = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias)
         self.norm_layer_2         = nn.LayerNorm(self.h_input_neuron_size)
-        self.linear_layer_2       = nn.Linear(self.h_input_neuron_size * self.input_sequence_size, self.output_neuron_size, bias=self.bias)
+        self.linear_layer_2       = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)
@@ -237,12 +237,10 @@ class build_model(nn.Module):
         rl  = self.norm_layer_1  (rl + rl_)
         rl_ = self.linear_layer_1(rl)
         rl  = self.norm_layer_2  (rl + rl_)
-
-        r   = torch.flatten(rl, start_dim=1)
-        r   = self.linear_layer_2(r)
-        r   = self.output_activation(r)
+        rl  = self.linear_layer_2(rl)
+        rl  = self.output_activation(rl)
         
-        return r, sl
+        return rl, sl
 
     def generate_positional_encoding(self, max_len, model_dim):
         pe = torch.zeros(max_len,model_dim)
