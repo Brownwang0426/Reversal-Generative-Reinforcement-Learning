@@ -222,10 +222,11 @@ class build_model(nn.Module):
         rl = rl.permute(1, 0, 2)        # rl is [batch_size, sequence_size, feature_size]
         sl = sl.permute(1, 0, 2)        # sl is [batch_size, sequence_size, feature_size]
 
+        m_device = next(self.parameters()).device
         ori_size = rl.size(1)
         pad_size = self.input_sequence_size - ori_size
-        pad      = torch.zeros(rl.size(0), pad_size, rl.size(2))
-        mask     = torch.zeros(rl.size(0), 1, self.input_sequence_size, self.input_sequence_size)
+        pad      = torch.zeros(rl.size(0), pad_size, rl.size(2)).to(m_device)
+        mask     = torch.zeros(rl.size(0), 1, self.input_sequence_size, self.input_sequence_size).to(m_device)
         mask[:, :, ori_size:, :] = -sys.maxsize
         mask[:, :, :, ori_size:] = -sys.maxsize
         rl  = torch.cat([rl, pad], dim=1)
