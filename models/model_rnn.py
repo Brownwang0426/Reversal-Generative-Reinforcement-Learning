@@ -35,6 +35,57 @@ Crucial model regarding how you set up your agent's neural network
 - In our experience, how the neural net of the agent handles the information flow toward reward will have immense impact on the performance of the agent. 
 """
 
+
+class custom_attn(nn.Module):
+    def __init__(self, d_model, num_heads = 8):
+        super(custom_attn, self).__init__()
+
+        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+
+        self.bias      = False
+        self.d_model   = d_model
+        self.num_heads = num_heads
+        self.d_k       = d_model // num_heads
+
+        self.W_q  = nn.Linear(d_model, d_model, bias=self.bias)
+        self.W_k  = nn.Linear(d_model, d_model, bias=self.bias)
+        self.W_v  = nn.Linear(d_model, d_model, bias=self.bias)
+        self.W_o  = nn.Linear(d_model, d_model, bias=self.bias)
+
+    def scaled_dot_product_attention(self, Q, K, V, mask=None):
+
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.d_k ** 0.5)
+
+        if mask != None:
+            attn_scores += mask
+        else:
+            attn_scores += 0
+
+        attn_probs = torch.softmax(attn_scores, dim=-1)
+        output     = torch.matmul(attn_probs, V)
+
+        return output
+
+    def split_heads(self, x):
+        batch_size, seq_length, d_model = x.size()
+        return x.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
+        #  (batch_size, seq_length, d_model) - > (batch_size, seq_length, self.num_heads, self.d_k) -> (batch_size, self.num_heads, seq_length, self.d_k)
+
+    def combine_heads(self, x):
+        batch_size, _, seq_length, d_k = x.size()
+        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)
+
+    def forward(self, Q, K, V, mask=None):
+        # Q    -> (batch_size, seq_length, d_model)
+        # mask -> (batch_size, 1, seq_length, seq_length)
+        Q = self.split_heads(self.W_q(Q))
+        K = self.split_heads(self.W_k(K))
+        V = self.split_heads(self.W_v(V))
+        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        output      = self.W_o(self.combine_heads(attn_output))
+        return output
+
+
 class build_model(nn.Module):
     def __init__(self,
                  h_input_neuron_size,
@@ -84,7 +135,12 @@ class build_model(nn.Module):
         self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_2    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.input_sequence_size, self.h_input_neuron_size ), requires_grad=False)
+        self.custom_attn          = custom_attn (self.h_input_neuron_size, self.num_heads)
+        self.norm_layer_1         = nn.LayerNorm(self.h_input_neuron_size)
+        self.linear_layer_1       = nn.Linear(self.h_input_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.norm_layer_2         = nn.LayerNorm(self.h_input_neuron_size)
+        self.linear_layer_2       = nn.Linear(self.h_input_neuron_size * self.input_sequence_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)
@@ -116,14 +172,14 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
-    def forward(self, s, a_list):
+    def forward(self, s, al):
 
-        null_step = torch.zeros_like(a_list[:, 0, :]).unsqueeze(1)
+        null_step = torch.zeros_like(al[:, 0, :]).unsqueeze(1)
 
         idx = 0 # the index of the num_layers where you want to insert s
 
-        # s          is [batch_size, feature_size] by default
-        # a_list     is [batch_size, sequence_size, feature_size] by default
+        # s          is [batch_size, feature_size]
+        # al         is [batch_size, sequence_size, feature_size]
         # cl         is [num_layers, batch_size, feature_size]
         # sl         is [num_layers, batch_size, feature_size]
         # rl         is [batch_size, sequence_size, feature_size] 
@@ -131,7 +187,7 @@ class build_model(nn.Module):
         r_list = list()
         s_list = list()
 
-        for i in range(a_list.size(1)):
+        for i in range(al.size(1)):
 
             if self.neural_type == 'lstm':
                 if i == 0:
@@ -141,7 +197,7 @@ class build_model(nn.Module):
                 else:
                     pass                             
                 rl, (sl, cl) = self.recurrent_layer_1(null_step                     , (sl, cl))
-                rl, (sl, cl) = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
+                rl, (sl, cl) = self.recurrent_layer_2(al[:, i, :].unsqueeze(1)      , (sl, cl))
                 r            = rl[:,0,:] 
                 rl, (sl, cl) = self.recurrent_layer_3(null_step                     , (sl, cl))
                 s            = sl[idx]
@@ -153,24 +209,49 @@ class build_model(nn.Module):
                 else:
                     pass
                 rl, sl       = self.recurrent_layer_1(null_step                     , sl)
-                rl, sl       = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , sl)
+                rl, sl       = self.recurrent_layer_2(al[:, i, :].unsqueeze(1)      , sl)
                 r            = rl[:,0,:]
                 rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
                 s            = sl[idx]
-                
-            r  = self.reward_linear(r)   
-            r  = self.output_activation(r)
 
             r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
             s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
 
-        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+        rl = torch.stack(r_list, dim=0) # rl is [sequence_size, batch_size, feature_size]
+        sl = torch.stack(s_list, dim=0) # sl is [sequence_size, batch_size, feature_size]
+        rl = rl.permute(1, 0, 2)        # rl is [batch_size, sequence_size, feature_size]
+        sl = sl.permute(1, 0, 2)        # sl is [batch_size, sequence_size, feature_size]
 
-        return r_list, s_list
+        ori_size = rl.size(1)
+        pad_size = self.input_sequence_size - ori_size
+        pad      = torch.zeros(rl.size(0), pad_size, rl.size(2))
+        mask     = torch.zeros(rl.size(0), 1, self.input_sequence_size, self.input_sequence_size)
+        mask[:, :, ori_size:, :] = float('-inf')
+        mask[:, :, :, ori_size:] = float('-inf')
 
+        rl  = torch.cat([rl, pad], dim=1)
+
+        rl  = rl + self.positional_encoding[:, :, :]
+        
+        rl_ = self.custom_attn   (rl, rl, rl, mask)
+        rl  = self.norm_layer_1  (rl + rl_)
+        rl_ = self.linear_layer_1(rl)
+        rl  = self.norm_layer_2  (rl + rl_)
+
+        r   = torch.flatten(rl, start_dim=1)
+        r   = self.linear_layer_2(r)
+        r   = self.output_activation(r)
+
+        return r, sl
+
+    def generate_positional_encoding(self, max_len, model_dim):
+        pe = torch.zeros(max_len,model_dim)
+        for pos in range(max_len):
+            for i in range(0,model_dim,2):
+                pe[pos, i] = math.sin(pos / (10000 ** ((2 * i)/model_dim)))
+                if i + 1 < model_dim:
+                    pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * i)/model_dim)))
+        return pe.unsqueeze(0)  # Shape: (1, max_len, model_dim)
 
     def get_activation(self,  activation):
         activations = {
