@@ -226,9 +226,8 @@ class build_model(nn.Module):
         pad_size = self.input_sequence_size - ori_size
         pad      = torch.zeros(rl.size(0), pad_size, rl.size(2))
         mask     = torch.zeros(rl.size(0), 1, self.input_sequence_size, self.input_sequence_size)
-        mask[:, :, ori_size:, :] = float('-inf')
-        mask[:, :, :, ori_size:] = float('-inf')
-
+        mask[:, :, ori_size:, :] = -sys.maxsize
+        mask[:, :, :, ori_size:] = -sys.maxsize
         rl  = torch.cat([rl, pad], dim=1)
 
         rl  = rl + self.positional_encoding[:, :, :]
@@ -241,7 +240,7 @@ class build_model(nn.Module):
         r   = torch.flatten(rl, start_dim=1)
         r   = self.linear_layer_2(r)
         r   = self.output_activation(r)
-
+        
         return r, sl
 
     def generate_positional_encoding(self, max_len, model_dim):
