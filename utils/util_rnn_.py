@@ -67,7 +67,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for _ in range(iteration_for_deducing):
+    for i in range(iteration_for_deducing):
 
         index            = np.random.randint(len(model_list_copy))
         model            = model_list_copy[index]
@@ -83,10 +83,13 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward, desired_reward)
+
+        tgt_indx            = future_action.size(1) - 1 - i % future_action.size(1)
+
+        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
         total_loss.backward() # get grad
 
-        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
+        pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
 
     return pre_activated_future_action
 
@@ -144,8 +147,8 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward) 
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+        total_loss                    = loss_function(output_reward[:, -1], future_reward[:, -1]) 
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
         TD_error                      = np.array(total_loss.detach().cpu())
 
     return TD_error
@@ -214,7 +217,7 @@ def update_model(iteration_for_learning,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
