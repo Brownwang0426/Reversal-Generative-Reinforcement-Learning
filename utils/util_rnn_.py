@@ -81,11 +81,10 @@ def update_pre_activated_action(iteration_for_deducing,
         for param in model.parameters():
             param.requires_grad = False
 
+        tgt_indx            = np.random.randint(future_action.size(1))
+
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_action)
-
-        tgt_indx            = future_action.size(1) - 1 - i % future_action.size(1)
-
         total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
         total_loss.backward() # get grad
 
@@ -163,53 +162,76 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
+
+
+
     # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)] where s, a, r, ns are 1d tensor
+    dict_tuple = defaultdict(list)
+    for tuple in list_tuple:
+        s, a, r, ns = tuple
+        length      = (len(s), len(a), len(r), len(ns))
+        dict_tuple[length].append(tuple)
+    dict_tuple = dict(dict_tuple)
 
-    classified_by_lengths = defaultdict(list)
-    for item in list_tuple:
-        s, a, r, ns = item
-        lengths     = (len(s), len(a), len(r), len(ns))
-        classified_by_lengths[lengths].append(item)
-    classified_by_lengths = dict(classified_by_lengths)
-
-    for key in list(classified_by_lengths.keys()):
-        list_tuple       = classified_by_lengths[key] # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
+    for key in list(dict_tuple.keys()):
+        list_tuple       = dict_tuple[key]  # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
         list_tuple       = list(zip(*list_tuple))     # list_tuple - [(s, ..., s), (a, ..., a), (r, ..., r), (ns, ..., ns)]
-        state_tuple      = list_tuple[0] # (s,  ..., s)
-        action_tuple     = list_tuple[1] # (a,  ..., a)
-        reward_tuple     = list_tuple[2] # (r,  ..., r)
+        state_tuple      = list_tuple[0] # (s,  ..., s) 
+        action_tuple     = list_tuple[1] # (a,  ..., a) 
+        reward_tuple     = list_tuple[2] # (r,  ..., r) 
         n_state_tuple    = list_tuple[3] # (ns, ..., ns)
         state_tensor     = torch.tensor(np.array(state_tuple  ), dtype=torch.float).to(device)   # 2d tensor [s,  ..., s]
         action_tensor    = torch.tensor(np.array(action_tuple ), dtype=torch.float).to(device)   # 2d tensor [a,  ..., a]
         reward_tensor    = torch.tensor(np.array(reward_tuple ), dtype=torch.float).to(device)   # 2d tensor [r,  ..., r]
         n_state_tensor   = torch.tensor(np.array(n_state_tuple), dtype=torch.float).to(device)   # 2d tensor [ns, ..., ns]
-        classified_by_lengths[key] = [state_tensor, action_tensor, reward_tensor, n_state_tensor]
+        dict_tuple[key]  = [state_tensor, action_tensor, reward_tensor, n_state_tensor]
+    dict_tensor = dict_tuple
+
+
+
 
     for _ in range(iteration_for_learning):
 
-        random_key       = random.choice(list(classified_by_lengths.keys()))
-        list_tensor      = classified_by_lengths[random_key]
-        state_tensor     = list_tensor[0] # 2d tensor [s,  ..., s]
-        action_tensor    = list_tensor[1] # 2d tensor [a,  ..., a]
-        reward_tensor    = list_tensor[2] # 2d tensor [r,  ..., r]
-        n_state_tensor   = list_tensor[3] # 2d tensor [ns, ..., ns]
 
-        TD_error         = obtain_TD_error(model, 
-                                           state_tensor    ,
-                                           action_tensor   ,
-                                           reward_tensor   ,
-                                           n_state_tensor  )
+
+        
+        TD_error_list = list()
+        key_list      = list()
+        index_list    = list()
+
+        for key in list(dict_tensor.keys()):
+
+            state_tensor   = dict_tensor[key][0] # 2d tensor [s,  ..., s]
+            action_tensor  = dict_tensor[key][1] # 2d tensor [a,  ..., a]
+            reward_tensor  = dict_tensor[key][2] # 2d tensor [r,  ..., r]
+            n_state_tensor = dict_tensor[key][3] # 2d tensor [ns, ..., ns]
+
+            TD_error       = obtain_TD_error(model, 
+                                            state_tensor    ,
+                                            action_tensor   ,
+                                            reward_tensor   ,
+                                            n_state_tensor  )
+
+            TD_error_list.extend(TD_error.tolist())
+            key_list     .extend([key] * len(TD_error))
+            index_list   .extend(list(range(len(TD_error))))
+
+
+
+
+        TD_error         = np.array(TD_error_list)
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(len(state_tensor)), 
+        index            = np.random.choice(range(len(key_list)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
-
-        state            = state_tensor  [index].unsqueeze(0)
-        future_action    = action_tensor [index].unsqueeze(0)
-        future_reward    = reward_tensor [index].unsqueeze(0)
-        future_state     = n_state_tensor[index].unsqueeze(0)
+    
+        list_tensor      = dict_tensor    [key_list  [index]]
+        state            = list_tensor[0] [index_list[index]].unsqueeze(0)
+        future_action    = list_tensor[1] [index_list[index]].unsqueeze(0)
+        future_reward    = list_tensor[2] [index_list[index]].unsqueeze(0)
+        future_state     = list_tensor[3] [index_list[index]].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
