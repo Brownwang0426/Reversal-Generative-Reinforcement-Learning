@@ -90,6 +90,10 @@ def update_pre_activated_action(iteration_for_deducing,
 
         pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
 
+    del model_list_copy
+    gc.collect()
+    torch.cuda.empty_cache()
+    
     return pre_activated_future_action
 
 
@@ -243,6 +247,10 @@ def update_model(iteration_for_learning,
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
+
+    del dict_tensor, dict_tuple
+    gc.collect()
+    torch.cuda.empty_cache()
 
     return model
 
