@@ -169,8 +169,14 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
+
+
+
     for _ in range(iteration_for_learning):
-        
+
+
+
+
         TD_error_list = list()
         key_list      = list()
         index_list    = list()
@@ -195,10 +201,14 @@ def update_model(iteration_for_learning,
         TD_error         = np.array(TD_error_list)
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
+
         index            = np.random.choice(range(len(key_list)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
+    
+
+
     
         state            = dict_list_state_tensors   [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
         future_action    = dict_list_action_tensors  [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
