@@ -89,9 +89,6 @@ def update_pre_activated_action(iteration_for_deducing,
         total_loss.backward() # get grad
 
         pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
-
-        gc.collect()
-        torch.cuda.empty_cache()
     
     return pre_activated_future_action
 
@@ -159,60 +156,54 @@ def obtain_TD_error(model,
 
 
 def update_model(iteration_for_learning,
-                 dict_list_state_tensors  ,
-                 dict_list_action_tensors ,
-                 dict_list_reward_tensors ,
-                 dict_list_n_state_tensors,
+                 list_tuple,
                  model,
                  PER_epsilon,
                  PER_exponent,
                  device):
 
+    # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)] where s, a, r, ns are 1d tensor
 
+    dict_list_tuple = defaultdict(list)
+    for tp in list_tuple:
+        s, a, r, ns = tp
+        key         = len(a)
+        dict_list_tuple[key].append(tp)
 
+    dict_list_tensor = defaultdict(list)
+    for key in list(dict_list_tuple.keys()):
+        list_tuple       = dict_list_tuple[key]       # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
+        list_tuple       = list(zip(*list_tuple))     # list_tuple - [(s, ..., s), (a, ..., a), (r, ..., r), (ns, ..., ns)]
+        state_tensors    = torch.tensor(np.array(list_tuple[0]), dtype=torch.float).to(device)   # state_tensors   - [s,  ..., s]
+        action_tensors   = torch.tensor(np.array(list_tuple[1]), dtype=torch.float).to(device)   # action_tensors  - [a,  ..., a]
+        reward_tensors   = torch.tensor(np.array(list_tuple[2]), dtype=torch.float).to(device)   # reward_tensors  - [r,  ..., r]
+        n_state_tensors  = torch.tensor(np.array(list_tuple[3]), dtype=torch.float).to(device)   # n_state_tensors - [ns, ..., ns]
+        dict_list_tensor[key] = [state_tensors, action_tensors, reward_tensors, n_state_tensors] # list_tensor     - [[s, ..., s], [a, ..., a], [r, ..., r], [ns, ..., ns]]
 
     for _ in range(iteration_for_learning):
 
+        random_key       = random.choice(list(dict_list_tensor.keys()))
+        state_tensors    = dict_list_tensor[random_key][0] # 2d tensor [s,  ..., s]
+        action_tensors   = dict_list_tensor[random_key][1] # 2d tensor [a,  ..., a]
+        reward_tensors   = dict_list_tensor[random_key][2] # 2d tensor [r,  ..., r]
+        n_state_tensors  = dict_list_tensor[random_key][3] # 2d tensor [ns, ..., ns]
 
-
-
-        TD_error_list = list()
-        key_list      = list()
-        index_list    = list()
-
-        for key in list(dict_list_state_tensors.keys()):
-
-            state_tensors   = torch.stack(dict_list_state_tensors  [key]  ).to(device)  # 2d tensor [n,  ..., n]
-            action_tensors  = torch.stack(dict_list_action_tensors [key]  ).to(device)  # 2d tensor [a,  ..., a]
-            reward_tensors  = torch.stack(dict_list_reward_tensors [key]  ).to(device)  # 2d tensor [r,  ..., r]
-            n_state_tensors = torch.stack(dict_list_n_state_tensors[key]  ).to(device)  # 2d tensor [ns, ..., ns]
-
-            TD_error       = obtain_TD_error(model, 
-                                             state_tensors    ,
-                                             action_tensors   ,
-                                             reward_tensors   ,
-                                             n_state_tensors  )
-
-            TD_error_list.extend(TD_error.tolist())
-            key_list     .extend([key] * len(TD_error))
-            index_list   .extend(list(range(len(TD_error))))
-
-        TD_error         = np.array(TD_error_list)
+        TD_error         = obtain_TD_error(model, 
+                                           state_tensors    ,
+                                           action_tensors   ,
+                                           reward_tensors   ,
+                                           n_state_tensors  )
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-
-        index            = np.random.choice(range(len(key_list)), 
+        index            = np.random.choice(range(len(state_tensors)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
-    
 
-
-    
-        state            = dict_list_state_tensors   [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
-        future_action    = dict_list_action_tensors  [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
-        future_reward    = dict_list_reward_tensors  [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
-        future_state     = dict_list_n_state_tensors [key_list[index]] [index_list[index]].unsqueeze(0).to(device)
+        state            = state_tensors  [index].unsqueeze(0)
+        future_action    = action_tensors [index].unsqueeze(0)
+        future_reward    = reward_tensors [index].unsqueeze(0)
+        future_state     = n_state_tensors[index].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -224,9 +215,6 @@ def update_model(iteration_for_learning,
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
-
-        gc.collect()
-        torch.cuda.empty_cache()
 
     return model
 
