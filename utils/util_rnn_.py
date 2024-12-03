@@ -73,7 +73,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         index            = np.random.randint(len(model_list_copy))
         model            = model_list_copy[index]
-        tgt_indx         = np.random.randint(time_size)
+        tgt_indx         = np.random.randint(time_size) + 1
 
         future_action    = torch.sigmoid(pre_activated_future_action)
 
@@ -86,10 +86,10 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward[:, :tgt_indx+1], desired_reward[:, :tgt_indx+1])
+        total_loss          = loss_function(output_reward[:, :tgt_indx], desired_reward[:, :tgt_indx])
         total_loss.backward() # get grad
 
-        pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
+        pre_activated_future_action[:, :tgt_indx] -= future_action.grad[:, :tgt_indx] * (1 - future_action[:, :tgt_indx]) * future_action[:, :tgt_indx] * beta # update params
     
     return pre_activated_future_action
 
@@ -157,37 +157,22 @@ def obtain_TD_error(model,
 
 
 def update_model(iteration_for_learning,
-                 list_tuple,
+                 dict_list_state_tensors  ,
+                 dict_list_action_tensors ,
+                 dict_list_reward_tensors ,
+                 dict_list_n_state_tensors,
                  model,
                  PER_epsilon,
                  PER_exponent,
                  device):
 
-    # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)] where s, a, r, ns are 1d tensor
-
-    dict_list_tuple = defaultdict(list)
-    for tp in list_tuple:
-        s, a, r, ns = tp
-        key         = len(a)
-        dict_list_tuple[key].append(tp)
-
-    dict_list_tensor = defaultdict(list)
-    for key in list(dict_list_tuple.keys()):
-        list_tuple       = dict_list_tuple[key]       # list_tuple - [(s, a, r, ns), ..., (s, a, r, ns)]
-        list_tuple       = list(zip(*list_tuple))     # list_tuple - [(s, ..., s), (a, ..., a), (r, ..., r), (ns, ..., ns)]
-        state_tensors    = torch.tensor(np.array(list_tuple[0]), dtype=torch.float).to(device)   # state_tensors    - [s,  ..., s]
-        action_tensors   = torch.tensor(np.array(list_tuple[1]), dtype=torch.float).to(device)   # action_tensors   - [a,  ..., a]
-        reward_tensors   = torch.tensor(np.array(list_tuple[2]), dtype=torch.float).to(device)   # reward_tensors   - [r,  ..., r]
-        n_state_tensors  = torch.tensor(np.array(list_tuple[3]), dtype=torch.float).to(device)   # n_state_tensors  - [ns, ..., ns]
-        dict_list_tensor[key] = [state_tensors, action_tensors, reward_tensors, n_state_tensors] # dict_list_tensor - [[s, ..., s], [a, ..., a], [r, ..., r], [ns, ..., ns]]
-
     for _ in range(iteration_for_learning):
 
-        random_key       = random.choice(list(dict_list_tensor.keys()))
-        state_tensors    = dict_list_tensor[random_key][0] # state_tensors   - [s,  ..., s]
-        action_tensors   = dict_list_tensor[random_key][1] # action_tensors  - [a,  ..., a]
-        reward_tensors   = dict_list_tensor[random_key][2] # reward_tensors  - [r,  ..., r]
-        n_state_tensors  = dict_list_tensor[random_key][3] # n_state_tensors - [ns, ..., ns]
+        random_key       = random.choice(list(dict_list_state_tensors.keys()))
+        state_tensors    = torch.stack(dict_list_state_tensors  [random_key]).to(device) # state_tensors   - [s,  ..., s]
+        action_tensors   = torch.stack(dict_list_action_tensors [random_key]).to(device) # action_tensors  - [a,  ..., a]
+        reward_tensors   = torch.stack(dict_list_reward_tensors [random_key]).to(device) # reward_tensors  - [r,  ..., r]
+        n_state_tensors  = torch.stack(dict_list_n_state_tensors[random_key]).to(device) # n_state_tensors - [ns, ..., ns]
 
         TD_error         = obtain_TD_error(model, 
                                            state_tensors    ,
