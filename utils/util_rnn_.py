@@ -24,8 +24,7 @@ from tqdm import tqdm
 from collections import defaultdict
 
 import itertools
-
-
+import concurrent.futures
 
 
 def initialize_pre_activated_action(init, noise_t, noise_r, shape):
@@ -78,7 +77,7 @@ def update_pre_activated_action(iteration_for_deducing,
         future_action    = torch.sigmoid(pre_activated_future_action)
 
         model.train()
-        future_action = future_action.clone().detach().requires_grad_(True)
+        future_action = future_action.detach().requires_grad_(True)
         if future_action.grad is not None:
             future_action.grad.zero_()
         for param in model.parameters():
@@ -203,6 +202,42 @@ def update_model(iteration_for_learning,
         selected_optimizer.step() # update params
 
     return model
+
+
+
+
+def update_multiple_models_parallel(iteration_for_learning,
+                                    dict_list_state_tensors,
+                                    dict_list_action_tensors,
+                                    dict_list_reward_tensors,
+                                    dict_list_n_state_tensors,
+                                    models,  # List of models
+                                    PER_epsilon,
+                                    PER_exponent,
+                                    device):
+    """
+    Parallel training of multiple models on the same GPU.
+    """
+    results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_model = {
+            executor.submit(update_model, 
+                            iteration_for_learning,
+                            dict_list_state_tensors,
+                            dict_list_action_tensors,
+                            dict_list_reward_tensors,
+                            dict_list_n_state_tensors,
+                            model,
+                            PER_epsilon,
+                            PER_exponent,
+                            device): model
+            for model in models
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_model):
+            results.append(future.result())
+    
+    return results
 
 
 
