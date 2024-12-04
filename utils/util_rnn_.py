@@ -24,8 +24,11 @@ from tqdm import tqdm
 from collections import defaultdict
 
 import itertools
+
+
+
+
 import concurrent.futures
-import torch.multiprocessing as mp
 
 
 def initialize_pre_activated_action(init, noise_t, noise_r, shape):
@@ -73,7 +76,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         index            = np.random.randint(len(model_list_copy))
         model            = model_list_copy[index]
-        tgt_indx         = np.random.randint(time_size) + 1
+        tgt_indx         = np.random.randint(time_size)
 
         future_action    = torch.sigmoid(pre_activated_future_action)
 
@@ -86,10 +89,11 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_action)
-        total_loss          = loss_function(output_reward[:, :tgt_indx], desired_reward[:, :tgt_indx])
+        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
         total_loss.backward() # get grad
 
-        pre_activated_future_action[:, :tgt_indx] -= future_action.grad[:, :tgt_indx] * (1 - future_action[:, :tgt_indx]) * future_action[:, :tgt_indx] * beta # update params
+        # pre_activated_future_action[:, :tgt_indx] -= future_action.grad[:, :tgt_indx] * (1 - future_action[:, :tgt_indx]) * future_action[:, :tgt_indx] * beta # update params
+        pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
     
     return pre_activated_future_action
 
@@ -147,8 +151,8 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(state, future_action)
-        total_loss                    = loss_function(output_reward, future_reward) 
-        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
+        total_loss                    = loss_function(output_reward[:, -1], future_reward[:, -1]) 
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
         TD_error                      = np.array(total_loss.detach().cpu())
 
     return TD_error
@@ -197,7 +201,7 @@ def update_model(iteration_for_learning,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
@@ -219,30 +223,26 @@ def update_model_parallel(iteration_for_learning,
     """
     Parallel training of multiple models on the same GPU.
     """
-    manager     = mp.Manager()  # Manage shared data
-    return_dict = manager.dict()
-
-    processes = []
-    for idx, model in enumerate(model_list):
-        p = mp.Process(target=update_model,
-                       args=(iteration_for_learning, 
-                             dict_list_state_tensors, 
-                             dict_list_action_tensors,
-                             dict_list_reward_tensors,
-                             dict_list_n_state_tensors,
-                             model,
-                             PER_epsilon,
-                             PER_exponent,
-                             device))
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
-
-    # Collect the trained models
-    model_list = [return_dict[i] for i in range(len(model_list))]
-    return model_list
+    results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_model = {
+            executor.submit(update_model, 
+                            iteration_for_learning,
+                            dict_list_state_tensors,
+                            dict_list_action_tensors,
+                            dict_list_reward_tensors,
+                            dict_list_n_state_tensors,
+                            model,
+                            PER_epsilon,
+                            PER_exponent,
+                            device): model
+            for model in model_list
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_model):
+            results.append(future.result())
+    
+    return results
 
 
 
