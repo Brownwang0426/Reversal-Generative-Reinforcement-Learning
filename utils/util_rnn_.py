@@ -25,6 +25,7 @@ from collections import defaultdict
 
 import itertools
 import concurrent.futures
+import torch.multiprocessing as mp
 
 
 def initialize_pre_activated_action(init, noise_t, noise_r, shape):
@@ -206,38 +207,42 @@ def update_model(iteration_for_learning,
 
 
 
-def update_multiple_models_parallel(iteration_for_learning,
-                                    dict_list_state_tensors,
-                                    dict_list_action_tensors,
-                                    dict_list_reward_tensors,
-                                    dict_list_n_state_tensors,
-                                    models,  # List of models
-                                    PER_epsilon,
-                                    PER_exponent,
-                                    device):
+def update_model_parallel(iteration_for_learning,
+                          dict_list_state_tensors,
+                          dict_list_action_tensors,
+                          dict_list_reward_tensors,
+                          dict_list_n_state_tensors,
+                          model_list,  # List of models
+                          PER_epsilon,
+                          PER_exponent,
+                          device):
     """
     Parallel training of multiple models on the same GPU.
     """
-    results = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_model = {
-            executor.submit(update_model, 
-                            iteration_for_learning,
-                            dict_list_state_tensors,
-                            dict_list_action_tensors,
-                            dict_list_reward_tensors,
-                            dict_list_n_state_tensors,
-                            model,
-                            PER_epsilon,
-                            PER_exponent,
-                            device): model
-            for model in models
-        }
-        
-        for future in concurrent.futures.as_completed(future_to_model):
-            results.append(future.result())
-    
-    return results
+    manager     = mp.Manager()  # Manage shared data
+    return_dict = manager.dict()
+
+    processes = []
+    for idx, model in enumerate(model_list):
+        p = mp.Process(target=update_model,
+                       args=(iteration_for_learning, 
+                             dict_list_state_tensors, 
+                             dict_list_action_tensors,
+                             dict_list_reward_tensors,
+                             dict_list_n_state_tensors,
+                             model,
+                             PER_epsilon,
+                             PER_exponent,
+                             device))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+
+    # Collect the trained models
+    model_list = [return_dict[i] for i in range(len(model_list))]
+    return model_list
 
 
 
