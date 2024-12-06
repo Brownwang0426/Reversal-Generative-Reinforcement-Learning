@@ -141,12 +141,14 @@ class build_model(nn.Module):
             c       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
             h       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
             h[idx]  = s  
-            r, s     = self.recurrent_layer_0(a, (h, c))
-            s          = s[0] 
+            r, hc     = self.recurrent_layer_0(a, (h, c))
+            h          = hc[0] 
+            s     = h[idx]
         else:
             h       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
             h[idx]  = s  
-            r, s     = self.recurrent_layer_0(a, h)
+            r, h     = self.recurrent_layer_0(a, h)
+            s     = h[idx]
             
         r, _     = rnn_utils.pad_packed_sequence(r, batch_first=False)
         padding    = (0, 0, 0, 0, 0, self.input_sequence_size - r.size(0))
