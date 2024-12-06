@@ -88,7 +88,7 @@ class build_model(nn.Module):
         self.fully_connected_layer_out_0     = nn.Linear(self.hidden_neuron_size , self.hidden_neuron_size, bias=self.bias)
         self.fully_connected_layer_out_1     = nn.Linear(self.hidden_neuron_size , self.h_input_neuron_size, bias=self.bias)
 
-        self.recurrent_layer_0               = neural_types[neural_type.lower()](self.input_neuron_size, self.hidden_neuron_size, num_layers=self.num_layers, batch_first=False, bias=self.bias, dropout=self.drop_rate)
+        self.recurrent_layer_0               = neural_types[neural_type.lower()](self.input_neuron_size, self.hidden_neuron_size, num_layers= self.num_layers, batch_first=False, bias=self.bias, dropout=self.drop_rate)
 
         self.fully_connected_layer_r         = nn.Linear(self.hidden_neuron_size * self.input_sequence_size, self.output_neuron_size, bias=self.bias)
 
@@ -124,40 +124,46 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, initial_hidden, x, padding_mask):
+    def forward(self, s, a, mask):
+        
+        idx = 1 # the index of the num_layers where you want to insert s
 
-        h  = self.fully_connected_layer_in_0(initial_hidden)
-        h  = self.hidden_activation(h)
-        h  = self.fully_connected_layer_in_1(h)
-        h  = self.hidden_activation(h)
-        h  = torch.unsqueeze(h, dim=0).repeat(self.num_layers, 1, 1)
+        s  = self.fully_connected_layer_in_0(s)
+        s  = self.hidden_activation(s)
+        s  = self.fully_connected_layer_in_1(s)
+        s  = self.hidden_activation(s)
 
-        out        = x.permute(1, 0, 2)
-        lengths    = (out != self.mask_value).any(dim=2).sum(dim=0).cpu().long() # since x is (sequence_length, batch_size, input_size), we should use sum(dim=0)
-        out        = rnn_utils.pack_padded_sequence(out, lengths, batch_first=False, enforce_sorted=False)
+        a        = a.permute(1, 0, 2)
+        lengths    = (a != self.mask_value).any(dim=2).sum(dim=0).cpu().long() # since x is (sequence_length, batch_size, input_size), we should use sum(dim=0)
+        a        = rnn_utils.pack_padded_sequence(a, lengths, batch_first=False, enforce_sorted=False)
 
         if self.neural_type == 'lstm':
-            out, h     = self.recurrent_layer_0(out, (h, h))
-            h          = h[0] 
+            c       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
+            h       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+            h[idx]  = s  
+            r, s     = self.recurrent_layer_0(a, (h, c))
+            s          = s[0] 
         else:
-            out, h     = self.recurrent_layer_0(out, h)
-            h          = h 
-        out, _     = rnn_utils.pad_packed_sequence(out, batch_first=False)
-        padding    = (0, 0, 0, 0, 0, self.input_sequence_size - out.size(0))
-        out        = F.pad(out, padding, "constant", 0)
-        out        = out.permute(1, 0, 2)
+            h       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+            h[idx]  = s  
+            r, s     = self.recurrent_layer_0(a, h)
+            
+        r, _     = rnn_utils.pad_packed_sequence(r, batch_first=False)
+        padding    = (0, 0, 0, 0, 0, self.input_sequence_size - r.size(0))
+        r        = F.pad(r, padding, "constant", 0)
+        r        = r.permute(1, 0, 2)
 
-        h  = self.fully_connected_layer_out_0(h)
-        h  = self.hidden_activation(h)
-        h  = self.fully_connected_layer_out_1(h)
-        h  = self.output_activation(h)
+        s  = self.fully_connected_layer_out_0(s)
+        s  = self.hidden_activation(s)
+        s  = self.fully_connected_layer_out_1(s)
+        s  = self.output_activation(s)
 
-        out = torch.flatten(out, start_dim=1)
+        r = torch.flatten(r, start_dim=1)
 
-        out = self.fully_connected_layer_r(out)
-        out = self.output_activation(out)
+        r = self.fully_connected_layer_r(r)
+        r = self.output_activation(r)
 
-        return out, h
+        return r, s
 
 
 
