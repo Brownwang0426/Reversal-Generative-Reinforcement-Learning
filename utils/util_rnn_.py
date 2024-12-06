@@ -67,14 +67,11 @@ def update_pre_activated_actions(iteration_for_deducing,
 
     model_list_copy = copy.deepcopy(model_list)
 
-    time_size       = pre_activated_future_actions.size(1)
-
     for i in range(iteration_for_deducing):
 
         index            = np.random.randint(len(model_list_copy))
         model            = model_list_copy[index]
-        tgt_indx         = np.random.randint(time_size)
-
+        
         future_actions   = torch.sigmoid(pre_activated_future_actions)
 
         model.train()
@@ -86,7 +83,7 @@ def update_pre_activated_actions(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(state, future_actions, None)
-        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
+        total_loss          = loss_function(output_reward, desired_reward)
         total_loss.backward() # get grad
 
         pre_activated_future_actions -= future_actions.grad * (1 - future_actions) * future_actions * beta # update params
