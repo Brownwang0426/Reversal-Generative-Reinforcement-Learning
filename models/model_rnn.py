@@ -126,7 +126,7 @@ class build_model(nn.Module):
 
     def forward(self, s, a, mask):
         
-        idx = 1 # the index of the num_layers where you want to insert s
+        idx = 0 # the index of the num_layers where you want to insert s
 
         s  = self.fully_connected_layer_in_0(s)
         s  = self.hidden_activation(s)
