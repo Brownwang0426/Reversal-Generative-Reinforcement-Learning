@@ -88,7 +88,7 @@ class build_model(nn.Module):
         self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         # self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
         self.reward_layers = nn.ModuleList([
-            nn.Linear(self.hidden_neuron_size, self.output_neuron_size) for i in range(self.input_sequence_size)
+            nn.Linear(self.h_input_neuron_size, self.output_neuron_size) for i in range(self.input_sequence_size)
         ])
 
         # Activation functions
