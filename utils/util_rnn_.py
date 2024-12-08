@@ -114,19 +114,21 @@ def sequentialize(state_list, action_list, reward_list, chunk_size_, device):
                 present_state_list.append(       torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
                 future_actions_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
                 future_rewards_list.append(       torch.tensor(np.array(reward_list[  i:i+chunk_size            ]), dtype=torch.float)  )
-                future_states_list.append(        torch.tensor(np.array(state_list [ i:i+chunk_size +1            ]), dtype=torch.float)  )
+                future_states_list.append(        torch.tensor(np.array(state_list [ i+1:i+chunk_size +1            ]), dtype=torch.float)  )
         else:
             for i in range(len(reward_list[:])):
                 present_state_list.append(       torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
                 future_actions_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
                 future_rewards_list.append(       torch.tensor(np.array(reward_list[ i:i+chunk_size           ]), dtype=torch.float)  )
-                future_states_list .append(       torch.tensor(np.array(state_list [ i:i+chunk_size +1            ]), dtype=torch.float)  )
+                future_states_list .append(       torch.tensor(np.array(state_list [ i+1:i+chunk_size +1            ]), dtype=torch.float)  )
 
+    
     mask_value = 0
+    ori_list = copy.deepcopy(future_states_list)
     future_actions_list =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_actions_list]
     future_rewards_list =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_rewards_list]
     future_states_list  =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_states_list]
-    pad_size_list = [(pad_size - torch.tensor(arr).size(0)) for arr in future_states_list]
+    pad_size_list = [(torch.tensor(arr).size(0)) for arr in ori_list]
 
     present_state_tensors  = torch.stack( present_state_list  ).to(device)
     future_actions_tensors = torch.stack( future_actions_list ).to(device)
@@ -160,8 +162,9 @@ def obtain_TD_error(model,
         output_reward, output_state   = model(present_state_tensor, future_actions_tensor)
         total_loss                    = loss_function(output_reward * pad_tensor, future_rewards_tensor * pad_tensor) 
         total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-        TD_error                      = np.array(total_loss.detach().cpu())
-
+        #print(pad_size_tensor.cpu().numpy())
+        TD_error                      = np.array(total_loss.detach().cpu()) / pad_size_tensor.cpu().numpy()
+        #print(TD_error)
     return TD_error
 
 
@@ -178,6 +181,7 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
     
+    print(long_term_pad_size_tensors)
     dataset     = TensorDataset(long_term_present_state_tensors, long_term_future_actions_tensors, long_term_future_rewards_tensors, long_term_future_states_tensors, long_term_pad_size_tensors)
     batch_size  = len(long_term_present_state_tensors)
     data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=True)
