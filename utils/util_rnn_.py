@@ -157,7 +157,7 @@ def obtain_TD_error(model,
  
         range_tensor = torch.arange(future_actions_tensor.size(1)).to(device)  
         pad_tensor_ = (range_tensor == (pad_size_tensor-1).unsqueeze(1)).int() .unsqueeze(-1).to(device)
-
+        
 
         model.eval()
 
