@@ -86,7 +86,7 @@ class build_model(nn.Module):
         self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_2    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.reward_layer         = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
+        self.reward_layer        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)
@@ -165,7 +165,7 @@ class build_model(nn.Module):
         s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
         r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
         s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-        return r_list[:, -1], s_list
+        return r_list, s_list
 
 
 
