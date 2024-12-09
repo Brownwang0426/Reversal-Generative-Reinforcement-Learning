@@ -28,7 +28,10 @@ import itertools
 
 
 
-def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
+import concurrent.futures
+
+
+def initialize_pre_activated_action(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
@@ -55,52 +58,53 @@ def initialize_pre_activated_actions(init, noise_t, noise_r, shape):
 
 
 
-def update_pre_activated_actions(iteration_for_deducing,
-                                 model_list,
-                                 state,
-                                 pre_activated_future_actions,
-                                 desired_rewards,
-                                 beta,
-                                 device):
+def update_pre_activated_action(iteration_for_deducing,
+                                model_list,
+                                state,
+                                pre_activated_future_action,
+                                desired_reward,
+                                beta,
+                                device):
 
-    state, pre_activated_future_actions, desired_rewards = state.to(device), pre_activated_future_actions.to(device), desired_rewards.to(device)
+    state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
     model_list_copy = copy.deepcopy(model_list)
+
+    time_size       = pre_activated_future_action.size(1)
 
     for i in range(iteration_for_deducing):
 
         index            = np.random.randint(len(model_list_copy))
         model            = model_list_copy[index]
+        tgt_indx         = np.random.randint(time_size)
 
-        future_actions   = torch.sigmoid(pre_activated_future_actions)
+        future_action    = torch.sigmoid(pre_activated_future_action)
 
         model.train()
-        future_actions   = future_actions.detach().requires_grad_(True)
-        if future_actions.grad is not None:
-            future_actions.grad.zero_()
+        future_action = future_action.detach().requires_grad_(True)
+        if future_action.grad is not None:
+            future_action.grad.zero_()
         for param in model.parameters():
             param.requires_grad = False
 
         loss_function       = model.loss_function
-        output_rewards, _   = model(state, future_actions)
-        total_loss          = loss_function(output_rewards, desired_rewards)
+        output_reward, _    = model(state, future_action)
+        total_loss          = loss_function(output_reward[:, : tgt_indx+1], desired_reward[:, : tgt_indx+1])
         total_loss.backward() # get grad
 
-        pre_activated_future_actions -= future_actions.grad * (1 - future_actions) * future_actions * beta # update params
+        pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
     
-    return pre_activated_future_actions
+    return pre_activated_future_action
 
 
 
 
-def sequentialize(state_list, action_list, reward_list, chunk_size_, device):
+def sequentialize(state_list, action_list, reward_list, chunk_size_):
 
-    pad_size = copy.deepcopy(chunk_size_)
-
-    present_state_list   = []
-    future_actions_list  = []
-    future_rewards_list  = []
-    future_states_list   = []
+    present_state_list = []
+    future_action_list = []
+    future_reward_list = []
+    future_state_list  = []
 
     if chunk_size_ > len(state_list[:-1]):
         chunk_size_ = len(state_list[:-1])
@@ -111,53 +115,45 @@ def sequentialize(state_list, action_list, reward_list, chunk_size_, device):
         chunk_size = j + 1
         if chunk_size != 1:
             for i in range(len(reward_list[:-chunk_size+1])):
-                present_state_list.append(        torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-                future_actions_list.append(       torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_rewards_list.append(       torch.tensor(np.array(reward_list[  i   : i+chunk_size      ]), dtype=torch.float)  )
-                future_states_list.append(        torch.tensor(np.array(state_list [ i+1:i+chunk_size +1      ]), dtype=torch.float)  )
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
         else:
             for i in range(len(reward_list[:])):
-                present_state_list.append(        torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-                future_actions_list.append(       torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_rewards_list.append(       torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_states_list .append(       torch.tensor(np.array(state_list [ i+1:i+chunk_size +1      ]), dtype=torch.float)  )
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
 
-    mask_value = 0
-    ori_list   = copy.deepcopy(future_states_list)
-    future_actions_list =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_actions_list]
-    future_rewards_list =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_rewards_list]
-    future_states_list  =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_states_list ]
-    pad_size_list       =  [(torch.tensor(arr).size(0)) for arr in ori_list]
-
-    present_state_tensors  = torch.stack( present_state_list   ).to(device)
-    future_actions_tensors = torch.stack( future_actions_list  ).to(device)
-    future_rewards_tensors = torch.stack( future_rewards_list  ).to(device)
-    future_states_tensors  = torch.stack( future_states_list   ).to(device)
-    pad_size_tensors       = torch.tensor(pad_size_list        ).to(device)
-
-    return present_state_tensors, future_actions_tensors, future_rewards_tensors, future_states_tensors, pad_size_tensors
+    return present_state_list, future_action_list, future_reward_list, future_state_list
 
 
 
 
 def obtain_TD_error(model,
-                    data_loader,
-                    device
+                    state_tensors   ,
+                    action_tensors  ,
+                    reward_tensors  ,
+                    n_state_tensors 
                     ):
 
-    for present_state_tensor, future_actions_tensor, future_rewards_tensor, future_states_tensor, pad_size_tensor in data_loader:
+    dataset      = TensorDataset(state_tensors  ,
+                                 action_tensors ,
+                                 reward_tensors ,
+                                 n_state_tensors)
+    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-        range_tensor = torch.arange(future_actions_tensor.size(1)).to(device)  
-        pad_tensor_  = (range_tensor == (pad_size_tensor-1).unsqueeze(1)).int().unsqueeze(-1).to(device)
-        # pad_tensor   = (range_tensor < pad_size_tensor.unsqueeze(1)).int().unsqueeze(-1).to(device)
+    for state, future_action, future_reward, future_state in data_loader:
 
         model.eval()
 
         loss_function                 = model.loss_function_
-        output_rewards, output_states = model(present_state_tensor, future_actions_tensor)
-        total_loss                    = loss_function(output_rewards * pad_tensor_, future_rewards_tensor * pad_tensor_) 
+        output_reward, output_state   = model(state, future_action)
+        total_loss                    = loss_function(output_reward, future_reward) 
         total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-        TD_error                      = np.array(total_loss.detach().cpu()) # / pad_size_tensor.cpu().numpy()
+        
+        TD_error                      = np.array(total_loss.detach().cpu())
 
     return TD_error
 
@@ -165,55 +161,88 @@ def obtain_TD_error(model,
 
 
 def update_model(iteration_for_learning,
-                 long_term_present_state_tensors  ,
-                 long_term_future_actions_tensors ,
-                 long_term_future_rewards_tensors ,
-                 long_term_future_states_tensors  ,
-                 long_term_pad_size_tensors       ,
+                 present_state_list_dict,
+                 future_action_list_dict,
+                 future_reward_list_dict,
+                 future_state_list_dict ,
                  model,
                  PER_epsilon,
                  PER_exponent,
                  device):
-    
-    print(long_term_pad_size_tensors)
-    dataset     = TensorDataset(long_term_present_state_tensors, long_term_future_actions_tensors, long_term_future_rewards_tensors, long_term_future_states_tensors, long_term_pad_size_tensors)
-    batch_size  = len(long_term_present_state_tensors)
-    data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=True)
 
     for _ in range(iteration_for_learning):
 
+        random_key         = random.choice(list(present_state_list_dict.keys()))
+        present_state_list = torch.stack(present_state_list_dict[random_key]).to(device)
+        future_action_list = torch.stack(future_action_list_dict[random_key]).to(device)
+        future_reward_list = torch.stack(future_reward_list_dict[random_key]).to(device)
+        future_state_list  = torch.stack(future_state_list_dict [random_key]).to(device)
+
         TD_error         = obtain_TD_error(model, 
-                                           data_loader,
-                                           device)
+                                           present_state_list  ,
+                                           future_action_list  ,
+                                           future_reward_list  ,
+                                           future_state_list   )
         TD_error         =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p       = TD_error / np.sum(TD_error)
-        index            = np.random.choice(range(batch_size), 
+        index            = np.random.choice(range(len(present_state_list)), 
                                             p=TD_error_p, 
                                             size=1,
                                             replace=True)[0]
 
-        present_state_tensor   = long_term_present_state_tensors  [index].unsqueeze(0)
-        future_actions_tensor  = long_term_future_actions_tensors [index].unsqueeze(0)
-        future_rewards_tensor  = long_term_future_rewards_tensors [index].unsqueeze(0)
-        future_states_tensor   = long_term_future_states_tensors  [index].unsqueeze(0)
-        pad_size_tensor        = long_term_pad_size_tensors       [index].unsqueeze(0)
-
-        range_tensor = torch.arange(future_actions_tensor.size(1))  .to(device)
-        pad_tensor_  = (range_tensor == (pad_size_tensor-1).unsqueeze(1)).int().unsqueeze(-1).to(device)
-        pad_tensor   = (range_tensor < pad_size_tensor.unsqueeze(1)).int().unsqueeze(-1).to(device)
+        present_state   = present_state_list [index].unsqueeze(0)
+        future_action   = future_action_list [index].unsqueeze(0)
+        future_reward   = future_reward_list [index].unsqueeze(0)
+        future_state    = future_state_list  [index].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
-        loss_function                 = model.loss_function
-        output_rewards, output_states = model(present_state_tensor, future_actions_tensor)
-        total_loss                    = loss_function(output_rewards * pad_tensor_, future_rewards_tensor * pad_tensor_) + loss_function(output_states * pad_tensor, future_states_tensor * pad_tensor)
+        loss_function               = model.loss_function
+        output_reward, output_state = model(present_state, future_action)
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
 
     return model
+
+
+
+
+def update_model_parallel(iteration_for_learning,
+                          present_state_list_dict,
+                          future_action_list_dict,
+                          future_reward_list_dict,
+                          future_state_list_dict ,
+                          model_list,  # List of models
+                          PER_epsilon,
+                          PER_exponent,
+                          device):
+    """
+    Parallel training of multiple models on the same GPU.
+    """
+    results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_model = {
+            executor.submit(update_model, 
+                            iteration_for_learning,
+                            present_state_list_dict ,
+                            future_action_list_dict ,
+                            future_reward_list_dict ,
+                            future_state_list_dict  ,
+                            model,
+                            PER_epsilon,
+                            PER_exponent,
+                            device): model
+            for model in model_list
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_model):
+            results.append(future.result())
+    
+    return results
 
 
 
