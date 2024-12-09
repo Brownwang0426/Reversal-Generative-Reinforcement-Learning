@@ -75,18 +75,16 @@ class build_model(nn.Module):
         self.drop_rate            = drop_rate
         self.alpha                = alpha
 
-    
-        self.mask_value = 0
+
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-
         self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_2    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.reward_layer         = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
+        self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)
@@ -118,18 +116,23 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
-
     def forward(self, s, a_list):
+
         null_step = torch.zeros_like(a_list[:, 0, :]).unsqueeze(1)
+
         idx = 0 # the index of the num_layers where you want to insert s
+
         # s          is [batch_size, feature_size] by default
         # a_list     is [batch_size, sequence_size, feature_size] by default
         # cl         is [num_layers, batch_size, feature_size]
         # sl         is [num_layers, batch_size, feature_size]
         # rl         is [batch_size, sequence_size, feature_size] 
+
         r_list = list()
         s_list = list()
+
         for i in range(a_list.size(1)):
+
             if self.neural_type == 'lstm':
                 if i == 0:
                     cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
@@ -154,8 +157,10 @@ class build_model(nn.Module):
                 r            = rl[:,0,:]
                 rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
                 s            = sl[idx]
-            r = self.reward_layer(r)
-            r = self.output_activation(r)
+                
+            r  = self.reward_linear(r)   
+            r  = self.output_activation(r)
+
             r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
             s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
 
@@ -163,9 +168,8 @@ class build_model(nn.Module):
         s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
         r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
         s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+
         return r_list, s_list
-
-
 
 
     def get_activation(self,  activation):
