@@ -28,6 +28,9 @@ import itertools
 
 
 
+import concurrent.futures
+
+
 def initialize_pre_activated_action(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
@@ -55,40 +58,42 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
 
 
 
-def update_pre_activated_action(epcoh_for_deducing,
+def update_pre_activated_action(iteration_for_deducing,
                                 model_list,
-                                state,
+                                present_state,
                                 pre_activated_future_action,
                                 desired_reward,
                                 beta,
                                 device):
 
-    state, pre_activated_future_action, desired_reward = state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
+    present_state, pre_activated_future_action, desired_reward = present_state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
     model_list_copy = copy.deepcopy(model_list)
 
-    for _ in range(epcoh_for_deducing):
+    time_size       = pre_activated_future_action.size(1)
 
-        random.shuffle(model_list_copy)
+    for i in range(iteration_for_deducing):
 
-        for model in model_list_copy:
+        index            = np.random.randint(len(model_list_copy))
+        model            = model_list_copy[index]
+        tgt_indx         = np.random.randint(time_size) + 1
 
-            future_action    = torch.sigmoid(pre_activated_future_action)
+        future_action    = torch.sigmoid(pre_activated_future_action[:, :tgt_indx])
 
-            model.train()
-            future_action = future_action.clone().detach().requires_grad_(True)
-            if future_action.grad is not None:
-                future_action.grad.zero_()
-            for param in model.parameters():
-                param.requires_grad = False
+        model.train()
+        future_action = future_action.detach().requires_grad_(True)
+        if future_action.grad is not None:
+            future_action.grad.zero_()
+        for param in model.parameters():
+            param.requires_grad = False
 
-            loss_function       = model.loss_function
-            output_reward, _    = model(state, future_action)
-            total_loss          = loss_function(output_reward, desired_reward)
-            total_loss.backward() # get grad
+        loss_function       = model.loss_function
+        output_reward, _    = model(present_state, future_action)
+        total_loss          = loss_function(output_reward, desired_reward[:, :tgt_indx])
+        total_loss.backward() # get grad
 
-            pre_activated_future_action -= future_action.grad * (1 - future_action) * future_action * beta # update params
-
+        pre_activated_future_action[:, :tgt_indx] -= future_action.grad[:, :tgt_indx] * (1 - future_action[:, :tgt_indx]) * future_action[:, :tgt_indx] * beta # update params
+    
     return pre_activated_future_action
 
 
@@ -126,87 +131,118 @@ def sequentialize(state_list, action_list, reward_list, chunk_size_):
 
 
 
-def obtain_TD_error(model_list,
-                    list_tensor,
-                    PER_epsilon,
-                    PER_exponent,
-                    device):
+def obtain_TD_error(model,
+                    present_state_tensor,
+                    future_action_tensor,
+                    future_reward_tensor,
+                    future_state_tensor 
+                    ):
 
-    state_tensor   = list_tensor[0]
-    action_tensor  = list_tensor[1]
-    reward_tensor  = list_tensor[2]
-    n_state_tensor = list_tensor[3]
+    dataset      = TensorDataset(present_state_tensor,
+                                 future_action_tensor,
+                                 future_reward_tensor,
+                                 future_state_tensor )
+    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-    dataset        = TensorDataset(state_tensor     ,
-                                   action_tensor    ,
-                                   reward_tensor    ,
-                                   n_state_tensor   )
-    data_loader    = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+    for present_state, future_action, future_reward, future_state in data_loader:
 
-    TD_error_all   = 0
-    for model in model_list:
-        
-        for state, future_action, future_reward, future_state in data_loader:
+        model.eval()
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        loss_function                 = model.loss_function_
+        output_reward, output_state   = model(present_state, future_action)
+        total_loss                    = loss_function(output_reward, future_reward) 
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
 
-            loss_function                 = model.loss_function_
-            output_reward, output_state   = model(state, future_action)
-            total_loss                    = loss_function(output_reward, future_reward)
-            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
-            TD_error                      = np.array(total_loss.detach().cpu()) 
+        TD_error                      = np.array(total_loss.detach().cpu())
 
-        TD_error_all += TD_error
-    TD_error_all      =(TD_error_all + PER_epsilon) ** PER_exponent
-    TD_error_p        = TD_error_all / np.sum(TD_error_all)
-
-    index = np.random.choice(range(len(dataset)), 
-                             p=TD_error_p, 
-                             size=1,
-                             replace=True)[0]
-
-    return index 
+    return TD_error
 
 
 
 
-def update_model(epoch_for_learning,
-                 model_list,
-                 list_tensor,
-                 index,
+def update_model(iteration_for_learning,
+                 present_state_tensor_dict,
+                 future_action_tensor_dict,
+                 future_reward_tensor_dict,
+                 future_state_tensor_dict ,
+                 model,
+                 PER_epsilon,
+                 PER_exponent,
                  device):
 
-    state_tensor        = list_tensor[0]
-    action_tensor       = list_tensor[1]
-    reward_tensor       = list_tensor[2]
-    n_state_tensor      = list_tensor[3]
+    for _ in range(iteration_for_learning):
 
-    for _ in range(int(epoch_for_learning)):
+        random_key         = random.choice(list(present_state_tensor_dict.keys()))
+        present_state_tensor = present_state_tensor_dict[random_key]
+        future_action_tensor = future_action_tensor_dict[random_key]
+        future_reward_tensor = future_reward_tensor_dict[random_key]
+        future_state_tensor  = future_state_tensor_dict [random_key]
 
-        random.shuffle(model_list)
+        TD_error           = obtain_TD_error (model, 
+                                              present_state_tensor  ,
+                                              future_action_tensor  ,
+                                              future_reward_tensor  ,
+                                              future_state_tensor   )
+        TD_error           =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error_p         = TD_error / np.sum(TD_error)
+        index              = np.random.choice(range(len(present_state_tensor)), 
+                                              p=TD_error_p, 
+                                              size=1,
+                                              replace=True)[0]
+  
+        present_state      = present_state_tensor [index].unsqueeze(0)
+        future_action      = future_action_tensor [index].unsqueeze(0)
+        future_reward      = future_reward_tensor [index].unsqueeze(0)
+        future_state       = future_state_tensor  [index].unsqueeze(0)
 
-        for model in model_list:
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
 
-            state            = state_tensor   [index].unsqueeze(0).to(device)
-            future_action    = action_tensor  [index].unsqueeze(0).to(device)
-            future_reward    = reward_tensor  [index].unsqueeze(0).to(device)
-            future_state     = n_state_tensor [index].unsqueeze(0).to(device)
+        loss_function               = model.loss_function
+        output_reward, output_state = model(present_state, future_action)
+        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
+        total_loss.backward()     # get grad
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        selected_optimizer.step() # update params
 
-            loss_function               = model.loss_function
-            output_reward, output_state = model(state, future_action)
-            total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state)
-            total_loss.backward()     # get grad
+    return model
 
-            selected_optimizer.step() # update params
 
-    return model_list
 
+
+def update_model_parallel(iteration_for_learning,
+                          present_state_tensor_dict,
+                          future_action_tensor_dict,
+                          future_reward_tensor_dict,
+                          future_state_tensor_dict ,
+                          model_list,  # List of models
+                          PER_epsilon,
+                          PER_exponent,
+                          device):
+    """
+    Parallel training of multiple models on the same GPU.
+    """
+    results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_model = {
+            executor.submit(update_model, 
+                            iteration_for_learning,
+                            present_state_tensor_dict,
+                            future_action_tensor_dict,
+                            future_reward_tensor_dict,
+                            future_state_tensor_dict ,
+                            model,
+                            PER_epsilon,
+                            PER_exponent,
+                            device): model
+            for model in model_list
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_model):
+            results.append(future.result())
+    
+    return results
 
 
 
