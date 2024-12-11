@@ -28,6 +28,7 @@ import itertools
 
 
 
+import cupy as cp
 import concurrent.futures
 
 
@@ -153,7 +154,7 @@ def obtain_TD_error(model,
         total_loss                    = loss_function(output_reward, future_reward) 
         total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
 
-        TD_error                      = np.array(total_loss.detach().cpu())
+        TD_error                      = cp.array(total_loss.detach())
 
     return TD_error
 
@@ -172,7 +173,7 @@ def update_model(iteration_for_learning,
 
     for _ in range(iteration_for_learning):
 
-        random_key         = random.choice(list(present_state_tensor_dict.keys()))
+        random_key           = random.choice(list(present_state_tensor_dict.keys()))
         present_state_tensor = present_state_tensor_dict[random_key]
         future_action_tensor = future_action_tensor_dict[random_key]
         future_reward_tensor = future_reward_tensor_dict[random_key]
@@ -184,9 +185,9 @@ def update_model(iteration_for_learning,
                                               future_reward_tensor  ,
                                               future_state_tensor   )
         TD_error           =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p         = TD_error / np.sum(TD_error)
+        TD_error_p         = TD_error / cp.sum(TD_error)
         index              = np.random.choice(range(len(present_state_tensor)), 
-                                              p=TD_error_p, 
+                                              p=TD_error_p.get(), 
                                               size=1,
                                               replace=True)[0]
   
