@@ -68,9 +68,9 @@ def update_pre_activated_action(iteration_for_deducing,
 
     present_state, pre_activated_future_action, desired_reward = present_state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
-    model_list_copy = copy.deepcopy(model_list)
+    model_list_copy   = copy.deepcopy(model_list)
 
-    time_size       = pre_activated_future_action.size(1)
+    time_size         = pre_activated_future_action.size(1)
 
     for i in range(iteration_for_deducing):
 
@@ -82,8 +82,6 @@ def update_pre_activated_action(iteration_for_deducing,
 
         model.train()
         future_action = future_action.detach().requires_grad_(True)
-        if future_action.grad is not None:
-            future_action.grad.zero_()
         for param in model.parameters():
             param.requires_grad = False
 
@@ -92,39 +90,39 @@ def update_pre_activated_action(iteration_for_deducing,
         total_loss          = loss_function(output_reward, desired_reward[:, :tgt_indx])
         total_loss.backward() # get grad
 
-        pre_activated_future_action[:, :tgt_indx] -= future_action.grad[:, :tgt_indx] * (1 - future_action[:, :tgt_indx]) * future_action[:, :tgt_indx] * beta # update params
+        pre_activated_future_action[:, :tgt_indx] -= future_action.grad * (1 - future_action) * future_action * beta # update params
     
     return pre_activated_future_action
 
 
 
 
-def sequentialize(state_list, action_list, reward_list, chunk_size_):
+def sequentialize(state_list, action_list, reward_list, chunk_size, device):
 
     present_state_list = []
     future_action_list = []
     future_reward_list = []
     future_state_list  = []
 
-    if chunk_size_ > len(state_list[:-1]):
-        chunk_size_ = len(state_list[:-1])
+    if chunk_size > len(state_list[:-1]):
+        chunk_size = len(state_list[:-1])
     else:
       pass
     
-    for j in range(chunk_size_):
-        chunk_size = j + 1
-        if chunk_size != 1:
-            for i in range(len(reward_list[:-chunk_size+1])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
+    for j in range(chunk_size):
+        chunk_size_ = j + 1
+        if chunk_size_ != 1:
+            for i in range(len(reward_list[:-chunk_size_+1])):
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
         else:
             for i in range(len(reward_list[:])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                        ]), dtype=torch.float)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size       ]), dtype=torch.float)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size+1     ]), dtype=torch.float)  )
+                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
+                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
+                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
+                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
