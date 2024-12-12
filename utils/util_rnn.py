@@ -74,11 +74,11 @@ def update_pre_activated_action(iteration_for_deducing,
 
     for i in range(iteration_for_deducing):
 
-        index            = np.random.randint(len(model_list_copy))
-        model            = model_list_copy[index]
-        tgt_indx         = np.random.randint(time_size) + 1
+        index         = np.random.randint(len(model_list_copy))
+        model         = model_list_copy[index]
+        tgt_indx      = np.random.randint(time_size) + 1
 
-        future_action    = torch.sigmoid(pre_activated_future_action[:, :tgt_indx])
+        future_action = torch.sigmoid(pre_activated_future_action[:, :tgt_indx])
 
         model.train()
         future_action = future_action.detach().requires_grad_(True)
@@ -153,7 +153,7 @@ def obtain_TD_error(model,
         total_loss                    = loss_function(output_reward, future_reward) 
         total_loss                    = torch.sum(torch.abs(total_loss), dim=(1, 2))
 
-        TD_error                      = np.array(total_loss.detach().cpu())
+        TD_error                      = total_loss.detach()
 
     return TD_error
 
@@ -178,22 +178,19 @@ def update_model(iteration_for_learning,
         future_reward_tensor = future_reward_tensor_dict[random_key]
         future_state_tensor  = future_state_tensor_dict [random_key]
 
-        TD_error           = obtain_TD_error (model, 
-                                              present_state_tensor  ,
-                                              future_action_tensor  ,
-                                              future_reward_tensor  ,
-                                              future_state_tensor   )
-        TD_error           =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p         = TD_error / np.sum(TD_error)
-        index              = np.random.choice(range(len(present_state_tensor)), 
-                                              p=TD_error_p, 
-                                              size=1,
-                                              replace=True)[0]
-  
-        present_state      = present_state_tensor [index].unsqueeze(0)
-        future_action      = future_action_tensor [index].unsqueeze(0)
-        future_reward      = future_reward_tensor [index].unsqueeze(0)
-        future_state       = future_state_tensor  [index].unsqueeze(0)
+        TD_error             = obtain_TD_error (model, 
+                                                present_state_tensor  ,
+                                                future_action_tensor  ,
+                                                future_reward_tensor  ,
+                                                future_state_tensor   )
+        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error_p           = TD_error / torch.sum(TD_error)
+        index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
+
+        present_state        = present_state_tensor [index].unsqueeze(0)
+        future_action        = future_action_tensor [index].unsqueeze(0)
+        future_reward        = future_reward_tensor [index].unsqueeze(0)
+        future_state         = future_state_tensor  [index].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
