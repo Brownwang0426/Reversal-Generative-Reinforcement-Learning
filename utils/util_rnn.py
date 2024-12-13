@@ -29,6 +29,7 @@ import itertools
 
 
 import concurrent.futures
+import hashlib
 
 
 def initialize_pre_activated_action(init, noise_t, noise_r, shape):
@@ -97,6 +98,60 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
+# def process_chunk(tuple_arg):
+# 
+#     state_list, action_list, reward_list, window_size, device = tuple_arg
+# 
+#     present_state_list = []
+#     future_action_list = []
+#     future_reward_list = []
+#     future_state_list  = []
+# 
+#     if window_size != 1:
+#         for j in range(len(reward_list[:-window_size+1])):
+#             present_state_list.append(      torch.tensor(np.array(state_list [ j                               ]), dtype=torch.float).to(device)  )
+#             future_action_list.append(      torch.tensor(np.array(action_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
+#             future_reward_list.append(      torch.tensor(np.array(reward_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
+#             future_state_list.append(       torch.tensor(np.array(state_list [ j + 1 : j + window_size + 1     ]), dtype=torch.float).to(device)  )
+#     else:
+#         for j in range(len(reward_list[:])):
+#             present_state_list.append(      torch.tensor(np.array(state_list [ j                               ]), dtype=torch.float).to(device)  )
+#             future_action_list.append(      torch.tensor(np.array(action_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
+#             future_reward_list.append(      torch.tensor(np.array(reward_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
+#             future_state_list.append(       torch.tensor(np.array(state_list [ j + 1 : j + window_size + 1     ]), dtype=torch.float).to(device)  )
+# 
+#     return present_state_list, future_action_list, future_reward_list, future_state_list
+# 
+# def sequentialize_(state_list, action_list, reward_list, max_window_size, device):
+# 
+#     if max_window_size > len(state_list[:-1]):
+#         max_window_size = len(state_list[:-1])
+#     else:
+#       pass
+# 
+#     chunk = [(state_list, action_list, reward_list, i + 1, device) for i in range(max_window_size)]
+# 
+#     with mp.Pool(max_window_size) as pool:
+# 
+#         processed_chunks = pool.map(process_chunk, chunk)
+# 
+#     present_state_list = []
+#     future_action_list = []
+#     future_reward_list = []
+#     future_state_list  = []
+#     
+#     # Iterate over processed chunks and extend the result lists
+#     for processed_chunk in processed_chunks:
+#         present_state_list.extend(processed_chunk[0])  
+#         future_action_list.extend(processed_chunk[1])  
+#         future_reward_list.extend(processed_chunk[2])  
+#         future_state_list.extend (processed_chunk[3])  
+#     
+#     return present_state_list, future_action_list, future_reward_list, future_state_list
+
+
+
+
 def sequentialize(state_list, action_list, reward_list, chunk_size, device):
 
     present_state_list = []
@@ -125,6 +180,54 @@ def sequentialize(state_list, action_list, reward_list, chunk_size, device):
                 future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
+
+
+
+
+def hash_tensor(tensor):
+    return hashlib.sha256(tensor.cpu().numpy().tobytes()).hexdigest()
+
+def fast_check_with_hash(hash_1d, hash_2d):
+    return hash_1d not in hash_2d
+
+def update_long_term_experience_buffer(present_state_tensor_dict, 
+                                       future_action_tensor_dict,
+                                       future_reward_tensor_dict, 
+                                       future_state_tensor_dict,
+                                       present_state_hash_list, 
+                                       future_action_hash_list, 
+                                       future_reward_hash_list, 
+                                       future_state_hash_list,
+                                       present_state_list,
+                                       future_action_list,
+                                       future_reward_list,
+                                       future_state_list ):
+
+    for i in range(len(present_state_list)):
+        length             = len(future_action_list[i])
+        present_state      = present_state_list  [i]
+        future_action      = future_action_list  [i]
+        future_reward      = future_reward_list  [i]
+        future_state       = future_state_list   [i]
+        present_state_hash = hash_tensor(present_state)
+        future_action_hash = hash_tensor(future_action)
+        future_reward_hash = hash_tensor(future_reward)
+        future_state_hash  = hash_tensor(future_state )
+        if  fast_check_with_hash(present_state_hash  , present_state_hash_list) or   \
+            fast_check_with_hash(future_action_hash  , future_action_hash_list) or   \
+            fast_check_with_hash(future_reward_hash  , future_reward_hash_list) or   \
+            fast_check_with_hash(future_state_hash   , future_state_hash_list ) :
+            present_state_tensor_dict  [length] = torch.cat((present_state_tensor_dict  [length],    present_state.unsqueeze(0) ), dim=0)
+            future_action_tensor_dict  [length] = torch.cat((future_action_tensor_dict  [length],    future_action.unsqueeze(0) ), dim=0)
+            future_reward_tensor_dict  [length] = torch.cat((future_reward_tensor_dict  [length],    future_reward.unsqueeze(0) ), dim=0)
+            future_state_tensor_dict   [length] = torch.cat((future_state_tensor_dict   [length],    future_state .unsqueeze(0) ), dim=0)
+            present_state_hash_list    .append( present_state_hash  )
+            future_action_hash_list    .append( future_action_hash  )
+            future_reward_hash_list    .append( future_reward_hash  )
+            future_state_hash_list     .append( future_state_hash   )
+
+    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
+           present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
 
 
 
@@ -164,9 +267,12 @@ def update_model(iteration_for_learning,
                  future_reward_tensor_dict,
                  future_state_tensor_dict ,
                  model,
-                 PER_epsilon,
+                 PER_epsilon ,
                  PER_exponent,
                  device):
+
+    PER_epsilon  = torch.tensor(PER_epsilon  ).to(device)
+    PER_exponent = torch.tensor(PER_exponent ).to(device)
 
     for _ in range(iteration_for_learning):
 
