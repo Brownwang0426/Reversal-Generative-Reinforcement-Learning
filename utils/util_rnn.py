@@ -226,11 +226,10 @@ def update_model(iteration_for_learning,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
                                                 future_state_tensor   )
-        # - We decide not to use the randomn selection in the original Prioritized Experience Replace in order the let the agent learn faster
-        # TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        # TD_error_p           = TD_error / torch.sum(TD_error)
-        # index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
-        index                = torch.argmax(TD_error)
+        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error_p           = TD_error / torch.sum(TD_error)
+        index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
+        # index                = torch.argmax(TD_error)
 
         present_state        = present_state_tensor [index].unsqueeze(0)
         future_action        = future_action_tensor [index].unsqueeze(0)
