@@ -32,28 +32,21 @@ import concurrent.futures
 import hashlib
 
 
-def initialize_pre_activated_action(init, noise_t, noise_r, shape):
+def initialize_pre_activated_action(init, noise_t, noise_r, shape, device):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
-            input += np.random.uniform(low=-noise_r, high=noise_r, size=shape) 
+            input += (torch.rand(shape) * (noise_r * 2) - noise_r).to(device) 
     elif init == "random_normal":
         for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= noise_r, size= shape ) 
-    elif init == "glorot_uniform":
+            input +=  torch.normal(mean=0, std=noise_r, size=shape).to(device) 
+    elif (init == "glorot_uniform") or (init == "xavier_uniform"):
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
-    elif init == "glorot_normal":
+            input += (torch.rand(shape) * (limit * 2) - limit).to(device) 
+    elif (init == "glorot_normal" ) or (init == "xavier_normal"):
         for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
-    elif init == "xavier_uniform":
-        for _ in range(noise_t):
-            limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += np.random.uniform(low=-limit, high=limit, size=shape) * noise_r
-    elif init == "xavier_normal":
-        for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= np.sqrt(2 / (shape[1] + shape[1])) , size= shape ) * noise_r
+            input += torch.normal(mean=0, std = np.sqrt(2 / (shape[1] + shape[1])) * noise_r, size=shape).to(device) 
     return input
 
 
@@ -98,60 +91,6 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-# def process_chunk(tuple_arg):
-# 
-#     state_list, action_list, reward_list, window_size, device = tuple_arg
-# 
-#     present_state_list = []
-#     future_action_list = []
-#     future_reward_list = []
-#     future_state_list  = []
-# 
-#     if window_size != 1:
-#         for j in range(len(reward_list[:-window_size+1])):
-#             present_state_list.append(      torch.tensor(np.array(state_list [ j                               ]), dtype=torch.float).to(device)  )
-#             future_action_list.append(      torch.tensor(np.array(action_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
-#             future_reward_list.append(      torch.tensor(np.array(reward_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
-#             future_state_list.append(       torch.tensor(np.array(state_list [ j + 1 : j + window_size + 1     ]), dtype=torch.float).to(device)  )
-#     else:
-#         for j in range(len(reward_list[:])):
-#             present_state_list.append(      torch.tensor(np.array(state_list [ j                               ]), dtype=torch.float).to(device)  )
-#             future_action_list.append(      torch.tensor(np.array(action_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
-#             future_reward_list.append(      torch.tensor(np.array(reward_list[ j     : j + window_size         ]), dtype=torch.float).to(device)  )
-#             future_state_list.append(       torch.tensor(np.array(state_list [ j + 1 : j + window_size + 1     ]), dtype=torch.float).to(device)  )
-# 
-#     return present_state_list, future_action_list, future_reward_list, future_state_list
-# 
-# def sequentialize_(state_list, action_list, reward_list, max_window_size, device):
-# 
-#     if max_window_size > len(state_list[:-1]):
-#         max_window_size = len(state_list[:-1])
-#     else:
-#       pass
-# 
-#     chunk = [(state_list, action_list, reward_list, i + 1, device) for i in range(max_window_size)]
-# 
-#     with mp.Pool(max_window_size) as pool:
-# 
-#         processed_chunks = pool.map(process_chunk, chunk)
-# 
-#     present_state_list = []
-#     future_action_list = []
-#     future_reward_list = []
-#     future_state_list  = []
-#     
-#     # Iterate over processed chunks and extend the result lists
-#     for processed_chunk in processed_chunks:
-#         present_state_list.extend(processed_chunk[0])  
-#         future_action_list.extend(processed_chunk[1])  
-#         future_reward_list.extend(processed_chunk[2])  
-#         future_state_list.extend (processed_chunk[3])  
-#     
-#     return present_state_list, future_action_list, future_reward_list, future_state_list
-
-
-
-
 def sequentialize(state_list, action_list, reward_list, chunk_size, device):
 
     present_state_list = []
@@ -164,20 +103,20 @@ def sequentialize(state_list, action_list, reward_list, chunk_size, device):
     else:
       pass
     
-    for j in range(chunk_size):
-        chunk_size_ = j + 1
+    for i in range(chunk_size):
+
+        chunk_size_ = i + 1
+
         if chunk_size_ != 1:
-            for i in range(len(reward_list[:-chunk_size_+1])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
+            process_len = len(reward_list[:-chunk_size_+1])
         else:
-            for i in range(len(reward_list[:])):
-                present_state_list.append(      torch.tensor(np.array(state_list [ i                         ]), dtype=torch.float).to(device)  )
-                future_action_list.append(      torch.tensor(np.array(action_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_reward_list.append(      torch.tensor(np.array(reward_list[ i   : i+chunk_size_       ]), dtype=torch.float).to(device)  )
-                future_state_list.append(       torch.tensor(np.array(state_list [ i+1 : i+chunk_size_+1     ]), dtype=torch.float).to(device)  )
+            process_len = len(reward_list[:])
+
+        for j in range(process_len):
+            present_state_list.append(                  state_list [ j                         ]          .to(device)  )
+            future_action_list.append(      torch.stack(action_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
+            future_reward_list.append(      torch.stack(reward_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
+            future_state_list.append(       torch.stack(state_list [ j+1 : j+chunk_size_+1     ], dim=0)  .to(device)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
