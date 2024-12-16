@@ -36,10 +36,10 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
-            input += np.random.uniform(low=0, high=1, size=shape) * noise_r
+            input += np.random.uniform(low=-noise_r, high=noise_r, size=shape) 
     elif init == "random_normal":
         for _ in range(noise_t):
-            input += np.random.normal(loc=0.0, scale= 1, size= shape ) * noise_r
+            input += np.random.normal(loc=0.0, scale= noise_r, size= shape ) 
     elif init == "glorot_uniform":
         for _ in range(noise_t):
             limit = np.sqrt(6 / (shape[1] + shape[1]))
