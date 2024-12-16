@@ -36,8 +36,8 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value):
-    tensor   = torch.zeros(tesnor_size) + start_value
+def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+    tensor   = torch.zeros(tesnor_size).to(device) + start_value
     interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
@@ -45,10 +45,10 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(-1, 1, 100, -4.8  , 4.8   , state[0]).to(device)
-    state_1 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[1]).to(device)
-    state_2 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2]).to(device)
-    state_3 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3]).to(device)
+    state_0 = quantifying(-1, 1, 100, -4.8  , 4.8   , state[0], device)
+    state_1 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[1], device)
+    state_2 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2], device)
+    state_3 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3], device)
     state   = torch.cat((state_0, state_1, state_2, state_3), dim = 0)
     return state
 

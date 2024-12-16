@@ -36,33 +36,34 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(start_value, end_value, array_size, min_value, max_value, value):
-    array    = np.zeros(array_size) + start_value
-    interval = (max_value - min_value) / array_size
+def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+    tensor   = torch.zeros(tesnor_size).to(device) + start_value
+    interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
-        array[ : index] = end_value
-    return array
+        tensor[ : index] = end_value
+    return tensor
 
-def vectorizing_state(state):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(-1, 1, 100, -1.5 , 1.5  , state[0]) 
-    state_1 = quantifying(-1, 1, 100, -1.5 , 1.5  , state[1]) 
-    state_2 = quantifying(-1, 1, 100, -5   , 5    , state[2]) 
-    state_3 = quantifying(-1, 1, 100, -5   , 5    , state[3]) 
-    state_4 = quantifying(-1, 1, 100, -3.14, 3.14 , state[4])   
-    state_5 = quantifying(-1, 1, 100, -5   , 5    , state[5])   
-    state_6 = quantifying(-1, 1, 100, 0    , 1    , state[6])    
-    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[7])    
-    state   = np.concatenate((state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7))   
+def vectorizing_state(state, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    state_0 = quantifying(-1, 1, 100, -1.5 , 1.5  , state[0], device) 
+    state_1 = quantifying(-1, 1, 100, -1.5 , 1.5  , state[1], device) 
+    state_2 = quantifying(-1, 1, 100, -5   , 5    , state[2], device) 
+    state_3 = quantifying(-1, 1, 100, -5   , 5    , state[3], device) 
+    state_4 = quantifying(-1, 1, 100, -3.14, 3.14 , state[4], device)   
+    state_5 = quantifying(-1, 1, 100, -5   , 5    , state[5], device)   
+    state_6 = quantifying(-1, 1, 100, 0    , 1    , state[6], device)    
+    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[7], device)    
+    state   = torch.cat((state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7), dim = 0)
     return state
 
-def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    action_size      = pre_activated_actions.size(2)
-    action_argmax    = int(torch.argmax(pre_activated_actions[0, 0]))
-    return np.eye(action_size)[action_argmax], action_argmax
+def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    action_size       = pre_activated_actions.size(2)
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
+    vectorized_action = torch.eye(action_size)[action_argmax].to(device)
+    return vectorized_action, action_argmax
 
-def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(0, 1, reward_size, -200, 325, reward)       
+def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
+    reward = quantifying(0, 1, reward_size, -200, 325, reward, device)       
     return reward
 
 
