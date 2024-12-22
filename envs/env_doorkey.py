@@ -36,25 +36,26 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(start_value, end_value, array_size, min_value, max_value, value):
-    array    = np.zeros(array_size) + start_value
-    interval = (max_value - min_value) / array_size
+def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+    tensor   = torch.zeros(tesnor_size).to(device) + start_value
+    interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
-        array[ : index] = end_value
-    return array
+        tensor[ : index] = end_value
+    return tensor
 
-def vectorizing_state(state):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(-1, 1, 100, -1 , 1 , state[0])
-    state_1 = quantifying(-1, 1, 100, -1 , 1 , state[1])
-    state_2 = quantifying(-1, 1, 100, -8 , 8 , state[2])
-    state   = np.concatenate((state_0, state_1, state_2))
+def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+    state_0 = quantifying(-1, 1, 4,  1 , 10 , state['direction'], device)
+    state_1 = torch.tensor(state['image'].ravel()).to(device)
+    state   = torch.cat((state_0, state_1), dim = 0)
     return state
 
-def vectorizing_action(pre_activated_actions):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    activated_actions = torch.sigmoid(pre_activated_actions).cpu().detach().numpy()
-    return activated_actions[0,0], activated_actions[0,0] * 4 - 2
+def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    action_size       = pre_activated_actions.size(2)
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
+    vectorized_action = torch.eye(action_size)[action_argmax].to(device)
+    return vectorized_action, action_argmax
 
-def vectorizing_reward(state, reward, summed_reward, done, reward_size):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(0, 1, reward_size, -16.2736044, 0, state[0])
+def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):     # Reminder: change this for your specific task ⚠️⚠️⚠️
+    reward = quantifying(0, 1, reward_size, 0, 1, reward, device)
     return reward
