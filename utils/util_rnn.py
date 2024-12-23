@@ -124,7 +124,8 @@ def sequentialize(state_list, action_list, reward_list, chunk_size, device):
 
 
 def hash_tensor(tensor):
-    return hashlib.sha256(tensor.cpu().numpy().tobytes()).hexdigest()
+    tensor = tensor.cpu()  # Make sure the tensor is on the CPU
+    return hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
 
 def fast_check_with_hash(hash_1d, hash_2d):
     return hash_1d not in hash_2d
