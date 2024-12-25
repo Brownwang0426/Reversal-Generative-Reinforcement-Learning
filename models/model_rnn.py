@@ -81,9 +81,9 @@ class build_model(nn.Module):
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-        self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
+        # self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.recurrent_layer_2    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
+        # self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
@@ -140,22 +140,21 @@ class build_model(nn.Module):
                     sl[idx]  = s  
                 else:
                     pass                             
-                rl, (sl, cl) = self.recurrent_layer_1(null_step                     , (sl, cl))
+                # rl, (sl, cl) = self.recurrent_layer_1(null_step                     , (sl, cl))
                 rl, (sl, cl) = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                 r            = rl[:,0,:] 
-                rl, (sl, cl) = self.recurrent_layer_3(null_step                     , (sl, cl))
+                # rl, (sl, cl) = self.recurrent_layer_3(null_step                     , (sl, cl))
                 s            = sl[idx]
-                c            = cl[idx]
             else:
                 if i == 0:
                     sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
                     sl[idx]  = s                                                                         
                 else:
                     pass
-                rl, sl       = self.recurrent_layer_1(null_step                     , sl)
+                # rl, sl       = self.recurrent_layer_1(null_step                     , sl)
                 rl, sl       = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , sl)
                 r            = rl[:,0,:]
-                rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
+                # rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
                 s            = sl[idx]
                 
             r  = self.reward_linear(r)   
