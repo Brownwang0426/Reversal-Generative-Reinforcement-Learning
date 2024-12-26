@@ -52,13 +52,12 @@ RGRL/
 │
 ├── models/                  # model implementation files
 │   ├── __init__.py          # package indicator
-│   ├── model_att.py         # model implementation file for attention
+│   ├── model_rnn_att.py     # model implementation file for recurrent_attention
 │   └── model_rnn.py         # model implementation file for rnn, gru, lstm
 │
 ├── utils/                   # utility functions
 │   ├── __init__.py          # package indicator
-│   ├── util_att.py          # utility function for attention
-│   └── util_rnn.py          # utility function for rnn, gru, lstm
+│   └── util_func.py         # utility function 
 │
 ├── train.py                 # main script for training the model
 │
