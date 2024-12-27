@@ -83,7 +83,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(present_state, future_action)
-        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
+        total_loss          = loss_function(output_reward, desired_reward[:, tgt_indx])
         total_loss          = total_loss * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
@@ -208,6 +208,15 @@ def obtain_TD_error(model,
 
 
 
+"""
+We do not update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
+This might seem promising and helps improve learning by ensuring that the buffer always has the most informative experiences according to the latest neural network weights.
+However, 
+1 - The model's learning process will become highly sensitive to the order of experience sampling.
+2 - The model may end up repeatedly sampling the same experiences, which could slow down training or prevent sufficient exploration of the environment.
+3 - Re-updaing TD error in the replay buffer (using updated model) after each iteration will be very expensive computationally.
+4 - The model will become too narrowly focused and fail to generalize well across different situations.
+"""
 def update_model(iteration_for_learning,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
@@ -218,42 +227,44 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-    PER_epsilon  = torch.tensor(PER_epsilon  ).to(device)
-    PER_exponent = torch.tensor(PER_exponent ).to(device)
+    model_   = copy.deepcopy(model)
 
-    for _ in range(iteration_for_learning):
+    key_list = list(present_state_tensor_dict.keys())
+    random.shuffle(key_list)
+    for key in key_list:
 
-        random_key           = random.choice(list(present_state_tensor_dict.keys()))
-        present_state_tensor = present_state_tensor_dict[random_key]
-        future_action_tensor = future_action_tensor_dict[random_key]
-        future_reward_tensor = future_reward_tensor_dict[random_key]
-        future_state_tensor  = future_state_tensor_dict [random_key]
+        present_state_tensor = present_state_tensor_dict[key]
+        future_action_tensor = future_action_tensor_dict[key]
+        future_reward_tensor = future_reward_tensor_dict[key]
+        future_state_tensor  = future_state_tensor_dict [key]
 
-        TD_error             = obtain_TD_error (model, 
+        TD_error             = obtain_TD_error (model_, 
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
                                                 future_state_tensor   )
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
-        index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
-        # index                = torch.argmax(TD_error)
 
-        present_state        = present_state_tensor [index].unsqueeze(0)
-        future_action        = future_action_tensor [index].unsqueeze(0)
-        future_reward        = future_reward_tensor [index].unsqueeze(0)
-        future_state         = future_state_tensor  [index].unsqueeze(0)
+        for _ in range(int(iteration_for_learning/len(list(present_state_tensor_dict.keys())))):
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+            index            = torch.multinomial(TD_error_p, 1, replacement = True)[0]
 
-        loss_function               = model.loss_function
-        output_reward, output_state = model(present_state, future_action)
-        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
-        total_loss.backward()     # get grad
+            present_state = present_state_tensor [index].unsqueeze(0)
+            future_action = future_action_tensor [index].unsqueeze(0)
+            future_reward = future_reward_tensor [index].unsqueeze(0)
+            future_state  = future_state_tensor  [index].unsqueeze(0)
 
-        selected_optimizer.step() # update params
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
+
+            loss_function               = model.loss_function
+            output_reward, output_state = model(present_state, future_action)
+            total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
+            total_loss.backward()     # get grad
+
+            selected_optimizer.step() # update params
 
     return model
 
