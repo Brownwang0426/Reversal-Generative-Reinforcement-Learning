@@ -83,7 +83,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(present_state, future_action)
-        total_loss          = loss_function(output_reward, desired_reward[:, tgt_indx])
+        total_loss          = loss_function(output_reward, desired_reward)
         total_loss          = total_loss * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
@@ -95,6 +95,8 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 def sequentialize(state_list, action_list, reward_list, chunk_size, device):
+
+    pad_size = copy.deepcopy(chunk_size)
 
     present_state_list = []
     future_action_list = []
@@ -116,10 +118,13 @@ def sequentialize(state_list, action_list, reward_list, chunk_size, device):
             process_len = len(reward_list[:])
 
         for j in range(process_len):
-            present_state_list.append(                  state_list [ j                         ]          .to(device)  )
-            future_action_list.append(      torch.stack(action_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
-            future_reward_list.append(      torch.stack(reward_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
-            future_state_list.append(       torch.stack(state_list [ j+1 : j+chunk_size_+1     ], dim=0)  .to(device)  )
+            present_state_list.append(                  state_list [ j                       ]          .to(device)  )
+            future_action_list.append(      torch.stack(action_list[ j   : j+chunk_size_     ], dim=0)  .to(device)  )
+            future_reward_list.append(                  reward_list[ j+chunk_size_ - 1       ]          .to(device)  )
+            future_state_list.append(                   state_list [ j+chunk_size_           ]          .to(device)  )
+
+    mask_value = 0
+    future_actions_list =  [F.pad(torch.tensor(arr), pad=(0, 0, 0, pad_size - torch.tensor(arr).size(0)), mode='constant', value= mask_value) for arr in future_action_list]
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -194,12 +199,12 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(present_state, future_action)
-        total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
-        total_loss_B                  = loss_function(output_state, future_state)
+        total_loss_A                  = loss_function(output_reward, future_reward) 
+        # total_loss_B                  = loss_function(output_state, future_state)
 
         total_loss                    = 0
         total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
-        total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+        # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1))
 
         TD_error                      = total_loss.detach()
 
@@ -261,9 +266,9 @@ def update_model(iteration_for_learning,
 
             loss_function               = model.loss_function
             output_reward, output_state = model(present_state, future_action)
-            total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
+            total_loss                  = loss_function(output_reward, future_reward) # + loss_function(output_state, future_state)
             total_loss.backward()     # get grad
-
+ 
             selected_optimizer.step() # update params
 
     return model
