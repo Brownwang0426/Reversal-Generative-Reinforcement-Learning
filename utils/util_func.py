@@ -227,18 +227,17 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-    model_   = copy.deepcopy(model)
 
-    key_list = list(present_state_tensor_dict.keys())
-    random.shuffle(key_list)
-    for key in key_list:
+    TD_error_p_dict = defaultdict(lambda: torch.Tensor().to(device))
+
+    for key in list(present_state_tensor_dict.keys()):
 
         present_state_tensor = present_state_tensor_dict[key]
         future_action_tensor = future_action_tensor_dict[key]
         future_reward_tensor = future_reward_tensor_dict[key]
         future_state_tensor  = future_state_tensor_dict [key]
 
-        TD_error             = obtain_TD_error (model_, 
+        TD_error             = obtain_TD_error (model, 
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
@@ -246,25 +245,34 @@ def update_model(iteration_for_learning,
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
 
-        for _ in range(int(iteration_for_learning/len(list(present_state_tensor_dict.keys())))):
+        TD_error_p_dict[key] = TD_error_p
 
-            index            = torch.multinomial(TD_error_p, 1, replacement = True)[0]
 
-            present_state = present_state_tensor [index].unsqueeze(0)
-            future_action = future_action_tensor [index].unsqueeze(0)
-            future_reward = future_reward_tensor [index].unsqueeze(0)
-            future_state  = future_state_tensor  [index].unsqueeze(0)
+    for _ in range(iteration_for_learning):
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        key                  = random.choice(list(present_state_tensor_dict.keys()))
+        present_state_tensor = present_state_tensor_dict[key]
+        future_action_tensor = future_action_tensor_dict[key]
+        future_reward_tensor = future_reward_tensor_dict[key]
+        future_state_tensor  = future_state_tensor_dict [key]
+        TD_error_p           = TD_error_p_dict[key]
 
-            loss_function               = model.loss_function
-            output_reward, output_state = model(present_state, future_action)
-            total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
-            total_loss.backward()     # get grad
+        index         = torch.multinomial(TD_error_p, 1, replacement = True)[0]
+        present_state = present_state_tensor [index].unsqueeze(0)
+        future_action = future_action_tensor [index].unsqueeze(0)
+        future_reward = future_reward_tensor [index].unsqueeze(0)
+        future_state  = future_state_tensor  [index].unsqueeze(0)
 
-            selected_optimizer.step() # update params
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        output_reward, output_state = model(present_state, future_action)
+        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
+        total_loss.backward()     # get grad
+
+        selected_optimizer.step() # update params
 
     return model
 
