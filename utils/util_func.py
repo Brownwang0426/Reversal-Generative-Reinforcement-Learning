@@ -83,7 +83,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
         loss_function       = model.loss_function
         output_reward, _    = model(present_state, future_action)
-        total_loss          = loss_function(output_reward, desired_reward[:, tgt_indx])
+        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
         total_loss          = total_loss * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
@@ -192,14 +192,20 @@ def obtain_TD_error(model,
 
         model.eval()
 
+        """
+        We strongely suggest you not to use total_loss_B because:
+        1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
+        2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
+        3 - In our experiments, taking states into account in PER does jeopardize the performance.
+        """
         loss_function                 = model.loss_function_
         output_reward, output_state   = model(present_state, future_action)
         total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
-        total_loss_B                  = loss_function(output_state, future_state)
+        # total_loss_B                  = loss_function(output_state, future_state)
 
         total_loss                    = 0
         total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
-        total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+        # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
 
         TD_error                      = total_loss.detach()
 
@@ -211,7 +217,7 @@ def obtain_TD_error(model,
 """
 We do not update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
 This might seem promising and helps improve learning by ensuring that the buffer always has the most informative experiences according to the latest neural network weights.
-However, 
+However:
 1 - The model's learning process will become highly sensitive to the order of experience sampling.
 2 - The model may end up repeatedly sampling the same experiences, which could slow down training or prevent sufficient exploration of the environment.
 3 - Re-updaing TD error in the replay buffer (using updated model) after each iteration will be very expensive computationally.
@@ -227,18 +233,17 @@ def update_model(iteration_for_learning,
                  PER_exponent,
                  device):
 
-    model_   = copy.deepcopy(model)
 
-    key_list = list(present_state_tensor_dict.keys())
-    random.shuffle(key_list)
-    for key in key_list:
+    TD_error_p_dict = defaultdict(lambda: torch.Tensor().to(device))
+
+    for key in list(present_state_tensor_dict.keys()):
 
         present_state_tensor = present_state_tensor_dict[key]
         future_action_tensor = future_action_tensor_dict[key]
         future_reward_tensor = future_reward_tensor_dict[key]
         future_state_tensor  = future_state_tensor_dict [key]
 
-        TD_error             = obtain_TD_error (model_, 
+        TD_error             = obtain_TD_error (model, 
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
@@ -246,25 +251,34 @@ def update_model(iteration_for_learning,
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
 
-        for _ in range(int(iteration_for_learning/len(list(present_state_tensor_dict.keys())))):
+        TD_error_p_dict[key] = TD_error_p
 
-            index            = torch.multinomial(TD_error_p, 1, replacement = True)[0]
 
-            present_state = present_state_tensor [index].unsqueeze(0)
-            future_action = future_action_tensor [index].unsqueeze(0)
-            future_reward = future_reward_tensor [index].unsqueeze(0)
-            future_state  = future_state_tensor  [index].unsqueeze(0)
+    for _ in range(iteration_for_learning):
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        key                  = random.choice(list(present_state_tensor_dict.keys()))
+        present_state_tensor = present_state_tensor_dict[key]
+        future_action_tensor = future_action_tensor_dict[key]
+        future_reward_tensor = future_reward_tensor_dict[key]
+        future_state_tensor  = future_state_tensor_dict [key]
+        TD_error_p           = TD_error_p_dict[key]
 
-            loss_function               = model.loss_function
-            output_reward, output_state = model(present_state, future_action)
-            total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
-            total_loss.backward()     # get grad
+        index         = torch.multinomial(TD_error_p, 1, replacement = True)[0]
+        present_state = present_state_tensor [index].unsqueeze(0)
+        future_action = future_action_tensor [index].unsqueeze(0)
+        future_reward = future_reward_tensor [index].unsqueeze(0)
+        future_state  = future_state_tensor  [index].unsqueeze(0)
 
-            selected_optimizer.step() # update params
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        output_reward, output_state = model(present_state, future_action)
+        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
+        total_loss.backward()     # get grad
+
+        selected_optimizer.step() # update params
 
     return model
 
