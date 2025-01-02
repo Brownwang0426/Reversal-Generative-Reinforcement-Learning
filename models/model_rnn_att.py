@@ -217,7 +217,8 @@ class build_model(nn.Module):
         s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
         r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
         s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-
+        s_list = s_list.repeat(1, self.num_layers, 1, 1)    
+        
         return r_list, s_list
 
 
