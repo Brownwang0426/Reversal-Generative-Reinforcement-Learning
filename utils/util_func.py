@@ -66,7 +66,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
     time_size         = pre_activated_future_action.size(1)
 
-    loss_scale        = 1.05
+    loss_scale        = 1.1
 
     for i in range(iteration_for_deducing):
 
@@ -248,9 +248,14 @@ def update_model(iteration_for_learning,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
                                                 future_state_tensor   )
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p           = TD_error / torch.sum(TD_error)
 
+        # In case if TD_error contains `inf`
+        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
+        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
+        
+        TD_error_p           = TD_error / (torch.sum(TD_error) + 1e-20)
+        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1)  
         TD_error_p_dict[key] = TD_error_p
 
 
