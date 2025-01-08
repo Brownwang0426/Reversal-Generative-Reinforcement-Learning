@@ -116,9 +116,13 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
+    
+
     def forward(self, s, a_list):
 
         null_step = torch.zeros_like(a_list[:, 0, :]).unsqueeze(1)
+
+        idx = 0 # the index of the num_layers where you want to insert s
 
         # s          is [batch_size, feature_size] by default
         # a_list     is [batch_size, sequence_size, feature_size] by default
@@ -134,36 +138,42 @@ class build_model(nn.Module):
             if self.neural_type == 'lstm':
                 if i == 0:
                     cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
-                    sl       = s.repeat(self.num_layers, 1, 1)        
+                    sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                    sl[idx]  = s  
                 else:
                     pass                             
                 # rl, (sl, cl) = self.recurrent_layer_1(null_step                     , (sl, cl))
                 rl, (sl, cl) = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                 r            = rl[:,0,:] 
                 # rl, (sl, cl) = self.recurrent_layer_3(null_step                     , (sl, cl))
+                s            = sl[idx]
             else:
                 if i == 0:
-                    sl       = s.repeat(self.num_layers, 1, 1)                                                                    
+                    sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                    sl[idx]  = s                                                                         
                 else:
                     pass
                 # rl, sl       = self.recurrent_layer_1(null_step                     , sl)
                 rl, sl       = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , sl)
                 r            = rl[:,0,:]
                 # rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
+                s            = sl[idx]
                 
             r  = self.reward_linear(r)   
             r  = self.output_activation(r)
 
-            r_list.append(r)  # r_list is [sequence_size, batch_size, feature_size]
-            s_list.append(sl) # s_list is [sequence_size, layer_size, batch_size, feature_size]
+            r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
+            s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
 
-        r_list = torch.stack(r_list, dim=0)    # r_list becomes [sequence_size, batch_size, feature_size]
-        s_list = torch.stack(s_list, dim=0)    # s_list becomes [sequence_size, layer_size, batch_size, feature_size]
-        r_list = r_list.permute(1, 0, 2)       # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.permute(2, 1, 0, 3)    # s_list becomes [batch_size, layer_size, sequence_size, feature_size]
+        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
+        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 
+
+    
 
     def get_activation(self,  activation):
         activations = {
