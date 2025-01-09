@@ -137,10 +137,10 @@ def update_long_term_experience_buffer(present_state_tensor_dict,
                                        future_action_tensor_dict,
                                        future_reward_tensor_dict, 
                                        future_state_tensor_dict,
-                                       present_state_hash_list, 
-                                       future_action_hash_list, 
-                                       future_reward_hash_list, 
-                                       future_state_hash_list,
+                                       present_state_hash_dict, 
+                                       future_action_hash_dict, 
+                                       future_reward_hash_dict, 
+                                       future_state_hash_dict,
                                        present_state_list,
                                        future_action_list,
                                        future_reward_list,
@@ -156,21 +156,23 @@ def update_long_term_experience_buffer(present_state_tensor_dict,
         future_action_hash = hash_tensor(future_action)
         future_reward_hash = hash_tensor(future_reward)
         future_state_hash  = hash_tensor(future_state )
-        if  fast_check_with_hash(present_state_hash  , present_state_hash_list) or   \
-            fast_check_with_hash(future_action_hash  , future_action_hash_list) or   \
-            fast_check_with_hash(future_reward_hash  , future_reward_hash_list) or   \
-            fast_check_with_hash(future_state_hash   , future_state_hash_list ) :
+
+        if  fast_check_with_hash(present_state_hash  , present_state_hash_dict[length]) or   \
+            fast_check_with_hash(future_action_hash  , future_action_hash_dict[length]) or   \
+            fast_check_with_hash(future_reward_hash  , future_reward_hash_dict[length]) or   \
+            fast_check_with_hash(future_state_hash   , future_state_hash_dict [length]) :
+
             present_state_tensor_dict  [length] = torch.cat((present_state_tensor_dict  [length],    present_state.unsqueeze(0) ), dim=0)
             future_action_tensor_dict  [length] = torch.cat((future_action_tensor_dict  [length],    future_action.unsqueeze(0) ), dim=0)
             future_reward_tensor_dict  [length] = torch.cat((future_reward_tensor_dict  [length],    future_reward.unsqueeze(0) ), dim=0)
             future_state_tensor_dict   [length] = torch.cat((future_state_tensor_dict   [length],    future_state .unsqueeze(0) ), dim=0)
-            present_state_hash_list    .append( present_state_hash  )
-            future_action_hash_list    .append( future_action_hash  )
-            future_reward_hash_list    .append( future_reward_hash  )
-            future_state_hash_list     .append( future_state_hash   )
+            present_state_hash_dict    [length] .append( present_state_hash  )
+            future_action_hash_dict    [length] .append( future_action_hash  )
+            future_reward_hash_dict    [length] .append( future_reward_hash  )
+            future_state_hash_dict     [length] .append( future_state_hash   )
 
     return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
-           present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
+           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
 
 
 
@@ -249,7 +251,9 @@ def update_model(iteration_for_learning,
                                                 future_reward_tensor  ,
                                                 future_state_tensor   )
 
-        # In case if TD_error contains `inf`
+        """
+        TD error clipping is a common practice in PER to prevent the model from being overwhelmed by outliers.
+        """
         TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
@@ -280,7 +284,7 @@ def update_model(iteration_for_learning,
 
         loss_function               = model.loss_function
         output_reward, output_state = model(present_state, future_action)
-        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state)
+        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state )
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
@@ -299,6 +303,7 @@ def update_model_parallel(iteration_for_learning,
                           PER_epsilon,
                           PER_exponent,
                           device):
+
     """
     Parallel training of multiple models on the same GPU.
     """
@@ -322,6 +327,56 @@ def update_model_parallel(iteration_for_learning,
             results.append(future.result())
     
     return results
+
+
+
+
+def clear_long_term_experience_buffer(present_state_tensor_dict, 
+                                      future_action_tensor_dict,
+                                      future_reward_tensor_dict, 
+                                      future_state_tensor_dict,
+                                      present_state_hash_dict, 
+                                      future_action_hash_dict, 
+                                      future_reward_hash_dict, 
+                                      future_state_hash_dict ,
+                                      model_list,
+                                      buffer_limit):
+
+    TD_error_p_dict = defaultdict(lambda: torch.Tensor().to(device))
+
+    for key in list(present_state_tensor_dict.keys()):
+
+        present_state_tensor = present_state_tensor_dict[key]
+        future_action_tensor = future_action_tensor_dict[key]
+        future_reward_tensor = future_reward_tensor_dict[key]
+        future_state_tensor  = future_state_tensor_dict [key]
+
+        TD_error = 0
+        for model in model_list:
+            TD_error += obtain_TD_error(model, 
+                                        present_state_tensor  ,
+                                        future_action_tensor  ,
+                                        future_reward_tensor  ,
+                                        future_state_tensor   )
+        
+        """
+        We choose the top-k experiences with the highest TD error for removal.
+        """
+        limit      = int(buffer_limit/len(list(present_state_tensor_dict.keys())))
+        limit      = min(limit, TD_error.size(0))
+        _, indices = torch.topk(TD_error, limit)
+
+        present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
+        future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
+        future_reward_tensor_dict [key] = future_reward_tensor_dict [key][indices]
+        future_state_tensor_dict  [key] = future_state_tensor_dict  [key][indices]
+        present_state_hash_dict   [key] = [present_state_hash_dict  [key][i] for i in indices.tolist()]
+        future_action_hash_dict   [key] = [future_action_hash_dict  [key][i] for i in indices.tolist()]
+        future_reward_hash_dict   [key] = [future_reward_hash_dict  [key][i] for i in indices.tolist()]
+        future_state_hash_dict    [key] = [future_state_hash_dict   [key][i] for i in indices.tolist()]
+
+    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
+           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
 
 
 
