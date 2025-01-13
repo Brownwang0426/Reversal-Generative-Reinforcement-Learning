@@ -216,15 +216,6 @@ def obtain_TD_error(model,
 
 
 
-"""
-We do not update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
-This might seem promising and helps improve learning by ensuring that the buffer always has the most informative experiences according to the latest neural network weights.
-However:
-1 - The model's learning process will become highly sensitive to the order of experience sampling.
-2 - The model may end up repeatedly sampling the same experiences, which could slow down training or prevent sufficient exploration of the environment.
-3 - Re-updaing TD error in the replay buffer (using updated model) after each iteration will be very expensive computationally.
-4 - The model will become too narrowly focused and fail to generalize well across different situations.
-"""
 def update_model(iteration_for_learning,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
@@ -236,15 +227,17 @@ def update_model(iteration_for_learning,
                  device):
 
 
-    TD_error_p_dict = defaultdict(lambda: torch.Tensor().to(device))
+    for _ in range(iteration_for_learning):
 
-    for key in list(present_state_tensor_dict.keys()):
-
+        key                  = random.choice(list(present_state_tensor_dict.keys()))
         present_state_tensor = present_state_tensor_dict[key]
         future_action_tensor = future_action_tensor_dict[key]
         future_reward_tensor = future_reward_tensor_dict[key]
         future_state_tensor  = future_state_tensor_dict [key]
 
+        """
+        We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
+        """
         TD_error             = obtain_TD_error (model, 
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
@@ -257,22 +250,10 @@ def update_model(iteration_for_learning,
         TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
-        
         TD_error_p           = TD_error / (torch.sum(TD_error) + 1e-20)
-        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1)  
-        TD_error_p_dict[key] = TD_error_p
+        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1) 
+        index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
 
-
-    for _ in range(iteration_for_learning):
-
-        key                  = random.choice(list(present_state_tensor_dict.keys()))
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
-        TD_error_p           = TD_error_p_dict[key]
-
-        index         = torch.multinomial(TD_error_p, 1, replacement = True)[0]
         present_state = present_state_tensor [index].unsqueeze(0)
         future_action = future_action_tensor [index].unsqueeze(0)
         future_reward = future_reward_tensor [index].unsqueeze(0)
@@ -340,10 +321,10 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                       future_reward_hash_dict, 
                                       future_state_hash_dict ,
                                       model_list,
+                                      PER_epsilon,
+                                      PER_exponent,
                                       buffer_limit):
-
-    TD_error_p_dict = defaultdict(lambda: torch.Tensor().to(device))
-
+    
     for key in list(present_state_tensor_dict.keys()):
 
         present_state_tensor = present_state_tensor_dict[key]
@@ -360,11 +341,14 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                         future_state_tensor   )
         
         """
-        We choose the top-k experiences with the highest TD error for removal.
+        TD error clipping is a common practice in PER to prevent the model from being overwhelmed by outliers.
         """
-        limit      = int(buffer_limit/len(list(present_state_tensor_dict.keys())))
-        limit      = min(limit, TD_error.size(0))
-        _, indices = torch.topk(TD_error, limit)
+        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
+        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
+        TD_error_p           = TD_error / (torch.sum(TD_error) + 1e-20)
+        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1) 
+        indices              = torch.multinomial(TD_error_p, min(buffer_limit, len(TD_error_p)), replacement = False)
 
         present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
         future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
@@ -386,5 +370,4 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
         writer = csv.writer(file)
         writer.writerow(['Episode', 'Summed_Reward'])
         writer.writerows(performance_log)
-
 
