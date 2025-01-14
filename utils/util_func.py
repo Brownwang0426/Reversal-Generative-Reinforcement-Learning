@@ -275,15 +275,41 @@ def update_model(iteration_for_learning,
 
 
 
-def update_model_parallel(iteration_for_learning,
-                          present_state_tensor_dict,
-                          future_action_tensor_dict,
-                          future_reward_tensor_dict,
-                          future_state_tensor_dict ,
-                          model_list,  # List of models
-                          PER_epsilon,
-                          PER_exponent,
-                          device):
+def update_model_list(iteration_for_learning,
+                      present_state_tensor_dict,
+                      future_action_tensor_dict,
+                      future_reward_tensor_dict,
+                      future_state_tensor_dict ,
+                      model_list,  # List of models
+                      PER_epsilon,
+                      PER_exponent,
+                      device):
+
+    for i, model in enumerate(model_list):
+        model_list[i] = update_model(iteration_for_learning,
+                                     present_state_tensor_dict,
+                                     future_action_tensor_dict,
+                                     future_reward_tensor_dict,
+                                     future_state_tensor_dict ,
+                                     model,
+                                     PER_epsilon,
+                                     PER_exponent,
+                                     device)
+
+    return model_list
+
+
+
+
+def update_model_list_parallel(iteration_for_learning,
+                               present_state_tensor_dict,
+                               future_action_tensor_dict,
+                               future_reward_tensor_dict,
+                               future_state_tensor_dict ,
+                               model_list,  # List of models
+                               PER_epsilon,
+                               PER_exponent,
+                               device):
 
     """
     Parallel training of multiple models on the same GPU.
