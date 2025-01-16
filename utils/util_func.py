@@ -25,11 +25,12 @@ from collections import defaultdict
 
 import itertools
 
-
-
+import dill
 
 import concurrent.futures
 import hashlib
+
+
 
 
 def initialize_pre_activated_action(init, noise_t, noise_r, shape, device):
@@ -391,9 +392,31 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
 
 
 
+def load_performance_from_csv(filename='performance_log.csv'):
+    performance_log = []
+    with open(filename, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        next(reader)  
+        for row in reader:
+            episode = int(row[0])  
+            summed_reward = float(row[1])  
+            performance_log.append((episode, summed_reward))
+    return performance_log
+
 def save_performance_to_csv(performance_log, filename='performance_log.csv'):
     with open(filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Episode', 'Summed_Reward'])
         writer.writerows(performance_log)
 
+
+
+
+def load_dicts_from_pickle(filename):
+    with open(filename, 'rb') as file:
+        dicts = dill.load(file)
+    return dicts
+
+def save_dicts_to_pickle(filename, *dicts):
+    with open(filename, 'wb') as file:
+        dill.dump(dicts, file)
