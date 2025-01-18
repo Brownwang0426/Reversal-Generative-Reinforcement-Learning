@@ -59,68 +59,63 @@ def update_pre_activated_action(iteration_for_deducing,
                                 pre_activated_future_action,
                                 desired_reward,
                                 beta,
+                                loss_scale,
                                 device):
 
     present_state, pre_activated_future_action, desired_reward = present_state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
-    model_list_copy   = copy.deepcopy(model_list)
-
     time_size         = pre_activated_future_action.size(1)
-
-    loss_scale        = 1.1
 
     for i in range(iteration_for_deducing):
 
-        index         = np.random.randint(len(model_list_copy))
-        model         = model_list_copy[index]
+        model         = random.choice(model_list)
         tgt_indx      = np.random.randint(time_size) 
 
         future_action = torch.sigmoid(pre_activated_future_action[:, :tgt_indx+1])
+        future_action = future_action.detach().requires_grad_(True)
 
         model.train()
-        future_action = future_action.detach().requires_grad_(True)
-        for param in model.parameters():
-            param.requires_grad = False
-
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+        
         loss_function       = model.loss_function
         output_reward, _    = model(present_state, future_action)
-        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx])
-        total_loss          = total_loss * (loss_scale ** tgt_indx)
+        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx]) * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
         pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad * (1 - future_action) * future_action * beta # update params
-    
+
     return pre_activated_future_action
 
 
 
 
-def sequentialize(state_list, action_list, reward_list, chunk_size, device):
+def sequentialize(state_list, action_list, reward_list, time_size, device):
 
     present_state_list = []
     future_action_list = []
     future_reward_list = []
     future_state_list  = []
 
-    if chunk_size > len(state_list[:-1]):
-        chunk_size = len(state_list[:-1])
+    if time_size > len(state_list[:-1]):
+        time_size = len(state_list[:-1])
     else:
       pass
     
-    for i in range(chunk_size):
+    for i in range(time_size):
 
-        chunk_size_ = i + 1
+        time_size_ = i + 1
 
-        if chunk_size_ != 1:
-            process_len = len(reward_list[:-chunk_size_+1])
+        if time_size_ != 1:
+            process_len = len(reward_list[:-time_size_+1])
         else:
             process_len = len(reward_list[:])
 
         for j in range(process_len):
-            present_state_list.append(                  state_list [ j                         ]          .to(device)  )
-            future_action_list.append(      torch.stack(action_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
-            future_reward_list.append(      torch.stack(reward_list[ j   : j+chunk_size_       ], dim=0)  .to(device)  )
-            future_state_list.append(       torch.stack(state_list [ j+1 : j+chunk_size_+1     ], dim=0)  .to(device)  )
+            present_state_list.append(                  state_list [ j                        ]          .to(device)  )
+            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
+            future_reward_list.append(      torch.stack(reward_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
+            future_state_list.append(       torch.stack(state_list [ j+1 : j+time_size_+1     ], dim=0)  .to(device)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -217,6 +212,55 @@ def obtain_TD_error(model,
 
 
 
+def clear_long_term_experience_buffer(present_state_tensor_dict, 
+                                      future_action_tensor_dict,
+                                      future_reward_tensor_dict, 
+                                      future_state_tensor_dict,
+                                      present_state_hash_dict, 
+                                      future_action_hash_dict, 
+                                      future_reward_hash_dict, 
+                                      future_state_hash_dict ,
+                                      model_list,
+                                      PER_epsilon,
+                                      PER_exponent,
+                                      buffer_limit):
+
+    buffer_limit_per_key = int( buffer_limit / len(list(present_state_tensor_dict.keys())) )
+    
+    for key in list(present_state_tensor_dict.keys()):
+
+        present_state_tensor = present_state_tensor_dict[key]
+        future_action_tensor = future_action_tensor_dict[key]
+        future_reward_tensor = future_reward_tensor_dict[key]
+        future_state_tensor  = future_state_tensor_dict [key]
+
+        TD_error = 0
+        for model in model_list:
+            TD_error += obtain_TD_error(model, 
+                                        present_state_tensor  ,
+                                        future_action_tensor  ,
+                                        future_reward_tensor  ,
+                                        future_state_tensor   )
+         
+        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+        TD_error_p           = TD_error / torch.sum(TD_error)
+        indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
+
+        present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
+        future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
+        future_reward_tensor_dict [key] = future_reward_tensor_dict [key][indices]
+        future_state_tensor_dict  [key] = future_state_tensor_dict  [key][indices]
+        present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.numpy()].tolist()
+        future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.numpy()].tolist()
+        future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.numpy()].tolist()
+        future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.numpy()].tolist()
+
+    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
+           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
+
+
+
+
 def update_model(iteration_for_learning,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
@@ -245,14 +289,8 @@ def update_model(iteration_for_learning,
                                                 future_reward_tensor  ,
                                                 future_state_tensor   )
 
-        """
-        TD error clipping is a common practice in PER to prevent the model from being overwhelmed by outliers.
-        """
-        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
-        TD_error_p           = TD_error / (torch.sum(TD_error) + 1e-20)
-        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1) 
+        TD_error_p           = TD_error / torch.sum(TD_error)
         index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
 
         present_state = present_state_tensor [index].unsqueeze(0)
@@ -335,59 +373,6 @@ def update_model_list_parallel(iteration_for_learning,
             results.append(future.result())
     
     return results
-
-
-
-
-def clear_long_term_experience_buffer(present_state_tensor_dict, 
-                                      future_action_tensor_dict,
-                                      future_reward_tensor_dict, 
-                                      future_state_tensor_dict,
-                                      present_state_hash_dict, 
-                                      future_action_hash_dict, 
-                                      future_reward_hash_dict, 
-                                      future_state_hash_dict ,
-                                      model_list,
-                                      PER_epsilon,
-                                      PER_exponent,
-                                      buffer_limit):
-    
-    for key in list(present_state_tensor_dict.keys()):
-
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
-
-        TD_error = 0
-        for model in model_list:
-            TD_error += obtain_TD_error(model, 
-                                        present_state_tensor  ,
-                                        future_action_tensor  ,
-                                        future_reward_tensor  ,
-                                        future_state_tensor   )
-        
-        """
-        TD error clipping is a common practice in PER to prevent the model from being overwhelmed by outliers.
-        """
-        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error             = torch.clamp(TD_error, min=0, max=1e20)  
-        TD_error_p           = TD_error / (torch.sum(TD_error) + 1e-20)
-        TD_error_p           = torch.clamp(TD_error_p, min=0, max=1) 
-        indices              = torch.multinomial(TD_error_p, min(buffer_limit, len(TD_error_p)), replacement = False)
-
-        present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
-        future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
-        future_reward_tensor_dict [key] = future_reward_tensor_dict [key][indices]
-        future_state_tensor_dict  [key] = future_state_tensor_dict  [key][indices]
-        present_state_hash_dict   [key] = [present_state_hash_dict  [key][i] for i in indices.tolist()]
-        future_action_hash_dict   [key] = [future_action_hash_dict  [key][i] for i in indices.tolist()]
-        future_reward_hash_dict   [key] = [future_reward_hash_dict  [key][i] for i in indices.tolist()]
-        future_state_hash_dict    [key] = [future_state_hash_dict   [key][i] for i in indices.tolist()]
-
-    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
-           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
 
 
 
