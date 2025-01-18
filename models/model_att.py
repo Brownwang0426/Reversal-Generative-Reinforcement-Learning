@@ -48,6 +48,11 @@ class custom_attn(nn.Module):
         self.W_v       = nn.Linear(model_d, model_d, bias=self.bias)
         self.W_o       = nn.Linear(model_d, model_d, bias=self.bias)
 
+    def split_heads(self, x):
+        batch_size, seq_length, model_d = x.size()
+        return x.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
+        # (batch_size, seq_length, model_d) - > (batch_size, seq_length, self.num_heads, self.d_k) -> (batch_size, self.num_heads, seq_length, self.d_k)
+
     def scaled_dot_product_attention(self, Q, K, V, mask):
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.d_k ** 0.5)
         if mask != None:
@@ -58,21 +63,13 @@ class custom_attn(nn.Module):
         output     = torch.matmul(attn_probs, V)
         return output
 
-    def split_heads(self, x):
-        batch_size, seq_length, model_d = x.size()
-        return x.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
-        #  (batch_size, seq_length, model_d) - > (batch_size, seq_length, self.num_heads, self.d_k) -> (batch_size, self.num_heads, seq_length, self.d_k)
-
     def combine_heads(self, x):
         batch_size, _, seq_length, d_k = x.size()
         return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.model_d)
 
     def forward(self, Q, K, V, mask=None):
-        if mask != None:
-            mask = mask.unsqueeze(1)         # mask = (batch_size, seq_length, seq_length) -> (batch_size, 1, seq_length, seq_length)
-        else:
-            pass
-        Q    = self.split_heads(self.W_q(Q)) # Q    = (batch_size, seq_length, model_d)
+        # mask = (batch_size, 1, seq_length, seq_length)
+        Q    = self.split_heads(self.W_q(Q)) # Q = (batch_size, seq_length, model_d)
         K    = self.split_heads(self.W_k(K))
         V    = self.split_heads(self.W_v(V))
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
@@ -179,7 +176,7 @@ class build_model(nn.Module):
         a  = self.hidden_activation(a)
 
         h  = torch.cat((s, a), dim=1)
-        h  = h + self.positional_encoding[:, :, :][:, :h.size(1),:]
+        h  = h + self.positional_encoding[:, :, :]
 
         for i, layer in enumerate(self.transformer_layers):
             attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
@@ -188,11 +185,6 @@ class build_model(nn.Module):
             h_ = fully_connected_layer(h)
             h  = fully_connected_norm_layer(h + h_)
 
-        value     = 0
-        pad_size  = self.input_sequence_size + 1 - h.size(1)
-        pad       = (0, 0, 0, pad_size)
-        h  = F.pad(h, pad=pad, mode='constant', value= value) 
-        
         h  = h.view(h.size(0), -1)
         r  = self.reward_linear(h)   
         r  = self.output_activation(r)

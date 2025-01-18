@@ -33,6 +33,28 @@ import hashlib
 
 
 
+def load_performance_from_csv(filename='performance_log.csv'):
+    performance_log = []
+    with open(filename, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        next(reader)  
+        for row in reader:
+            episode = int(row[0])  
+            summed_reward = float(row[1])  
+            performance_log.append((episode, summed_reward))
+    return performance_log
+
+
+
+
+def load_dicts_from_pickle(filename):
+    with open(filename, 'rb') as file:
+        dicts = dill.load(file)
+    return dicts
+
+
+
+
 def initialize_pre_activated_action(init, noise_t, noise_r, shape, device):
     input = 0
     if   init == "random_uniform":
@@ -72,18 +94,28 @@ def update_pre_activated_action(iteration_for_deducing,
         tgt_indx      = np.random.randint(time_size) 
 
         future_action = torch.sigmoid(pre_activated_future_action[:, :tgt_indx+1])
+        value         = 0
+        pad_size      = time_size - tgt_indx - 1
+        pad           = (0, 0, 0, pad_size)
+        future_action = F.pad(future_action, pad=pad, mode='constant', value= value)
         future_action = future_action.detach().requires_grad_(True)
 
+        mask          = torch.zeros(1 + tgt_indx + 1, 1 + tgt_indx + 1).unsqueeze(0).unsqueeze(0).float().to(device)
+        value         = -1e20
+        pad_size      = 1 + time_size - (1 + tgt_indx + 1)
+        pad           = (0, pad_size, 0, pad_size)
+        mask          = F.pad(mask, pad=pad, mode='constant', value= value)
+        
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
         
         loss_function       = model.loss_function
-        output_reward       = model(present_state, future_action, None)
+        output_reward       = model(present_state, future_action, mask)
         total_loss          = loss_function(output_reward, desired_reward) * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
-        pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad * (1 - future_action) * future_action * beta # update params
+        pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad[:, :tgt_indx+1] * (1 - future_action[:, :tgt_indx+1]) * future_action[:, :tgt_indx+1] * beta # update params
 
     return pre_activated_future_action
 
@@ -111,10 +143,10 @@ def sequentialize(state_list, action_list, reward_list, time_size, device):
         else:
             process_len = len(reward_list[:])
         for j in range(process_len):
-            present_state_list.append(                  state_list [ j                        ]          .to(device)  )
-            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
-            future_reward_list.append(                  reward_list[       j+time_size_ - 1   ]          .to(device)  )
-            mask_list         .append(      torch.zeros(1 + time_size_, 1 + time_size_).float()          .to(device)  )
+            present_state_list.append(                  state_list [ j                        ]              .to(device)  )
+            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)      .to(device)  )
+            future_reward_list.append(                  reward_list[       j+time_size_ - 1   ]              .to(device)  )
+            mask_list         .append(      torch.zeros(1 + time_size_, 1 + time_size_).unsqueeze(0).float() .to(device)  )
 
     for i, (future_action, mask) in enumerate(zip(future_action_list, mask_list)):
 
@@ -128,8 +160,8 @@ def sequentialize(state_list, action_list, reward_list, time_size, device):
         value                 = -1e20
         pad_size              = 1 + max_size - (1 + current_size)
         pad                   = (0, pad_size, 0, pad_size)
-        mask_list[i]          = F.pad(mask, pad=pad, mode='constant', value= value) 
-
+        mask_list[i]          = F.pad(mask, pad=pad, mode='constant', value= value)
+        
     return present_state_list, future_action_list, future_reward_list, mask_list
 
 
@@ -154,7 +186,7 @@ def update_long_term_experience_buffer(present_state_tensor_dict,
                                        future_action_list,
                                        future_reward_list,
                                        mask_list ):
-
+    
     for i in range(len(present_state_list)):
         length             = len(future_action_list[i])
         present_state      = present_state_list [i]
@@ -170,7 +202,7 @@ def update_long_term_experience_buffer(present_state_tensor_dict,
             fast_check_with_hash(future_action_hash  , future_action_hash_dict[length]) or   \
             fast_check_with_hash(future_reward_hash  , future_reward_hash_dict[length]) or   \
             fast_check_with_hash(mask_hash           , mask_hash_dict         [length]) :
-
+            
             present_state_tensor_dict  [length] = torch.cat((present_state_tensor_dict  [length],    present_state.unsqueeze(0) ), dim=0)
             future_action_tensor_dict  [length] = torch.cat((future_action_tensor_dict  [length],    future_action.unsqueeze(0) ), dim=0)
             future_reward_tensor_dict  [length] = torch.cat((future_reward_tensor_dict  [length],    future_reward.unsqueeze(0) ), dim=0)
@@ -249,10 +281,10 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         TD_error_p           = TD_error / torch.sum(TD_error)
         indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
 
-        present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
-        future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
-        future_reward_tensor_dict [key] = future_reward_tensor_dict [key][indices]
-        mask_tensor_dict          [key] = mask_tensor_dict          [key][indices]
+        present_state_tensor_dict [key] = present_state_tensor[indices]
+        future_action_tensor_dict [key] = future_action_tensor[indices]
+        future_reward_tensor_dict [key] = future_reward_tensor[indices]
+        mask_tensor_dict          [key] = mask_tensor         [indices]
         present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.numpy()].tolist()
         future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.numpy()].tolist()
         future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.numpy()].tolist()
@@ -293,12 +325,12 @@ def update_model(iteration_for_learning,
 
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
-        index                = torch.multinomial(TD_error_p, 1, replacement = True)[0]
+        indices              = torch.multinomial(TD_error_p, 1, replacement = True)
 
-        present_state = present_state_tensor [index].unsqueeze(0)
-        future_action = future_action_tensor [index].unsqueeze(0)
-        future_reward = future_reward_tensor [index].unsqueeze(0)
-        mask          = mask_tensor          [index].unsqueeze(0)
+        present_state = present_state_tensor [indices]
+        future_action = future_action_tensor [indices]
+        future_reward = future_reward_tensor [indices]
+        mask          = mask_tensor          [indices]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -379,17 +411,6 @@ def update_model_list_parallel(iteration_for_learning,
 
 
 
-def load_performance_from_csv(filename='performance_log.csv'):
-    performance_log = []
-    with open(filename, mode='r', newline='') as file:
-        reader = csv.reader(file)
-        next(reader)  
-        for row in reader:
-            episode = int(row[0])  
-            summed_reward = float(row[1])  
-            performance_log.append((episode, summed_reward))
-    return performance_log
-
 def save_performance_to_csv(performance_log, filename='performance_log.csv'):
     with open(filename, mode='w', newline='') as file:
         writer = csv.writer(file)
@@ -398,11 +419,6 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 
 
-
-def load_dicts_from_pickle(filename):
-    with open(filename, 'rb') as file:
-        dicts = dill.load(file)
-    return dicts
 
 def save_dicts_to_pickle(filename, *dicts):
     with open(filename, 'wb') as file:
