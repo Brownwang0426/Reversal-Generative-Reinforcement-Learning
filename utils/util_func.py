@@ -285,10 +285,10 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         future_action_tensor_dict [key] = future_action_tensor[indices]
         future_reward_tensor_dict [key] = future_reward_tensor[indices]
         mask_tensor_dict          [key] = mask_tensor         [indices]
-        present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.numpy()].tolist()
-        future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.numpy()].tolist()
-        future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.numpy()].tolist()
-        mask_hash_dict            [key] = np.array(mask_hash_dict          [key])[indices.numpy()].tolist()
+        present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
+        future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
+        future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
+        mask_hash_dict            [key] = np.array(mask_hash_dict          [key])[indices.cpu().numpy()].tolist()
 
     return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_tensor_dict,\
            present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_hash_dict
