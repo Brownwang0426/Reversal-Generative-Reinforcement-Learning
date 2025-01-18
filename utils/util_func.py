@@ -79,8 +79,8 @@ def update_pre_activated_action(iteration_for_deducing,
         selected_optimizer.zero_grad()
         
         loss_function       = model.loss_function
-        output_reward, _    = model(present_state, future_action)
-        total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx]) * (loss_scale ** tgt_indx)
+        output_reward       = model(present_state, future_action, None)
+        total_loss          = loss_function(output_reward, desired_reward) * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
         pre_activated_future_action[:, :tgt_indx+1] -= future_action.grad * (1 - future_action) * future_action * beta # update params
@@ -92,10 +92,12 @@ def update_pre_activated_action(iteration_for_deducing,
 
 def sequentialize(state_list, action_list, reward_list, time_size, device):
 
+    max_size           = copy.deepcopy(time_size)
+
     present_state_list = []
     future_action_list = []
     future_reward_list = []
-    future_state_list  = []
+    mask_list          = []
 
     if time_size > len(state_list[:-1]):
         time_size = len(state_list[:-1])
@@ -103,21 +105,32 @@ def sequentialize(state_list, action_list, reward_list, time_size, device):
       pass
     
     for i in range(time_size):
-
         time_size_ = i + 1
-
         if time_size_ != 1:
             process_len = len(reward_list[:-time_size_+1])
         else:
             process_len = len(reward_list[:])
-
         for j in range(process_len):
             present_state_list.append(                  state_list [ j                        ]          .to(device)  )
             future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
-            future_reward_list.append(      torch.stack(reward_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
-            future_state_list.append(       torch.stack(state_list [ j+1 : j+time_size_+1     ], dim=0)  .to(device)  )
+            future_reward_list.append(                  reward_list[       j+time_size_ - 1   ]          .to(device)  )
+            mask_list         .append(      torch.zeros(1 + time_size_, 1 + time_size_).float()          .to(device)  )
 
-    return present_state_list, future_action_list, future_reward_list, future_state_list
+    for i, (future_action, mask) in enumerate(zip(future_action_list, mask_list)):
+
+        current_size          = future_action.size(0)
+
+        value                 = 0
+        pad_size              = max_size - current_size
+        pad                   = (0, 0, 0, pad_size)
+        future_action_list[i] = F.pad(future_action, pad=pad, mode='constant', value= value)
+
+        value                 = -1e20
+        pad_size              = 1 + max_size - (1 + current_size)
+        pad                   = (0, pad_size, 0, pad_size)
+        mask_list[i]          = F.pad(mask, pad=pad, mode='constant', value= value) 
+
+    return present_state_list, future_action_list, future_reward_list, mask_list
 
 
 
@@ -132,43 +145,43 @@ def fast_check_with_hash(hash_1d, hash_2d):
 def update_long_term_experience_buffer(present_state_tensor_dict, 
                                        future_action_tensor_dict,
                                        future_reward_tensor_dict, 
-                                       future_state_tensor_dict,
+                                       mask_tensor_dict,
                                        present_state_hash_dict, 
                                        future_action_hash_dict, 
                                        future_reward_hash_dict, 
-                                       future_state_hash_dict,
+                                       mask_hash_dict,
                                        present_state_list,
                                        future_action_list,
                                        future_reward_list,
-                                       future_state_list ):
+                                       mask_list ):
 
     for i in range(len(present_state_list)):
         length             = len(future_action_list[i])
-        present_state      = present_state_list  [i]
-        future_action      = future_action_list  [i]
-        future_reward      = future_reward_list  [i]
-        future_state       = future_state_list   [i]
+        present_state      = present_state_list [i]
+        future_action      = future_action_list [i]
+        future_reward      = future_reward_list [i]
+        mask               = mask_list          [i]
         present_state_hash = hash_tensor(present_state)
         future_action_hash = hash_tensor(future_action)
         future_reward_hash = hash_tensor(future_reward)
-        future_state_hash  = hash_tensor(future_state )
+        mask_hash          = hash_tensor(mask         )
 
         if  fast_check_with_hash(present_state_hash  , present_state_hash_dict[length]) or   \
             fast_check_with_hash(future_action_hash  , future_action_hash_dict[length]) or   \
             fast_check_with_hash(future_reward_hash  , future_reward_hash_dict[length]) or   \
-            fast_check_with_hash(future_state_hash   , future_state_hash_dict [length]) :
+            fast_check_with_hash(mask_hash           , mask_hash_dict         [length]) :
 
             present_state_tensor_dict  [length] = torch.cat((present_state_tensor_dict  [length],    present_state.unsqueeze(0) ), dim=0)
             future_action_tensor_dict  [length] = torch.cat((future_action_tensor_dict  [length],    future_action.unsqueeze(0) ), dim=0)
             future_reward_tensor_dict  [length] = torch.cat((future_reward_tensor_dict  [length],    future_reward.unsqueeze(0) ), dim=0)
-            future_state_tensor_dict   [length] = torch.cat((future_state_tensor_dict   [length],    future_state .unsqueeze(0) ), dim=0)
+            mask_tensor_dict           [length] = torch.cat((mask_tensor_dict           [length],    mask         .unsqueeze(0) ), dim=0)
             present_state_hash_dict    [length] .append( present_state_hash  )
             future_action_hash_dict    [length] .append( future_action_hash  )
             future_reward_hash_dict    [length] .append( future_reward_hash  )
-            future_state_hash_dict     [length] .append( future_state_hash   )
+            mask_hash_dict             [length] .append( mask_hash           )
 
-    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
-           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
+    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_tensor_dict,\
+           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_hash_dict
 
 
 
@@ -177,34 +190,24 @@ def obtain_TD_error(model,
                     present_state_tensor,
                     future_action_tensor,
                     future_reward_tensor,
-                    future_state_tensor 
+                    mask_tensor 
                     ):
 
     dataset      = TensorDataset(present_state_tensor,
                                  future_action_tensor,
                                  future_reward_tensor,
-                                 future_state_tensor )
+                                 mask_tensor )
     data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-    for present_state, future_action, future_reward, future_state in data_loader:
+    for present_state, future_action, future_reward, mask in data_loader:
 
         model.eval()
 
-        """
-        We strongely suggest you not to use total_loss_B because:
-        1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
-        2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
-        3 - In our experiments, taking states into account in PER does jeopardize the performance.
-        """
         loss_function                 = model.loss_function_
-        output_reward, output_state   = model(present_state, future_action)
-        total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
-        # total_loss_B                  = loss_function(output_state, future_state)
+        output_reward                 = model(present_state, future_action, mask)
+        total_loss                    = loss_function(output_reward, future_reward) 
 
-        total_loss                    = 0
-        total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
-        # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
-
+        total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
         TD_error                      = total_loss.detach()
 
     return TD_error
@@ -215,11 +218,11 @@ def obtain_TD_error(model,
 def clear_long_term_experience_buffer(present_state_tensor_dict, 
                                       future_action_tensor_dict,
                                       future_reward_tensor_dict, 
-                                      future_state_tensor_dict,
+                                      mask_tensor_dict,
                                       present_state_hash_dict, 
                                       future_action_hash_dict, 
                                       future_reward_hash_dict, 
-                                      future_state_hash_dict ,
+                                      mask_hash_dict ,
                                       model_list,
                                       PER_epsilon,
                                       PER_exponent,
@@ -232,7 +235,7 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         present_state_tensor = present_state_tensor_dict[key]
         future_action_tensor = future_action_tensor_dict[key]
         future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+        mask_tensor          = mask_tensor_dict         [key]
 
         TD_error = 0
         for model in model_list:
@@ -240,7 +243,7 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                         present_state_tensor  ,
                                         future_action_tensor  ,
                                         future_reward_tensor  ,
-                                        future_state_tensor   )
+                                        mask_tensor   )
          
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
@@ -249,14 +252,14 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         present_state_tensor_dict [key] = present_state_tensor_dict [key][indices]
         future_action_tensor_dict [key] = future_action_tensor_dict [key][indices]
         future_reward_tensor_dict [key] = future_reward_tensor_dict [key][indices]
-        future_state_tensor_dict  [key] = future_state_tensor_dict  [key][indices]
+        mask_tensor_dict          [key] = mask_tensor_dict          [key][indices]
         present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.numpy()].tolist()
         future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.numpy()].tolist()
         future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.numpy()].tolist()
-        future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.numpy()].tolist()
+        mask_hash_dict            [key] = np.array(mask_hash_dict          [key])[indices.numpy()].tolist()
 
-    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
-           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
+    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_tensor_dict,\
+           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_hash_dict
 
 
 
@@ -265,12 +268,11 @@ def update_model(iteration_for_learning,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
                  future_reward_tensor_dict,
-                 future_state_tensor_dict ,
+                 mask_tensor_dict ,
                  model,
                  PER_epsilon ,
                  PER_exponent,
                  device):
-
 
     for _ in range(iteration_for_learning):
 
@@ -278,7 +280,7 @@ def update_model(iteration_for_learning,
         present_state_tensor = present_state_tensor_dict[key]
         future_action_tensor = future_action_tensor_dict[key]
         future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+        mask_tensor          = mask_tensor_dict         [key]
 
         """
         We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
@@ -287,7 +289,7 @@ def update_model(iteration_for_learning,
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
-                                                future_state_tensor   )
+                                                mask_tensor   )
 
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
@@ -296,15 +298,15 @@ def update_model(iteration_for_learning,
         present_state = present_state_tensor [index].unsqueeze(0)
         future_action = future_action_tensor [index].unsqueeze(0)
         future_reward = future_reward_tensor [index].unsqueeze(0)
-        future_state  = future_state_tensor  [index].unsqueeze(0)
+        mask          = mask_tensor          [index].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
         loss_function               = model.loss_function
-        output_reward, output_state = model(present_state, future_action)
-        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state )
+        output_reward               = model(present_state, future_action, mask)
+        total_loss                  = loss_function(output_reward, future_reward)
         total_loss.backward()     # get grad
 
         selected_optimizer.step() # update params
@@ -318,7 +320,7 @@ def update_model_list(iteration_for_learning,
                       present_state_tensor_dict,
                       future_action_tensor_dict,
                       future_reward_tensor_dict,
-                      future_state_tensor_dict ,
+                      mask_tensor_dict ,
                       model_list,  # List of models
                       PER_epsilon,
                       PER_exponent,
@@ -329,7 +331,7 @@ def update_model_list(iteration_for_learning,
                                      present_state_tensor_dict,
                                      future_action_tensor_dict,
                                      future_reward_tensor_dict,
-                                     future_state_tensor_dict ,
+                                     mask_tensor_dict ,
                                      model,
                                      PER_epsilon,
                                      PER_exponent,
@@ -344,7 +346,7 @@ def update_model_list_parallel(iteration_for_learning,
                                present_state_tensor_dict,
                                future_action_tensor_dict,
                                future_reward_tensor_dict,
-                               future_state_tensor_dict ,
+                               mask_tensor_dict ,
                                model_list,  # List of models
                                PER_epsilon,
                                PER_exponent,
@@ -361,7 +363,7 @@ def update_model_list_parallel(iteration_for_learning,
                             present_state_tensor_dict,
                             future_action_tensor_dict,
                             future_reward_tensor_dict,
-                            future_state_tensor_dict ,
+                            mask_tensor_dict ,
                             model,
                             PER_epsilon,
                             PER_exponent,

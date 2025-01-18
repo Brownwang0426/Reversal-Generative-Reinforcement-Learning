@@ -25,60 +25,62 @@ from collections import defaultdict
 
 import itertools
 
+"""
+# Model for agent
+Crucial model regarding how you set up your agent's neural network
 
-
+- We suggest you prerpare enough layers between present state and next state.
+- We suggest you prerpare enough layers between state and reward.
+- We suggest you prerpare enough layers between state and action.
+- In our experience, how the neural net of the agent handles the information flow toward reward will have immense impact on the performance of the agent. 
+"""
 
 class custom_attn(nn.Module):
-    def __init__(self, d_model, num_heads = 8):
+    def __init__(self, model_d, num_heads):
         super(custom_attn, self).__init__()
-
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
-
+        assert model_d % num_heads == 0, "model_d must be divisible by num_heads"
         self.bias      = False
-        self.d_model   = d_model
+        self.model_d   = model_d
         self.num_heads = num_heads
-        self.d_k       = d_model // num_heads
+        self.d_k       = model_d // num_heads
+        self.W_q       = nn.Linear(model_d, model_d, bias=self.bias)
+        self.W_k       = nn.Linear(model_d, model_d, bias=self.bias)
+        self.W_v       = nn.Linear(model_d, model_d, bias=self.bias)
+        self.W_o       = nn.Linear(model_d, model_d, bias=self.bias)
 
-        self.W_q  = nn.Linear(d_model, d_model, bias=self.bias)
-        self.W_k  = nn.Linear(d_model, d_model, bias=self.bias)
-        self.W_v  = nn.Linear(d_model, d_model, bias=self.bias)
-        self.W_o  = nn.Linear(d_model, d_model, bias=self.bias)
-
-    def scaled_dot_product_attention(self, Q, K, V, mask=None):
-
+    def scaled_dot_product_attention(self, Q, K, V, mask):
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.d_k ** 0.5)
-
         if mask != None:
             attn_scores += mask
         else:
             attn_scores += 0
-
         attn_probs = torch.softmax(attn_scores, dim=-1)
         output     = torch.matmul(attn_probs, V)
-
         return output
 
     def split_heads(self, x):
-        batch_size, seq_length, d_model = x.size()
+        batch_size, seq_length, model_d = x.size()
         return x.view(batch_size, seq_length, self.num_heads, self.d_k).transpose(1, 2)
-        #  (batch_size, seq_length, d_model) - > (batch_size, seq_length, self.num_heads, self.d_k) -> (batch_size, self.num_heads, seq_length, self.d_k)
+        #  (batch_size, seq_length, model_d) - > (batch_size, seq_length, self.num_heads, self.d_k) -> (batch_size, self.num_heads, seq_length, self.d_k)
 
     def combine_heads(self, x):
         batch_size, _, seq_length, d_k = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)
+        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.model_d)
 
     def forward(self, Q, K, V, mask=None):
-        # Q    -> (batch_size, seq_length, d_model)
-        # mask -> (batch_size, 1, seq_length, d_model)
-        Q = self.split_heads(self.W_q(Q))
-        K = self.split_heads(self.W_k(K))
-        V = self.split_heads(self.W_v(V))
+        if mask != None:
+            mask = mask.unsqueeze(1)         # mask = (batch_size, seq_length, seq_length) -> (batch_size, 1, seq_length, seq_length)
+        else:
+            pass
+        Q    = self.split_heads(self.W_q(Q)) # Q    = (batch_size, seq_length, model_d)
+        K    = self.split_heads(self.W_k(K))
+        V    = self.split_heads(self.W_v(V))
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         output      = self.W_o(self.combine_heads(attn_output))
         return output
-
-
     
+
+
 
 class build_model(nn.Module):
     def __init__(self,
@@ -123,23 +125,22 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2, self.hidden_neuron_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(1 + self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
-                custom_attn(self.hidden_neuron_size, self.num_heads),
+                custom_attn (self.hidden_neuron_size, self.num_heads),
                 nn.LayerNorm(self.hidden_neuron_size),
-                nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
+                nn.Linear   (self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
                 nn.LayerNorm(self.hidden_neuron_size)
             ])
             for _ in range(self.num_layers)
         ])
-        self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.reward_linear        = nn.Linear(self.hidden_neuron_size * (1 + self.input_sequence_size), self.output_neuron_size , bias=self.bias)
 
         # Activation functions
-        self.hidden_activation = self.get_activation(self.hidden_activation)
-        self.output_activation = self.get_activation(self.output_activation)
+        self.hidden_activation    = self.get_activation(self.hidden_activation)
+        self.output_activation    = self.get_activation(self.output_activation)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.initializer  )
@@ -167,59 +168,38 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
-    def forward(self, s, a_list):
-        
-        mask = None
+    
 
-        r_list = list()
-        s_list = list()
+    def forward(self, s, a_list, mask):
 
-        s  = self.state_linear(s)
+        s  = self.state_linear(s.unsqueeze(1))
         s  = self.hidden_activation(s)
 
-        for i in range(a_list.size(1)):
+        a  = self.action_linear(a_list)
+        a  = self.hidden_activation(a)
 
-            a  = self.action_linear(a_list[:,i])
-            a  = self.hidden_activation(a)
+        h  = torch.cat((s, a), dim=1)
+        h  = h + self.positional_encoding[:, :, :][:, :h.size(1),:]
 
-            h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
-            h  = h + self.positional_encoding[:, :, :]
+        for i, layer in enumerate(self.transformer_layers):
+            attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
+            h_ = attention_layer(h, h, h, mask)
+            h  = attention_norm_layer(h + h_)
+            h_ = fully_connected_layer(h)
+            h  = fully_connected_norm_layer(h + h_)
 
-            pres_h_list = list()
-            for j, layer in enumerate(self.transformer_layers):
-                attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
-                if i == 0:
-                    h_ = attention_layer(torch.zeros_like(h), torch.zeros_like(h), h, mask)
-                else:
-                    h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
-                h  = attention_norm_layer(h + h_)
-                h_ = fully_connected_layer(h)
-                h  = fully_connected_norm_layer(h + h_)
-                pres_h_list.append(h)
-            prev_h_list = pres_h_list
-
-            r  = h[:, 0]
-            s  = h[:, 1]
-            
-            r  = self.reward_linear(r)   
-            r  = self.output_activation(r)
-
-            s  = self.state_linear_(s)   
-            s  = self.hidden_activation(s)
-
-            r_list.append(r)
-            s_list.append(s)
-
-            s  = self.state_linear(s)
-            s  = self.hidden_activation(s)
-
-        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.repeat(1, self.num_layers, 1, 1)    
+        value     = 0
+        pad_size  = self.input_sequence_size + 1 - h.size(1)
+        pad       = (0, 0, 0, pad_size)
+        h  = F.pad(h, pad=pad, mode='constant', value= value) 
         
-        return r_list, s_list
+        h  = h.view(h.size(0), -1)
+        r  = self.reward_linear(h)   
+        r  = self.output_activation(r)
+
+        return r
+
+
 
 
     def generate_positional_encoding(self, max_len, model_dim):
