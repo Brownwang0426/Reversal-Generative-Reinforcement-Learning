@@ -114,7 +114,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2, self.hidden_neuron_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
@@ -125,8 +125,8 @@ class build_model(nn.Module):
             ])
             for _ in range(self.num_layers)
         ])
-        self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.reward_linear        = nn.Linear(2 * self.input_sequence_size * self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
+        self.state_linear_        = nn.Linear(2 * self.input_sequence_size * self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -165,18 +165,37 @@ class build_model(nn.Module):
         r_list = list()
         s_list = list()
 
-        s  = self.state_linear(s)
+        stack_list = list()
+
+        s  = self.state_linear(s.unsqueeze(1))
         s  = self.hidden_activation(s)
+        stack_list.append(s)
 
         for i in range(a_list.size(1)):
 
-            a  = self.action_linear(a_list[:,i])
+            a  = self.action_linear(a_list[:,i].unsqueeze(1))
             a  = self.hidden_activation(a)
+            stack_list.append(a)
 
-            h  = torch.stack([s, a], dim=0).view(a.size(0), 2, a.size(1))
-            h  = h + self.positional_encoding[:, :, :]
+            h  = torch.cat(stack_list, dim=1)
+            h  = h + self.positional_encoding[:, :h.size(1), :]
 
-            pres_h_list = list()
+            value     = 0
+            pad_size  = 2 * self.input_sequence_size - h.size(1)
+            pad       = (0, 0, 0, pad_size)
+            h         = F.pad(h, pad=pad, mode='constant', value= value) 
+
+            device    = next(self.parameters()).device 
+            mask      = torch.zeros(2 * self.input_sequence_size, 2 * self.input_sequence_size).float().to(device)
+            value     = -1e20
+            pad_size  = 2 * self.input_sequence_size - h.size(1)
+            pad       = (0, pad_size, 0, pad_size)
+            mask      = F.pad(mask, pad=pad, mode='constant', value= value) 
+
+
+
+
+            h_list = list()
             for j, layer in enumerate(self.transformer_layers):
                 attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
                 if i == 0:
@@ -186,23 +205,26 @@ class build_model(nn.Module):
                 h  = attention_norm_layer(h + h_)
                 h_ = fully_connected_layer(h)
                 h  = fully_connected_norm_layer(h + h_)
-                pres_h_list.append(h)
-            prev_h_list = pres_h_list
+                h_list.append(h)
+            prev_h_list = h_list
 
-            r  = h[:, 0]
-            s  = h[:, 1]
-            
-            r  = self.reward_linear(r)   
+
+
+
+            h  = h.view(h.size(0), -1)
+
+            r  = self.reward_linear(h)   
             r  = self.output_activation(r)
 
-            s  = self.state_linear_(s)   
+            s  = self.state_linear_(h)   
             s  = self.hidden_activation(s)
 
             r_list.append(r)
             s_list.append(s)
 
-            s  = self.state_linear(s)
+            s  = self.state_linear(s.unsqueeze(1))
             s  = self.hidden_activation(s)
+            stack_list.append(s)
 
         r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
         s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
