@@ -1,4 +1,6 @@
-import gym
+import gymnasium as gym
+from gymnasium.wrappers import TimeLimit
+import minigrid
 
 import numpy as np
 import math
@@ -27,11 +29,11 @@ import itertools
 
 import dill
 
+import warnings
+warnings.filterwarnings('ignore')
+
 import concurrent.futures
 import hashlib
-
-
-
 
 def load_performance_from_csv(filename='performance_log.csv'):
     performance_log = []
