@@ -81,9 +81,7 @@ class build_model(nn.Module):
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-        # self.recurrent_layer_1    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.recurrent_layer_2    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        # self.recurrent_layer_3    = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
+        self.recurrent_layer      = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
         self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
@@ -118,9 +116,7 @@ class build_model(nn.Module):
 
     
 
-    def forward(self, s, a_list):
-
-        null_step = torch.zeros_like(a_list[:, 0, :]).unsqueeze(1)
+    def forward(self, history_s_list, history_a_list, s, a_list):
 
         idx = 1 # the index of the num_layers where you want to insert s
 
@@ -130,45 +126,88 @@ class build_model(nn.Module):
         # sl         is [num_layers, batch_size, feature_size]
         # rl         is [batch_size, sequence_size, feature_size] 
 
-        r_list = list()
-        s_list = list()
+        if len(history_a_list) > 0:
 
-        for i in range(a_list.size(1)):
+            for i in range(history_a_list.size(1)):
 
-            if self.neural_type == 'lstm':
-                if i == 0:
-                    cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
-                    sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
-                    sl[idx]  = s  
+                if self.neural_type == 'lstm':
+                    if i == 0:
+                        cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1        
+                        sl[idx]  = history_s_list[:,i]
+                    else:
+                        sl[idx]  = history_s_list[:,i]                     
+                    rl, (sl, cl) = self.recurrent_layer(history_a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                 else:
-                    pass                             
-                # rl, (sl, cl) = self.recurrent_layer_1(null_step                     , (sl, cl))
-                rl, (sl, cl) = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
-                r            = rl[:,0,:] 
-                # rl, (sl, cl) = self.recurrent_layer_3(null_step                     , (sl, cl))
-                s            = sl[idx]
-            else:
-                if i == 0:
-                    sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
-                    sl[idx]  = s                                                                         
+                    if i == 0:
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1        
+                        sl[idx]  = history_s_list[:,i]  
+                    else:
+                        sl[idx]  = history_s_list[:,i]                                                                  
+                    rl, sl   = self.recurrent_layer(history_a_list[:, i, :].unsqueeze(1)  , sl)
+
+            r_list = list()
+            s_list = list()
+
+            for i in range(a_list.size(1)):
+
+                if self.neural_type == 'lstm':              
+                    rl, (sl, cl) = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
+                    r            = rl[:,0,:] 
+                    s            = sl[idx]
                 else:
-                    pass
-                # rl, sl       = self.recurrent_layer_1(null_step                     , sl)
-                rl, sl       = self.recurrent_layer_2(a_list[:, i, :].unsqueeze(1)  , sl)
-                r            = rl[:,0,:]
-                # rl, sl       = self.recurrent_layer_3(null_step                     , sl)    
-                s            = sl[idx]
-                
-            r  = self.reward_linear(r)   
-            r  = self.output_activation(r)
+                    rl, sl       = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , sl)
+                    r            = rl[:,0,:]
+                    s            = sl[idx]
+                    
+                r  = self.reward_linear(r)   
+                r  = self.output_activation(r)
 
-            r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
-            s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
+                r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
+                s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
 
-        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+            r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+            s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+            r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
+            s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+
+        else:
+
+            r_list = list()
+            s_list = list()
+
+            for i in range(a_list.size(1)):
+
+                if self.neural_type == 'lstm':
+                    if i == 0:
+                        cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                        sl[idx]  = s  
+                    else:
+                        pass                             
+                    rl, (sl, cl) = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
+                    r            = rl[:,0,:] 
+                    s            = sl[idx]
+                else:
+                    if i == 0:
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                        sl[idx]  = s                                                                         
+                    else:
+                        pass
+                    rl, sl       = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , sl)
+                    r            = rl[:,0,:]
+                    s            = sl[idx]
+                    
+                r  = self.reward_linear(r)   
+                r  = self.output_activation(r)
+
+                r_list.append(r) # r_list is [sequence_size, batch_size, feature_size]
+                s_list.append(s) # s_list is [sequence_size, batch_size, feature_size]
+
+            r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+            s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+            r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
+            s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
 
         return r_list, s_list
 
