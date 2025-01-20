@@ -77,12 +77,22 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape, device):
 
 def update_pre_activated_action(iteration_for_deducing,
                                 model_list,
+                                history_state,
+                                history_action,
+                                history_size,
                                 present_state,
                                 pre_activated_future_action,
                                 desired_reward,
                                 beta,
                                 loss_scale,
                                 device):
+
+    if history_size * len(history_action[-history_size:]) > 0:
+        history_state  = torch.stack(history_state [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
+        history_action = torch.stack(history_action[-history_size:]    , dim=0).unsqueeze(0).to(device)
+    else:
+        history_state  = []
+        history_action = []
 
     present_state, pre_activated_future_action, desired_reward = present_state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
@@ -101,7 +111,7 @@ def update_pre_activated_action(iteration_for_deducing,
         selected_optimizer.zero_grad()
         
         loss_function       = model.loss_function
-        output_reward, _    = model(present_state, future_action)
+        output_reward, _    = model(history_state, history_action, present_state, future_action)
         total_loss          = loss_function(output_reward[:, tgt_indx], desired_reward[:, tgt_indx]) * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
@@ -219,7 +229,7 @@ def obtain_TD_error(model,
         3 - In our experiments, taking states into account in PER does jeopardize the performance.
         """
         loss_function                 = model.loss_function_
-        output_reward, output_state   = model(present_state, future_action)
+        output_reward, output_state   = model([], [], present_state, future_action)
         total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
         # total_loss_B                  = loss_function(output_state, future_state)
 
@@ -325,7 +335,7 @@ def update_model(iteration_for_learning,
         selected_optimizer.zero_grad()
 
         loss_function               = model.loss_function
-        output_reward, output_state = model(present_state, future_action)
+        output_reward, output_state = model([], [], present_state, future_action)
         total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state )
         total_loss.backward()     # get grad
 
