@@ -54,7 +54,7 @@ class custom_attn(nn.Module):
         else:
             attn_scores += 0
 
-        if mask_1 != None:
+        if mask_2 != None:
             attn_probs = torch.softmax(attn_scores, dim=-1) * mask_2 # (batch_size, num_heads, sequence_size, sequence_size) * (batch_size, 1, sequence_size, sequence_size)
         else:
             attn_probs = torch.softmax(attn_scores, dim=-1) 
