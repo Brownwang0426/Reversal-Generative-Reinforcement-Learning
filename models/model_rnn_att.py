@@ -176,6 +176,7 @@ class build_model(nn.Module):
 
     def forward(self, history_s_list, history_a_list, s, a_list):
         
+        device    = next(self.parameters()).device 
 
         if len(history_a_list) > 0:
 
@@ -205,23 +206,18 @@ class build_model(nn.Module):
                 h  = torch.cat(stack_list, dim=1)
                 h  = h + self.positional_encoding[:, :h.size(1), :]
 
-                value     = 0
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, 0, 0, pad_size)
-                h         = F.pad(h, pad=pad, mode='constant', value= value) 
+                original_size = h.size(1)
+                pad_size      = 2 * self.input_sequence_size - original_size
 
-                device    = next(self.parameters()).device 
-                mask_1    = torch.zeros(2 * self.input_sequence_size, 2 * self.input_sequence_size).float().to(device)
-                value     = -1e20
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, pad_size, 0, pad_size)
-                mask_1    = F.pad(mask_1, pad=pad, mode='constant', value= value) 
-                mask_2    = torch.ones(2 * self.input_sequence_size, 2 * self.input_sequence_size).float().to(device)
-                value     = 0
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, pad_size, 0, pad_size)
-                mask_2    = F.pad(mask_2, pad=pad, mode='constant', value= value) 
-                mask      = (mask_1, mask_2)
+                h             = F.pad(h, pad=(0, 0, 0, pad_size), mode='constant', value= 0) 
+    
+                mask_1        = torch.zeros(original_size, original_size).float().to(device)
+                mask_1        = F.pad(mask_1, pad=(0, pad_size, 0, pad_size), mode='constant', value= -1e20) 
+    
+                mask_2        = torch.ones(original_size, original_size).float().to(device)
+                mask_2        = F.pad(mask_2, pad=(0, pad_size, 0, pad_size), mode='constant', value= 0) 
+    
+                mask          = (mask_1, mask_2)
 
 
 
@@ -282,23 +278,18 @@ class build_model(nn.Module):
                 h  = torch.cat(stack_list, dim=1)
                 h  = h + self.positional_encoding[:, :h.size(1), :]
 
-                value     = 0
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, 0, 0, pad_size)
-                h         = F.pad(h, pad=pad, mode='constant', value= value) 
+                original_size = h.size(1)
+                pad_size      = 2 * self.input_sequence_size - original_size
 
-                device    = next(self.parameters()).device 
-                mask_1    = torch.zeros(2 * self.input_sequence_size, 2 * self.input_sequence_size).float().to(device)
-                value     = -1e20
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, pad_size, 0, pad_size)
-                mask_1    = F.pad(mask_1, pad=pad, mode='constant', value= value) 
-                mask_2    = torch.ones(2 * self.input_sequence_size, 2 * self.input_sequence_size).float().to(device)
-                value     = 0
-                pad_size  = 2 * self.input_sequence_size - h.size(1)
-                pad       = (0, pad_size, 0, pad_size)
-                mask_2    = F.pad(mask_2, pad=pad, mode='constant', value= value) 
-                mask      = (mask_1, mask_2)
+                h             = F.pad(h, pad=(0, 0, 0, pad_size), mode='constant', value= 0) 
+    
+                mask_1        = torch.zeros(original_size, original_size).float().to(device)
+                mask_1        = F.pad(mask_1, pad=(0, pad_size, 0, pad_size), mode='constant', value= -1e20) 
+    
+                mask_2        = torch.ones(original_size, original_size).float().to(device)
+                mask_2        = F.pad(mask_2, pad=(0, pad_size, 0, pad_size), mode='constant', value= 0) 
+    
+                mask          = (mask_1, mask_2)
 
 
 
