@@ -135,9 +135,9 @@ class build_model(nn.Module):
         nn.ModuleList([
             nn.ModuleList([
                 custom_attn(self.hidden_neuron_size, self.num_heads),
-                nn.LayerNorm(self.hidden_neuron_size),
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False),
                 nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
-                nn.LayerNorm(self.hidden_neuron_size)
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False)
             ])
             for _ in range(self.num_layers)
         ])
