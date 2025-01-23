@@ -211,35 +211,76 @@ def obtain_TD_error(model,
                     present_state_tensor,
                     future_action_tensor,
                     future_reward_tensor,
-                    future_state_tensor 
+                    future_state_tensor,
+                    h_size
                     ):
 
-    dataset      = TensorDataset(present_state_tensor,
-                                 future_action_tensor,
-                                 future_reward_tensor,
-                                 future_state_tensor )
-    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+    if h_size != None:
+            
+        history_state_  = torch.cat((present_state_tensor.unsqueeze(1) , future_state_tensor[:, :h_size - 1, :]), dim=1)  
+        history_action_ = future_action_tensor[:, :h_size      , :]
+        present_state_  = future_state_tensor [:,  h_size      , :]
+        future_action_  = future_action_tensor[:,  h_size:     , :]
+        future_reward_  = future_reward_tensor[:,  h_size:     , :]
+        future_state_   = future_state_tensor [:,  h_size:     , :]
 
-    for present_state, future_action, future_reward, future_state in data_loader:
+        dataset      = TensorDataset(history_state_,
+                                     history_action_,
+                                     present_state_,
+                                     future_action_,
+                                     future_reward_,
+                                     future_state_)
+        data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-        model.eval()
+        for history_state_, history_action_, present_state_, future_action_, future_reward_, future_state_ in data_loader:
 
-        """
-        We strongely suggest you not to use total_loss_B because:
-        1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
-        2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
-        3 - In our experiments, taking states into account in PER does jeopardize the performance.
-        """
-        loss_function                 = model.loss_function_
-        output_reward, output_state   = model([], [], present_state, future_action)
-        total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
-        # total_loss_B                  = loss_function(output_state, future_state)
+            model.eval()
 
-        total_loss                    = 0
-        total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
-        # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+            """
+            We strongely suggest you not to use total_loss_B because:
+            1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
+            2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
+            3 - In our experiments, taking states into account in PER does jeopardize the performance.
+            """
+            loss_function                 = model.loss_function_
+            output_reward, output_state   = model(history_state_, history_action_, present_state_, future_action_)
+            total_loss_A                  = loss_function(output_reward[:, -1], future_reward_[:, -1]) 
+            # total_loss_B                  = loss_function(output_state, future_state)
 
-        TD_error                      = total_loss.detach()
+            total_loss                    = 0
+            total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
+            # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+
+            TD_error                      = total_loss.detach()
+
+    else:
+
+        dataset      = TensorDataset(present_state_tensor,
+                                     future_action_tensor,
+                                     future_reward_tensor,
+                                     future_state_tensor )
+        data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+
+        for present_state, future_action, future_reward, future_state in data_loader:
+
+            model.eval()
+
+            """
+            We strongely suggest you not to use total_loss_B because:
+            1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
+            2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
+            3 - In our experiments, taking states into account in PER does jeopardize the performance.
+            """
+            loss_function                 = model.loss_function_
+            output_reward, output_state   = model([], [], present_state, future_action)
+            total_loss_A                  = loss_function(output_reward[:, -1], future_reward[:, -1]) 
+            # total_loss_B                  = loss_function(output_state, future_state)
+
+            total_loss                    = 0
+            total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1))
+            # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+
+            TD_error                      = total_loss.detach()
 
     return TD_error
 
@@ -274,7 +315,8 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                         present_state_tensor  ,
                                         future_action_tensor  ,
                                         future_reward_tensor  ,
-                                        future_state_tensor   )
+                                        future_state_tensor   ,
+                                        None)
          
         TD_error             =(TD_error + PER_epsilon) ** PER_exponent
         TD_error_p           = TD_error / torch.sum(TD_error)
@@ -300,6 +342,7 @@ def update_model(iteration_for_learning,
                  future_action_tensor_dict,
                  future_reward_tensor_dict,
                  future_state_tensor_dict ,
+                 history_size, 
                  model,
                  PER_epsilon ,
                  PER_exponent,
@@ -314,34 +357,81 @@ def update_model(iteration_for_learning,
         future_reward_tensor = future_reward_tensor_dict[key]
         future_state_tensor  = future_state_tensor_dict [key]
 
-        """
-        We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
-        """
-        TD_error             = obtain_TD_error (model, 
-                                                present_state_tensor  ,
-                                                future_action_tensor  ,
-                                                future_reward_tensor  ,
-                                                future_state_tensor   )
+        if (history_size > 0) and (key != 1):
+            
+            if history_size >= key:
+                h_size          = np.random.randint(1, key) 
+            else:
+                h_size          = np.random.randint(history_size) + 1
+            
+            """
+            We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
+            """
+            TD_error            = obtain_TD_error (model, 
+                                                   present_state_tensor  ,
+                                                   future_action_tensor  ,
+                                                   future_reward_tensor  ,
+                                                   future_state_tensor   ,
+                                                   h_size)
 
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p           = TD_error / torch.sum(TD_error)
-        indices              = torch.multinomial(TD_error_p, 1, replacement = True)
+            TD_error            =(TD_error + PER_epsilon) ** PER_exponent
+            TD_error_p          = TD_error / torch.sum(TD_error)
+            indices             = torch.multinomial(TD_error_p, 1, replacement = True)
 
-        present_state = present_state_tensor [indices]
-        future_action = future_action_tensor [indices]
-        future_reward = future_reward_tensor [indices]
-        future_state  = future_state_tensor  [indices]
+            present_state = present_state_tensor [indices]
+            future_action = future_action_tensor [indices]
+            future_reward = future_reward_tensor [indices]
+            future_state  = future_state_tensor  [indices]
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+            history_state_  = torch.cat((present_state.unsqueeze(1) , future_state[:, :h_size - 1, :]), dim=1)  
+            history_action_ = future_action[:, :h_size      , :]
+            present_state_  = future_state [:,  h_size      , :]
+            future_action_  = future_action[:,  h_size:     , :]
+            future_reward_  = future_reward[:,  h_size:     , :]
+            future_state_   = future_state [:,  h_size:     , :]
 
-        loss_function               = model.loss_function
-        output_reward, output_state = model([], [], present_state, future_action)
-        total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state )
-        total_loss.backward()     # get grad
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-        selected_optimizer.step() # update params
+            loss_function               = model.loss_function
+            output_reward, output_state = model(history_state_, history_action_, present_state_, future_action_)
+            total_loss                  = loss_function(output_reward[:, -1], future_reward_[:, -1]) + loss_function(output_state, future_state_ )
+            total_loss.backward()     # get grad
+
+            selected_optimizer.step() # update params
+        
+        else:
+
+            """
+            We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
+            """
+            TD_error             = obtain_TD_error (model, 
+                                                    present_state_tensor  ,
+                                                    future_action_tensor  ,
+                                                    future_reward_tensor  ,
+                                                    future_state_tensor,
+                                                    None)
+
+            TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+            TD_error_p           = TD_error / torch.sum(TD_error)
+            indices              = torch.multinomial(TD_error_p, 1, replacement = True)
+
+            present_state = present_state_tensor [indices]
+            future_action = future_action_tensor [indices]
+            future_reward = future_reward_tensor [indices]
+            future_state  = future_state_tensor  [indices]
+
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
+
+            loss_function               = model.loss_function
+            output_reward, output_state = model([], [], present_state, future_action)
+            total_loss                  = loss_function(output_reward[:, -1], future_reward[:, -1]) + loss_function(output_state, future_state )
+            total_loss.backward()     # get grad
+
+            selected_optimizer.step() # update params
 
     return model
 
@@ -353,6 +443,7 @@ def update_model_list(iteration_for_learning,
                       future_action_tensor_dict,
                       future_reward_tensor_dict,
                       future_state_tensor_dict ,
+                      history_size,
                       model_list,  # List of models
                       PER_epsilon,
                       PER_exponent,
@@ -364,6 +455,7 @@ def update_model_list(iteration_for_learning,
                                      future_action_tensor_dict,
                                      future_reward_tensor_dict,
                                      future_state_tensor_dict ,
+                                     history_size,
                                      model,
                                      PER_epsilon,
                                      PER_exponent,
@@ -379,6 +471,7 @@ def update_model_list_parallel(iteration_for_learning,
                                future_action_tensor_dict,
                                future_reward_tensor_dict,
                                future_state_tensor_dict ,
+                               history_size,
                                model_list,  # List of models
                                PER_epsilon,
                                PER_exponent,
@@ -396,6 +489,7 @@ def update_model_list_parallel(iteration_for_learning,
                             future_action_tensor_dict,
                             future_reward_tensor_dict,
                             future_state_tensor_dict ,
+                            history_size,
                             model,
                             PER_epsilon,
                             PER_exponent,
