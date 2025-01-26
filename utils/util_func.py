@@ -317,8 +317,8 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                 
                 TD_error = 0
                 for model in model_list:
-                    for _ in range(history_size):
-                        h_size    = np.random.randint(1, key) 
+                    for h in range(key-1):
+                        h_size    = h + 1
                         TD_error += obtain_TD_error(model, 
                                                     present_state_tensor  ,
                                                     future_action_tensor  ,
@@ -330,8 +330,8 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                 
                 TD_error = 0
                 for model in model_list:
-                    for _ in range(history_size):
-                        h_size    = np.random.randint(history_size) + 1
+                    for h in range(history_size):
+                        h_size    = h + 1
                         TD_error += obtain_TD_error(model, 
                                                     present_state_tensor  ,
                                                     future_action_tensor  ,
