@@ -124,7 +124,7 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-def sequentialize(state_list, action_list, reward_list, time_size, device):
+def sequentialize(state_list, action_list, reward_list, time_size):
 
     present_state_list = []
     future_action_list = []
@@ -146,10 +146,10 @@ def sequentialize(state_list, action_list, reward_list, time_size, device):
             process_len = len(reward_list[:])
 
         for j in range(process_len):
-            present_state_list.append(                  state_list [ j                        ]          .to(device)  )
-            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
-            future_reward_list.append(      torch.stack(reward_list[ j   : j+time_size_       ], dim=0)  .to(device)  )
-            future_state_list.append(       torch.stack(state_list [ j+1 : j+time_size_+1     ], dim=0)  .to(device)  )
+            present_state_list.append(                  state_list [ j                        ]          )
+            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)  )
+            future_reward_list.append(      torch.stack(reward_list[ j   : j+time_size_       ], dim=0)  )
+            future_state_list.append(       torch.stack(state_list [ j+1 : j+time_size_+1     ], dim=0)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -298,16 +298,17 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                       model_list,
                                       PER_epsilon,
                                       PER_exponent,
-                                      buffer_limit):
+                                      buffer_limit,
+                                      device):
 
     buffer_limit_per_key = int( buffer_limit / len(list(present_state_tensor_dict.keys())) )
     
     for key in list(present_state_tensor_dict.keys()):
 
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+        present_state_tensor = present_state_tensor_dict[key].to(device)
+        future_action_tensor = future_action_tensor_dict[key].to(device)
+        future_reward_tensor = future_reward_tensor_dict[key].to(device)
+        future_state_tensor  = future_state_tensor_dict [key].to(device)
 
         TD_error = 0
         for model in model_list:
@@ -352,10 +353,10 @@ def update_model(iteration_for_learning,
     for _ in range(iteration_for_learning):
 
         key                  = random.choice(list(present_state_tensor_dict.keys()))
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+        present_state_tensor = present_state_tensor_dict[key].to(device)
+        future_action_tensor = future_action_tensor_dict[key].to(device)
+        future_reward_tensor = future_reward_tensor_dict[key].to(device)
+        future_state_tensor  = future_state_tensor_dict [key].to(device)
 
         if (history_size > 0) and (key != 1):
             
