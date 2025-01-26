@@ -295,6 +295,7 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                       future_action_hash_dict, 
                                       future_reward_hash_dict, 
                                       future_state_hash_dict ,
+                                      history_size, 
                                       model_list,
                                       PER_epsilon,
                                       PER_exponent,
@@ -310,27 +311,70 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         future_reward_tensor = future_reward_tensor_dict[key].to(device)
         future_state_tensor  = future_state_tensor_dict [key].to(device)
 
-        TD_error = 0
-        for model in model_list:
-            TD_error += obtain_TD_error(model, 
-                                        present_state_tensor  ,
-                                        future_action_tensor  ,
-                                        future_reward_tensor  ,
-                                        future_state_tensor   ,
-                                        None)
-         
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p           = TD_error / torch.sum(TD_error)
-        indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
+        if (history_size > 0) and (key != 1):
 
-        present_state_tensor_dict [key] = present_state_tensor [indices]
-        future_action_tensor_dict [key] = future_action_tensor [indices]
-        future_reward_tensor_dict [key] = future_reward_tensor [indices]
-        future_state_tensor_dict  [key] = future_state_tensor  [indices]
-        present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.cpu().numpy()].tolist()
+            if history_size >= key:
+                
+                TD_error = 0
+                for model in model_list:
+                    for _ in range(history_size):
+                        h_size    = np.random.randint(1, key) 
+                        TD_error += obtain_TD_error(model, 
+                                                    present_state_tensor  ,
+                                                    future_action_tensor  ,
+                                                    future_reward_tensor  ,
+                                                    future_state_tensor   ,
+                                                    h_size)
+
+            else:
+                
+                TD_error = 0
+                for model in model_list:
+                    for _ in range(history_size):
+                        h_size    = np.random.randint(history_size) + 1
+                        TD_error += obtain_TD_error(model, 
+                                                    present_state_tensor  ,
+                                                    future_action_tensor  ,
+                                                    future_reward_tensor  ,
+                                                    future_state_tensor   ,
+                                                    h_size)
+
+            TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+            TD_error_p           = TD_error / torch.sum(TD_error)
+            indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
+
+            present_state_tensor_dict [key] = present_state_tensor [indices]
+            future_action_tensor_dict [key] = future_action_tensor [indices]
+            future_reward_tensor_dict [key] = future_reward_tensor [indices]
+            future_state_tensor_dict  [key] = future_state_tensor  [indices]
+            present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.cpu().numpy()].tolist()
+
+        else:
+
+            TD_error = 0
+            for model in model_list:
+                TD_error += obtain_TD_error(model, 
+                                            present_state_tensor  ,
+                                            future_action_tensor  ,
+                                            future_reward_tensor  ,
+                                            future_state_tensor   ,
+                                            None)
+            
+            TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+            TD_error_p           = TD_error / torch.sum(TD_error)
+            indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
+
+            present_state_tensor_dict [key] = present_state_tensor [indices]
+            future_action_tensor_dict [key] = future_action_tensor [indices]
+            future_reward_tensor_dict [key] = future_reward_tensor [indices]
+            future_state_tensor_dict  [key] = future_state_tensor  [indices]
+            present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
+            future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.cpu().numpy()].tolist()
 
     return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
            present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
