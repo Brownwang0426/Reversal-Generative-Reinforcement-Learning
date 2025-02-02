@@ -1,4 +1,7 @@
-import gym
+
+import gymnasium as gym
+from gymnasium.wrappers import TimeLimit
+import minigrid
 
 import numpy as np
 import math
@@ -24,6 +27,14 @@ from tqdm import tqdm
 from collections import defaultdict
 
 import itertools
+
+import dill
+
+import warnings
+warnings.filterwarnings('ignore')
+
+import concurrent.futures
+import hashlib
 
 """
 # Model for agent
@@ -53,12 +64,19 @@ class custom_attn(nn.Module):
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
 
     def scaled_dot_product_attention(self, Q, K, V, mask):
+        mask_1, mask_2 = mask
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
-        if mask != None:
-            attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+        
+        if mask_1 != None:
+            attn_scores += mask_1                                # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             attn_scores += 0
-        attn_probs = torch.softmax(attn_scores, dim=-1)
+
+        if mask_2 != None:
+            attn_probs = torch.softmax(attn_scores, dim=-1) * mask_2 # (batch_size, num_heads, sequence_size, sequence_size) * (batch_size, 1, sequence_size, sequence_size)
+        else:
+            attn_probs = torch.softmax(attn_scores, dim=-1) 
+
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
 
@@ -127,9 +145,9 @@ class build_model(nn.Module):
         nn.ModuleList([
             nn.ModuleList([
                 custom_attn (self.hidden_neuron_size, self.num_heads),
-                nn.LayerNorm(self.hidden_neuron_size),
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False),
                 nn.Linear   (self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
-                nn.LayerNorm(self.hidden_neuron_size)
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False)
             ])
             for _ in range(self.num_layers)
         ])
@@ -185,7 +203,7 @@ class build_model(nn.Module):
             h_ = fully_connected_layer(h)
             h  = fully_connected_norm_layer(h + h_)
 
-        h  = h.view(h.size(0), -1) # Shape: (1, sequence_size * feature_size)
+        h  = h.view(h.size(0), -1)
         r  = self.reward_linear(h)   
         r  = self.output_activation(r)
 
