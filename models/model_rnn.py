@@ -128,7 +128,7 @@ class build_model(nn.Module):
 
     def forward(self, history_s_list, history_a_list, s, a_list):
 
-        idx = 0 # the index of the num_layers where you want to insert s
+        idx = int( (self.num_layers + self.num_layers%2) / 2 ) - 1 # the index of the num_layers where you want to insert s
 
         # s          is [batch_size, feature_size] by default
         # a_list     is [batch_size, sequence_size, feature_size] by default
