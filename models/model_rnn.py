@@ -143,14 +143,14 @@ class build_model(nn.Module):
                 if self.neural_type == 'lstm':
                     if i == 0:
                         cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) 
-                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1        
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)     
                         sl[idx]  = history_s_list[:,i]
                     else:
                         sl[idx]  = history_s_list[:,i]                     
                     rl, (sl, cl) = self.recurrent_layer(history_a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                 else:
                     if i == 0:
-                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1        
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)        
                         sl[idx]  = history_s_list[:,i]  
                     else:
                         sl[idx]  = history_s_list[:,i]                                                                  
@@ -191,7 +191,7 @@ class build_model(nn.Module):
                 if self.neural_type == 'lstm':
                     if i == 0:
                         cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
-                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)         
                         sl[idx]  = s  
                     else:
                         pass                             
@@ -200,7 +200,7 @@ class build_model(nn.Module):
                     s            = sl[idx]
                 else:
                     if i == 0:
-                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)         
                         sl[idx]  = s                                                                         
                     else:
                         pass
