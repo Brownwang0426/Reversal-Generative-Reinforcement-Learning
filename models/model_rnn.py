@@ -142,7 +142,7 @@ class build_model(nn.Module):
 
                 if self.neural_type == 'lstm':
                     if i == 0:
-                        cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1
+                        cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) 
                         sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) - 1        
                         sl[idx]  = history_s_list[:,i]
                     else:
@@ -190,7 +190,7 @@ class build_model(nn.Module):
 
                 if self.neural_type == 'lstm':
                     if i == 0:
-                        cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1
+                        cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
                         sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) - 1        
                         sl[idx]  = s  
                     else:
