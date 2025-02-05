@@ -128,7 +128,7 @@ class build_model(nn.Module):
 
     def forward(self, history_s_list, history_a_list, s, a_list):
 
-        idx = int( (self.num_layers + self.num_layers%2) / 2 ) - 1 # the index of the num_layers where you want to insert s
+        idx = int( (self.num_layers + self.num_layers%2) / 2 ) - 1  # the index of the num_layers where you want to insert s
 
         # s          is [batch_size, feature_size] by default
         # a_list     is [batch_size, sequence_size, feature_size] by default
@@ -142,15 +142,15 @@ class build_model(nn.Module):
 
                 if self.neural_type == 'lstm':
                     if i == 0:
-                        cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1) 
-                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)     
-                        sl[idx]  = history_s_list[:,i]
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)  
+                        cl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)      
+                        cl[idx]  = history_s_list[:,i]
                     else:
-                        sl[idx]  = history_s_list[:,i]                     
+                        cl[idx]  = history_s_list[:,i]                     
                     rl, (sl, cl) = self.recurrent_layer(history_a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                 else:
                     if i == 0:
-                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)        
+                        sl       = torch.zeros_like(history_s_list[:,i]).repeat(self.num_layers, 1, 1)         
                         sl[idx]  = history_s_list[:,i]  
                     else:
                         sl[idx]  = history_s_list[:,i]                                                                  
@@ -164,7 +164,7 @@ class build_model(nn.Module):
                 if self.neural_type == 'lstm':              
                     rl, (sl, cl) = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                     r            = rl[:,0,:] 
-                    s            = sl[idx]
+                    s            = cl[idx]
                 else:
                     rl, sl       = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , sl)
                     r            = rl[:,0,:]
@@ -190,17 +190,17 @@ class build_model(nn.Module):
 
                 if self.neural_type == 'lstm':
                     if i == 0:
-                        cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1) 
-                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)         
-                        sl[idx]  = s  
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)  
+                        cl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)
+                        cl[idx]  = s  
                     else:
                         pass                             
                     rl, (sl, cl) = self.recurrent_layer(a_list[:, i, :].unsqueeze(1)  , (sl, cl))
                     r            = rl[:,0,:] 
-                    s            = sl[idx]
+                    s            = cl[idx]
                 else:
                     if i == 0:
-                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)         
+                        sl       = torch.zeros_like(s).repeat(self.num_layers, 1, 1)        
                         sl[idx]  = s                                                                         
                     else:
                         pass
