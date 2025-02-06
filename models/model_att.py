@@ -72,10 +72,7 @@ class custom_attn(nn.Module):
         else:
             attn_scores += 0
 
-        if mask_2 != None:
-            attn_probs = torch.softmax(attn_scores, dim=-1) * mask_2 # (batch_size, num_heads, sequence_size, sequence_size) * (batch_size, 1, sequence_size, sequence_size)
-        else:
-            attn_probs = torch.softmax(attn_scores, dim=-1) 
+        attn_probs = torch.softmax(attn_scores, dim=-1) 
 
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
@@ -145,13 +142,13 @@ class build_model(nn.Module):
         nn.ModuleList([
             nn.ModuleList([
                 custom_attn (self.hidden_neuron_size, self.num_heads),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False),
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
                 nn.Linear   (self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False)
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True)
             ])
             for _ in range(self.num_layers)
         ])
-        self.reward_linear        = nn.Linear(self.hidden_neuron_size * (1 + self.input_sequence_size), self.output_neuron_size , bias=self.bias)
+        self.reward_linear        = nn.Linear(self.hidden_neuron_size , self.output_neuron_size , bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)
@@ -186,6 +183,8 @@ class build_model(nn.Module):
     
 
     def forward(self, s, a_list, mask):
+        
+        original_length = mask[1][0, 0, 0, :].long().sum()
 
         s  = self.state_linear(s.unsqueeze(1))
         s  = self.hidden_activation(s)
@@ -194,7 +193,7 @@ class build_model(nn.Module):
         a  = self.hidden_activation(a)
 
         h  = torch.cat((s, a), dim=1)
-        h  = h + self.positional_encoding[:, :, :]
+        h  = h + self.positional_encoding
 
         for i, layer in enumerate(self.transformer_layers):
             attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
@@ -203,7 +202,8 @@ class build_model(nn.Module):
             h_ = fully_connected_layer(h)
             h  = fully_connected_norm_layer(h + h_)
 
-        h  = h.view(h.size(0), -1)
+        last_idx = original_length - 1 
+        h  = h[:, last_idx, :]
         r  = self.reward_linear(h)   
         r  = self.output_activation(r)
 
