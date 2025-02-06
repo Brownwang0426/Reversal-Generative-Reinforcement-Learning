@@ -63,10 +63,7 @@ class custom_attn(nn.Module):
         else:
             attn_scores += 0
 
-        if mask_2 != None:
-            attn_probs = torch.softmax(attn_scores, dim=-1) * mask_2 # (batch_size, num_heads, sequence_size, sequence_size) * (batch_size, 1, sequence_size, sequence_size)
-        else:
-            attn_probs = torch.softmax(attn_scores, dim=-1) 
+        attn_probs = torch.softmax(attn_scores, dim=-1) 
 
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
@@ -135,14 +132,14 @@ class build_model(nn.Module):
         nn.ModuleList([
             nn.ModuleList([
                 custom_attn(self.hidden_neuron_size, self.num_heads),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False),
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
                 nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=False)
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True)
             ])
             for _ in range(self.num_layers)
         ])
-        self.reward_linear        = nn.Linear(2 * self.input_sequence_size * self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(2 * self.input_sequence_size * self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
+        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -246,12 +243,10 @@ class build_model(nn.Module):
 
 
 
-                h  = h.view(h.size(0), -1)
-
-                r  = self.reward_linear(h)   
+                r  = self.reward_linear(h[:, -2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h)   
+                s  = self.state_linear_(h[:, -1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
@@ -326,12 +321,10 @@ class build_model(nn.Module):
 
 
 
-                h  = h.view(h.size(0), -1)
-
-                r  = self.reward_linear(h)   
+                r  = self.reward_linear(h[:, -2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h)   
+                s  = self.state_linear_(h[:, -1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
