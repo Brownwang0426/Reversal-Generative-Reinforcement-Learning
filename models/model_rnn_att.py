@@ -38,10 +38,10 @@ import hashlib
 
 
 class custom_attn(nn.Module):
-    def __init__(self, feature_size, num_heads):
+    def __init__(self, feature_size, num_heads, drop_rate, bias):
         super(custom_attn, self).__init__()
         assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
-        self.bias          = False
+        self.bias          = bias
         self.feature_size  = feature_size
         self.num_heads     = num_heads
         self.head_size     = feature_size // num_heads
@@ -49,7 +49,8 @@ class custom_attn(nn.Module):
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-
+        self.attn_dropout  = nn.Dropout(drop_rate)
+        
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
@@ -59,12 +60,12 @@ class custom_attn(nn.Module):
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         
         if mask_1 != None:
-            attn_scores += mask_1                                # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+            attn_scores += mask_1                                    # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             attn_scores += 0
 
         attn_probs = torch.softmax(attn_scores, dim=-1) 
-
+        attn_probs = self.attn_dropout (attn_probs)
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
 
@@ -131,7 +132,7 @@ class build_model(nn.Module):
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
-                custom_attn(self.hidden_neuron_size, self.num_heads),
+                custom_attn(self.hidden_neuron_size, self.num_heads, self.drop_rate, self.bias),
                 nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
                 nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
                 nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True)
@@ -140,6 +141,8 @@ class build_model(nn.Module):
         ])
         self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+
+        self.resid_dropout        = nn.Dropout(drop_rate)
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -234,8 +237,10 @@ class build_model(nn.Module):
                         h_ = attention_layer(h, h, h, mask)
                     else:
                         h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
+                    h_ = self.resid_dropout(h_)
                     h  = attention_norm_layer(h + h_)
                     h_ = fully_connected_layer(h)
+                    h_ = self.resid_dropout(h_)
                     h  = fully_connected_norm_layer(h + h_)
                     h_list.append(h)
                 prev_h_list = h_list
@@ -312,8 +317,10 @@ class build_model(nn.Module):
                         h_ = attention_layer(h, h, h, mask)
                     else:
                         h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
+                    h_ = self.resid_dropout(h_)
                     h  = attention_norm_layer(h + h_)
                     h_ = fully_connected_layer(h)
+                    h_ = self.resid_dropout(h_)
                     h  = fully_connected_norm_layer(h + h_)
                     h_list.append(h)
                 prev_h_list = h_list
