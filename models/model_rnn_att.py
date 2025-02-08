@@ -50,7 +50,8 @@ class custom_attn(nn.Module):
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(drop_rate)
-        
+        self.resid_dropout = nn.Dropout(drop_rate)
+
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
@@ -81,6 +82,7 @@ class custom_attn(nn.Module):
         V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         output      = self.W_o(self.combine_heads(attn_output))
+        output      = self.resid_dropout(output)
         return output
 
 
@@ -132,17 +134,16 @@ class build_model(nn.Module):
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
+                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
                 custom_attn(self.hidden_neuron_size, self.num_heads, self.drop_rate, self.bias),
                 nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
-                nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True)
+                nn.Linear(self.hidden_neuron_size, self.feature_size, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
+        self.norm_layer           = nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True) 
         self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
-
-        self.resid_dropout        = nn.Dropout(drop_rate)
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -232,22 +233,21 @@ class build_model(nn.Module):
 
                 h_list = list()
                 for j, layer in enumerate(self.transformer_layers):
-                    attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
+                    attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
+                    h_  = attention_norm_layer(h)
                     if i == 0:
-                        h_ = attention_layer(h, h, h, mask)
+                        h = h + attention_layer(h_, h_, h_, mask)
                     else:
-                        h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
-                    h_ = self.resid_dropout(h_)
-                    h  = attention_norm_layer(h + h_)
-                    h_ = fully_connected_layer(h)
-                    h_ = self.resid_dropout(h_)
-                    h  = fully_connected_norm_layer(h + h_)
+                        h = h + attention_layer(prev_h_list[j], prev_h_list[j], h_, mask)
+                    h_  = fully_connected_norm_layer(h)
+                    h   = h + fully_connected_layer(h_)
                     h_list.append(h)
                 prev_h_list = h_list
+                h  = self.norm_layer(h)
+            
+        
 
-
-
-
+                
                 r  = self.reward_linear(h[:, -2, :])   
                 r  = self.output_activation(r)
 
@@ -312,18 +312,17 @@ class build_model(nn.Module):
 
                 h_list = list()
                 for j, layer in enumerate(self.transformer_layers):
-                    attention_layer, attention_norm_layer, fully_connected_layer, fully_connected_norm_layer = layer
+                    attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
+                    h_  = attention_norm_layer(h)
                     if i == 0:
-                        h_ = attention_layer(h, h, h, mask)
+                        h = h + attention_layer(h_, h_, h_, mask)
                     else:
-                        h_ = attention_layer(prev_h_list[j], prev_h_list[j], h, mask)
-                    h_ = self.resid_dropout(h_)
-                    h  = attention_norm_layer(h + h_)
-                    h_ = fully_connected_layer(h)
-                    h_ = self.resid_dropout(h_)
-                    h  = fully_connected_norm_layer(h + h_)
+                        h = h + attention_layer(prev_h_list[j], prev_h_list[j], h_, mask)
+                    h_  = fully_connected_norm_layer(h)
+                    h   = h + fully_connected_layer(h_)
                     h_list.append(h)
                 prev_h_list = h_list
+                h  = self.norm_layer(h)
 
 
 
