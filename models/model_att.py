@@ -46,6 +46,7 @@ Crucial model regarding how you set up your agent's neural network
 - In our experience, how the neural net of the agent handles the information flow toward reward will have immense impact on the performance of the agent. 
 """
 
+
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, drop_rate, bias):
         super(custom_attn, self).__init__()
@@ -66,11 +67,11 @@ class custom_attn(nn.Module):
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
 
     def scaled_dot_product_attention(self, Q, K, V, mask):
-        mask_1, mask_2 = mask
+
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         
-        if mask_1 != None:
-            attn_scores += mask_1                                    # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+        if mask != None:
+            attn_scores += mask                                    # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             attn_scores += 0
 
@@ -140,7 +141,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(1 + self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
@@ -186,30 +187,41 @@ class build_model(nn.Module):
 
     
 
-    def forward(self, s, a_list, mask):
-        
-        original_length = mask[1][0, 0, 0, :].long().sum()
+    def forward(self,  history_s_list, history_a_list, s, a_list, mask):
+
+        mask_1, mask_2 = mask
+        last_idx       = mask_2.long()
+
+        stack_list = list()
+
+        for i in range(history_s_list.size(1)):
+            history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
+            history_s  = self.hidden_activation(history_s)
+            stack_list.append(history_s)
+            history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
+            history_a  = self.hidden_activation(history_a)
+            stack_list.append(history_a)
 
         s  = self.state_linear(s.unsqueeze(1))
         s  = self.hidden_activation(s)
+        stack_list.append(s)
 
         a  = self.action_linear(a_list)
         a  = self.hidden_activation(a)
+        stack_list.append(a)
 
-        h  = torch.cat((s, a), dim=1)
+        h  = torch.cat(stack_list, dim=1)
         h  = h + self.positional_encoding
 
         for i, layer in enumerate(self.transformer_layers):
             attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
             h_  = attention_norm_layer(h)
-            h   = h + attention_layer(h_, h_, h_, mask)
+            h   = h + attention_layer(h_, h_, h_, mask_1)
             h_  = fully_connected_norm_layer(h)
             h   = h + fully_connected_layer(h_)
 
         h  = self.norm_layer(h)
-
-        last_idx = original_length - 1 
-        h  = h[:, last_idx, :]
+        h  = h[torch.arange(h.size(0)), last_idx, :]
         r  = self.reward_linear(h)   
         r  = self.output_activation(r)
 
