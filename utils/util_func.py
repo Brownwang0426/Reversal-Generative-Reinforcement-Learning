@@ -79,6 +79,9 @@ def initialize_pre_activated_action(init, noise_t, noise_r, shape, device):
 
 def update_pre_activated_action(iteration_for_deducing,
                                 model_list,
+                                history_state,
+                                history_action,
+                                history_size,
                                 present_state,
                                 pre_activated_future_action,
                                 desired_reward,
@@ -86,9 +89,15 @@ def update_pre_activated_action(iteration_for_deducing,
                                 loss_scale,
                                 device):
 
+    history_state     = torch.stack(history_state [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
+    history_action    = torch.stack(history_action[-history_size:]    , dim=0).unsqueeze(0).to(device)
+
     present_state, pre_activated_future_action, desired_reward = present_state.to(device), pre_activated_future_action.to(device), desired_reward.to(device)
 
     time_size         = pre_activated_future_action.size(1)
+
+    mask_1            = torch.full((1, 1, history_size * 2 + 1 + time_size, history_size * 2 + 1 + time_size), float("-inf"))
+    mask_1            = torch.triu(mask_1, diagonal=1).to(device)
 
     for i in range(iteration_for_deducing):
 
@@ -97,29 +106,19 @@ def update_pre_activated_action(iteration_for_deducing,
 
         future_action = torch.sigmoid(pre_activated_future_action[:, :tgt_indx+1])
         value         = 0
-        pad_size      = time_size - tgt_indx - 1
+        pad_size      = time_size - (tgt_indx + 1)
         pad           = (0, 0, 0, pad_size)
         future_action = F.pad(future_action, pad=pad, mode='constant', value= value)
         future_action = future_action.detach().requires_grad_(True)
 
-        mask_1        = torch.zeros(1 + tgt_indx + 1, 1 + tgt_indx + 1).unsqueeze(0).unsqueeze(0).float().to(device)
-        value         = -1e20
-        pad_size      = 1 + time_size - (1 + tgt_indx + 1)
-        pad           = (0, pad_size, 0, pad_size)
-        mask_1        = F.pad(mask_1, pad=pad, mode='constant', value= value)
-
-        mask_2        = torch.ones(1 + tgt_indx + 1, 1 + tgt_indx + 1).unsqueeze(0).unsqueeze(0).float().to(device)
-        value         = 0
-        pad_size      = 1 + time_size - (1 + tgt_indx + 1)
-        pad           = (0, pad_size, 0, pad_size)
-        mask_2        = F.pad(mask_2, pad=pad, mode='constant', value= value)
+        mask_2        = torch.tensor(history_size * 2 + 1 + tgt_indx).unsqueeze(0).to(device)
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
         
         loss_function       = model.loss_function
-        output_reward       = model(present_state, future_action, (mask_1, mask_2))
+        output_reward       = model(history_state, history_action, present_state, future_action, (mask_1, mask_2))
         total_loss          = loss_function(output_reward, desired_reward) * (loss_scale ** tgt_indx)
         total_loss.backward() # get grad
 
@@ -130,54 +129,43 @@ def update_pre_activated_action(iteration_for_deducing,
 
 
 
-def sequentialize(state_list, action_list, reward_list, time_size, device):
+def sequentialize(state_list, action_list, reward_list, history_size, time_size, device):
 
-    max_size           = copy.deepcopy(time_size)
+    max_time_size       = copy.deepcopy(time_size)
 
-    present_state_list = []
-    future_action_list = []
-    future_reward_list = []
-    mask_1_list        = []
-    mask_2_list        = []
+    history_state_list  = []
+    history_action_list = []
+    present_state_list  = []
+    future_action_list  = []
+    future_reward_list  = []
+    mask_1_list         = []
+    mask_2_list         = []
 
-    if time_size > len(state_list[:-1]):
-        time_size = len(state_list[:-1])
+    if (history_size + time_size) > len(state_list[:-1]):
+        time_size    = len(state_list[:-1]) - history_size
     else:
-      pass
-    
+        pass
+
     for i in range(time_size):
-        time_size_ = i + 1
-        if time_size_ != 1:
-            process_len = len(reward_list[:-time_size_+1])
-        else:
-            process_len = len(reward_list[:])
+        time_size_  = i + 1
+        process_len = len(reward_list[:-(history_size + time_size_)+1])
         for j in range(process_len):
-            present_state_list.append(                  state_list [ j                        ]              .to(device)  )
-            future_action_list.append(      torch.stack(action_list[ j   : j+time_size_       ], dim=0)      .to(device)  )
-            future_reward_list.append(                  reward_list[       j+time_size_ - 1   ]              .to(device)  )
-            mask_1_list       .append(      torch.zeros(1 + time_size_, 1 + time_size_).unsqueeze(0).float() .to(device)  )
-            mask_2_list       .append(      torch.ones (1 + time_size_, 1 + time_size_).unsqueeze(0).float() .to(device)  )
+            history_state_list.append (      torch.stack(state_list [ j                : j+history_size                              ], dim=0)                                  .to(device) )
+            history_action_list.append(      torch.stack(action_list[ j                : j+history_size                              ], dim=0)                                  .to(device) )
+            present_state_list.append (                  state_list [ j+history_size                                                 ]                                          .to(device) )
+            future_action_list.append (      torch.stack(action_list[ j+history_size   : j+history_size+time_size_                   ], dim=0)                                  .to(device) )
+            future_reward_list.append (                  reward_list[                    j+history_size+time_size_ - 1               ]                                          .to(device) )
+            mask_1_list       .append (       torch.triu(torch.full((1, history_size * 2 + 1 + max_time_size, history_size * 2 + 1 + max_time_size), float("-inf")), diagonal=1).to(device) )
+            mask_2_list       .append (     torch.tensor(history_size * 2 + 1 + time_size_ - 1)                                                                                 .to(device) )
 
-    for i, (future_action, mask_1, mask_2) in enumerate(zip(future_action_list, mask_1_list, mask_2_list)):
-
-        current_size          = future_action.size(0)
+    for i, future_action in enumerate(future_action_list):
 
         value                 = 0
-        pad_size              = max_size - current_size
+        pad_size              = max_time_size - future_action.size(0)
         pad                   = (0, 0, 0, pad_size)
         future_action_list[i] = F.pad(future_action, pad=pad, mode='constant', value= value)
 
-        value                 = -1e20
-        pad_size              = 1 + max_size - (1 + current_size)
-        pad                   = (0, pad_size, 0, pad_size)
-        mask_1_list[i]        = F.pad(mask_1, pad=pad, mode='constant', value= value)
-
-        value                 = 0
-        pad_size              = 1 + max_size - (1 + current_size)
-        pad                   = (0, pad_size, 0, pad_size)
-        mask_2_list[i]        = F.pad(mask_2, pad=pad, mode='constant', value= value)
-
-    return present_state_list, future_action_list, future_reward_list, mask_1_list, mask_2_list
+    return history_state_list, history_action_list, present_state_list, future_action_list, future_reward_list, mask_1_list, mask_2_list
 
 
 
@@ -189,59 +177,78 @@ def hash_tensor(tensor):
 def fast_check_with_hash(hash_1d, hash_2d):
     return hash_1d not in hash_2d
 
-def update_long_term_experience_buffer(present_state_tensor_dict, 
+def update_long_term_experience_buffer(
+                                       history_state_tensor_dict, 
+                                       history_action_tensor_dict,
+                                       present_state_tensor_dict, 
                                        future_action_tensor_dict,
                                        future_reward_tensor_dict, 
                                        mask_1_tensor_dict,
                                        mask_2_tensor_dict,
+                                       history_state_hash_dict, 
+                                       history_action_hash_dict, 
                                        present_state_hash_dict, 
                                        future_action_hash_dict, 
                                        future_reward_hash_dict, 
                                        mask_1_hash_dict,
                                        mask_2_hash_dict,
+                                       history_state_list,
+                                       history_action_list,
                                        present_state_list,
                                        future_action_list,
                                        future_reward_list,
                                        mask_1_list,
-                                       mask_2_list ):
+                                       mask_2_list):
     
     for i in range(len(present_state_list)):
-        length             = len(future_action_list[i])
-        present_state      = present_state_list [i]
-        future_action      = future_action_list [i]
-        future_reward      = future_reward_list [i]
-        mask_1             = mask_1_list          [i]
-        mask_2             = mask_2_list          [i]
-        present_state_hash = hash_tensor(present_state)
-        future_action_hash = hash_tensor(future_action)
-        future_reward_hash = hash_tensor(future_reward)
-        mask_1_hash        = hash_tensor(mask_1       )
-        mask_2_hash        = hash_tensor(mask_2       )
+        length              = len(future_action_list[i])
+        history_state       = history_state_list [i]
+        history_action      = history_action_list[i]
+        present_state       = present_state_list [i]
+        future_action       = future_action_list [i]
+        future_reward       = future_reward_list [i]
+        mask_1              = mask_1_list        [i]
+        mask_2              = mask_2_list        [i]
+        history_state_hash  = hash_tensor(history_state)
+        history_action_hash = hash_tensor(history_action)
+        present_state_hash  = hash_tensor(present_state)
+        future_action_hash  = hash_tensor(future_action)
+        future_reward_hash  = hash_tensor(future_reward)
+        mask_1_hash         = hash_tensor(mask_1       )
+        mask_2_hash         = hash_tensor(mask_2       )
 
-        if  fast_check_with_hash(present_state_hash  , present_state_hash_dict[length]) or   \
-            fast_check_with_hash(future_action_hash  , future_action_hash_dict[length]) or   \
-            fast_check_with_hash(future_reward_hash  , future_reward_hash_dict[length]) or   \
-            fast_check_with_hash(mask_1_hash         , mask_1_hash_dict       [length]) or   \
-            fast_check_with_hash(mask_2_hash         , mask_2_hash_dict       [length]):
-            
+        if  fast_check_with_hash(history_state_hash   , history_state_hash_dict [length]) or   \
+            fast_check_with_hash(history_action_hash  , history_action_hash_dict[length]) or   \
+            fast_check_with_hash(present_state_hash   , present_state_hash_dict [length]) or   \
+            fast_check_with_hash(future_action_hash   , future_action_hash_dict [length]) or   \
+            fast_check_with_hash(future_reward_hash   , future_reward_hash_dict [length]) or   \
+            fast_check_with_hash(mask_1_hash          , mask_1_hash_dict        [length]) or   \
+            fast_check_with_hash(mask_2_hash          , mask_2_hash_dict        [length]):
+
+            history_state_tensor_dict  [length] = torch.cat((history_state_tensor_dict  [length],    history_state.unsqueeze(0) ), dim=0)
+            history_action_tensor_dict [length] = torch.cat((history_action_tensor_dict [length],    history_action.unsqueeze(0)), dim=0)
             present_state_tensor_dict  [length] = torch.cat((present_state_tensor_dict  [length],    present_state.unsqueeze(0) ), dim=0)
             future_action_tensor_dict  [length] = torch.cat((future_action_tensor_dict  [length],    future_action.unsqueeze(0) ), dim=0)
             future_reward_tensor_dict  [length] = torch.cat((future_reward_tensor_dict  [length],    future_reward.unsqueeze(0) ), dim=0)
             mask_1_tensor_dict         [length] = torch.cat((mask_1_tensor_dict         [length],    mask_1       .unsqueeze(0) ), dim=0)
             mask_2_tensor_dict         [length] = torch.cat((mask_2_tensor_dict         [length],    mask_2       .unsqueeze(0) ), dim=0)
+            history_state_hash_dict    [length] .append( history_state_hash  )
+            history_action_hash_dict   [length] .append( history_action_hash )
             present_state_hash_dict    [length] .append( present_state_hash  )
             future_action_hash_dict    [length] .append( future_action_hash  )
             future_reward_hash_dict    [length] .append( future_reward_hash  )
             mask_1_hash_dict           [length] .append( mask_1_hash         )
             mask_2_hash_dict           [length] .append( mask_2_hash         )
 
-    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_1_tensor_dict, mask_2_tensor_dict,\
-           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_1_hash_dict, mask_2_hash_dict
+    return history_state_tensor_dict, history_action_tensor_dict, present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_1_tensor_dict, mask_2_tensor_dict,\
+           history_state_hash_dict, history_action_hash_dict, present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_1_hash_dict, mask_2_hash_dict
 
 
 
 
 def obtain_TD_error(model,
+                    history_state_tensor,
+                    history_action_tensor,
                     present_state_tensor,
                     future_action_tensor,
                     future_reward_tensor,
@@ -249,19 +256,22 @@ def obtain_TD_error(model,
                     mask_2_tensor
                     ):
 
-    dataset      = TensorDataset(present_state_tensor,
+    dataset      = TensorDataset(
+                                 history_state_tensor,
+                                 history_action_tensor,
+                                 present_state_tensor,
                                  future_action_tensor,
                                  future_reward_tensor,
                                  mask_1_tensor,
                                  mask_2_tensor )
     data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
-    for present_state, future_action, future_reward, mask_1, mask_2 in data_loader:
+    for history_state, history_action, present_state, future_action, future_reward, mask_1, mask_2 in data_loader:
 
         model.eval()
 
         loss_function                 = model.loss_function_
-        output_reward                 = model(present_state, future_action, (mask_1, mask_2))
+        output_reward                 = model(history_state, history_action, present_state, future_action, (mask_1, mask_2))
         total_loss                    = loss_function(output_reward, future_reward) 
 
         total_loss                    = torch.sum(torch.abs(total_loss), dim=(1))
@@ -272,11 +282,16 @@ def obtain_TD_error(model,
 
 
 
-def clear_long_term_experience_buffer(present_state_tensor_dict, 
+def clear_long_term_experience_buffer(
+                                      history_state_tensor_dict, 
+                                      history_action_tensor_dict,
+                                      present_state_tensor_dict, 
                                       future_action_tensor_dict,
                                       future_reward_tensor_dict, 
                                       mask_1_tensor_dict,
                                       mask_2_tensor_dict,
+                                      history_state_hash_dict, 
+                                      history_action_hash_dict, 
                                       present_state_hash_dict, 
                                       future_action_hash_dict, 
                                       future_reward_hash_dict, 
@@ -291,15 +306,19 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
     
     for key in list(present_state_tensor_dict.keys()):
 
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        mask_1_tensor        = mask_1_tensor_dict       [key]
-        mask_2_tensor        = mask_2_tensor_dict       [key]
+        history_state_tensor  = history_state_tensor_dict [key]
+        history_action_tensor = history_action_tensor_dict[key]
+        present_state_tensor  = present_state_tensor_dict [key]
+        future_action_tensor  = future_action_tensor_dict [key]
+        future_reward_tensor  = future_reward_tensor_dict [key]
+        mask_1_tensor         = mask_1_tensor_dict        [key]
+        mask_2_tensor         = mask_2_tensor_dict        [key]
 
         TD_error = 0
         for model in model_list:
             TD_error += obtain_TD_error(model, 
+                                        history_state_tensor  ,
+                                        history_action_tensor  ,
                                         present_state_tensor  ,
                                         future_action_tensor  ,
                                         future_reward_tensor  ,
@@ -310,24 +329,30 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
         TD_error_p           = TD_error / torch.sum(TD_error)
         indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
 
-        present_state_tensor_dict [key] = present_state_tensor[indices]
-        future_action_tensor_dict [key] = future_action_tensor[indices]
-        future_reward_tensor_dict [key] = future_reward_tensor[indices]
-        mask_1_tensor_dict        [key] = mask_1_tensor       [indices]
-        mask_2_tensor_dict        [key] = mask_2_tensor       [indices]
+        history_state_tensor_dict [key] = history_state_tensor [indices]
+        history_action_tensor_dict[key] = history_action_tensor[indices]
+        present_state_tensor_dict [key] = present_state_tensor [indices]
+        future_action_tensor_dict [key] = future_action_tensor [indices]
+        future_reward_tensor_dict [key] = future_reward_tensor [indices]
+        mask_1_tensor_dict        [key] = mask_1_tensor        [indices]
+        mask_2_tensor_dict        [key] = mask_2_tensor        [indices]
+        history_state_hash_dict   [key] = np.array(history_state_hash_dict [key])[indices.cpu().numpy()].tolist()
+        history_action_hash_dict  [key] = np.array(history_action_hash_dict[key])[indices.cpu().numpy()].tolist()
         present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
         future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
         future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
         mask_1_hash_dict          [key] = np.array(mask_1_hash_dict        [key])[indices.cpu().numpy()].tolist()
         mask_2_hash_dict          [key] = np.array(mask_2_hash_dict        [key])[indices.cpu().numpy()].tolist()
 
-    return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_1_tensor_dict, mask_2_tensor_dict,\
-           present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_1_hash_dict, mask_2_hash_dict
+    return history_state_tensor_dict, history_action_tensor_dict, present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, mask_1_tensor_dict, mask_2_tensor_dict,\
+           history_state_hash_dict, history_action_hash_dict, present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, mask_1_hash_dict, mask_2_hash_dict
 
 
 
 
 def update_model(iteration_for_learning,
+                 history_state_tensor_dict,
+                 history_action_tensor_dict,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
                  future_reward_tensor_dict,
@@ -340,17 +365,21 @@ def update_model(iteration_for_learning,
 
     for _ in range(iteration_for_learning):
 
-        key                  = random.choice(list(present_state_tensor_dict.keys()))
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        mask_1_tensor        = mask_1_tensor_dict       [key]
-        mask_2_tensor        = mask_2_tensor_dict       [key]
+        key                   = random.choice(list(present_state_tensor_dict.keys()))
+        history_state_tensor  = history_state_tensor_dict [key]
+        history_action_tensor = history_action_tensor_dict[key]
+        present_state_tensor  = present_state_tensor_dict [key]
+        future_action_tensor  = future_action_tensor_dict [key]
+        future_reward_tensor  = future_reward_tensor_dict [key]
+        mask_1_tensor         = mask_1_tensor_dict        [key]
+        mask_2_tensor         = mask_2_tensor_dict        [key]
 
         """
         We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
         """
         TD_error             = obtain_TD_error (model, 
+                                                history_state_tensor  ,
+                                                history_action_tensor  ,
                                                 present_state_tensor  ,
                                                 future_action_tensor  ,
                                                 future_reward_tensor  ,
@@ -361,18 +390,20 @@ def update_model(iteration_for_learning,
         TD_error_p           = TD_error / torch.sum(TD_error)
         indices              = torch.multinomial(TD_error_p, 1, replacement = True)
 
-        present_state = present_state_tensor [indices]
-        future_action = future_action_tensor [indices]
-        future_reward = future_reward_tensor [indices]
-        mask_1        = mask_1_tensor        [indices]
-        mask_2        = mask_2_tensor        [indices]
+        history_state  = history_state_tensor [indices]
+        history_action = history_action_tensor[indices]
+        present_state  = present_state_tensor [indices]
+        future_action  = future_action_tensor [indices]
+        future_reward  = future_reward_tensor [indices]
+        mask_1         = mask_1_tensor        [indices]
+        mask_2         = mask_2_tensor        [indices]
 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
         loss_function               = model.loss_function
-        output_reward               = model(present_state, future_action, (mask_1, mask_2))
+        output_reward               = model(history_state, history_action, present_state, future_action, (mask_1, mask_2))
         total_loss                  = loss_function(output_reward, future_reward)
         total_loss.backward()     # get grad
 
@@ -384,6 +415,8 @@ def update_model(iteration_for_learning,
 
 
 def update_model_list(iteration_for_learning,
+                      history_state_tensor_dict,
+                      history_action_tensor_dict,
                       present_state_tensor_dict,
                       future_action_tensor_dict,
                       future_reward_tensor_dict,
@@ -396,6 +429,8 @@ def update_model_list(iteration_for_learning,
 
     for i, model in enumerate(model_list):
         model_list[i] = update_model(iteration_for_learning,
+                                     history_state_tensor_dict,
+                                     history_action_tensor_dict,
                                      present_state_tensor_dict,
                                      future_action_tensor_dict,
                                      future_reward_tensor_dict,
@@ -412,6 +447,8 @@ def update_model_list(iteration_for_learning,
 
 
 def update_model_list_parallel(iteration_for_learning,
+                               history_state_tensor_dict,
+                               history_action_tensor_dict,
                                present_state_tensor_dict,
                                future_action_tensor_dict,
                                future_reward_tensor_dict,
@@ -430,6 +467,8 @@ def update_model_list_parallel(iteration_for_learning,
         future_to_model = {
             executor.submit(update_model, 
                             iteration_for_learning,
+                            history_state_tensor_dict,
+                            history_action_tensor_dict,
                             present_state_tensor_dict,
                             future_action_tensor_dict,
                             future_reward_tensor_dict,
