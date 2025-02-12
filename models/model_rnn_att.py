@@ -207,20 +207,18 @@ class build_model(nn.Module):
                 long = h.size(1)
                 h    = h + self.positional_encoding[:, :long, :]
 
-                h    = F.pad(h, pad=(0, 0, 0, 2 * self.input_sequence_size - h.size(1)), mode='constant', value= 0) 
-
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
                     h_  = attention_norm_layer(h)
-                    h   = h + attention_layer(h_, h_, h_, self.mask)
+                    h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
                     h_  = fully_connected_norm_layer(h)
                     h   = h + fully_connected_layer(h_)
                 h  = self.norm_layer(h)
             
-                r  = self.reward_linear(h[:, long - 2, :])   
+                r  = self.reward_linear(h[:, - 2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h[:, long - 1, :])   
+                s  = self.state_linear_(h[:, - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
@@ -255,20 +253,18 @@ class build_model(nn.Module):
                 long = h.size(1)
                 h    = h + self.positional_encoding[:, :long, :]
 
-                h    = F.pad(h, pad=(0, 0, 0, 2 * self.input_sequence_size - h.size(1)), mode='constant', value= 0) 
-
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
                     h_  = attention_norm_layer(h)
-                    h   = h + attention_layer(h_, h_, h_, self.mask)
+                    h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
                     h_  = fully_connected_norm_layer(h)
                     h   = h + fully_connected_layer(h_)
                 h  = self.norm_layer(h)
 
-                r  = self.reward_linear(h[:, long - 2, :])   
+                r  = self.reward_linear(h[:, - 2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h[:, long - 1, :])   
+                s  = self.state_linear_(h[:, - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
