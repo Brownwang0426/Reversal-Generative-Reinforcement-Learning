@@ -206,10 +206,7 @@ class build_model(nn.Module):
                 h    = torch.cat(stack_list, dim=1)
                 long = h.size(1)
 
-                """
-                Since we modified transformer in a recurrent manner, we will save posistional encoding for simplicity and saving time.
-                """
-                # h    = h + self.positional_encoding[:, :long, :]
+                h    = h + self.positional_encoding[:, :long, :]
 
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
@@ -261,10 +258,7 @@ class build_model(nn.Module):
                 h    = torch.cat(stack_list, dim=1)
                 long = h.size(1)
 
-                """
-                Since we modified transformer in a recurrent manner, we will save posistional encoding for simplicity and saving time.
-                """
-                # h    = h + self.positional_encoding[:, :long, :]
+                h    = h + self.positional_encoding[:, :long, :]
 
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
