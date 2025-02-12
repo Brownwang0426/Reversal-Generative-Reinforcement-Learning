@@ -205,7 +205,11 @@ class build_model(nn.Module):
 
                 h    = torch.cat(stack_list, dim=1)
                 long = h.size(1)
-                h    = h + self.positional_encoding[:, :long, :]
+
+                """
+                Since we modified transformer in a recurrent manner, we will save posistional encoding for simplicity and saving time.
+                """
+                # h    = h + self.positional_encoding[:, :long, :]
 
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
@@ -214,16 +218,21 @@ class build_model(nn.Module):
                     h_  = fully_connected_norm_layer(h)
                     h   = h + fully_connected_layer(h_)
                 h  = self.norm_layer(h)
-            
-                r  = self.reward_linear(h[:, - 2, :])   
-                r  = self.output_activation(r)
 
+                """
+                We utilize the last idx in h to derive the latest reward and state.
+                """
+                r  = self.reward_linear(h[:, - 1, :])   
+                r  = self.output_activation(r)
                 s  = self.state_linear_(h[:, - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
                 s_list.append(s)
 
+                """
+                We save the latest state into the next round or time step.
+                """
                 s  = self.state_linear(s.unsqueeze(1))
                 s  = self.hidden_activation(s)
                 stack_list.append(s)
@@ -251,7 +260,11 @@ class build_model(nn.Module):
 
                 h    = torch.cat(stack_list, dim=1)
                 long = h.size(1)
-                h    = h + self.positional_encoding[:, :long, :]
+
+                """
+                Since we modified transformer in a recurrent manner, we will save posistional encoding for simplicity and saving time.
+                """
+                # h    = h + self.positional_encoding[:, :long, :]
 
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
@@ -261,15 +274,20 @@ class build_model(nn.Module):
                     h   = h + fully_connected_layer(h_)
                 h  = self.norm_layer(h)
 
-                r  = self.reward_linear(h[:, - 2, :])   
+                """
+                We utilize the last idx in h to derive the latest reward and state.
+                """
+                r  = self.reward_linear(h[:, - 1, :])   
                 r  = self.output_activation(r)
-
                 s  = self.state_linear_(h[:, - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
                 s_list.append(s)
 
+                """
+                We save the latest state into the next round or time step.
+                """
                 s  = self.state_linear(s.unsqueeze(1))
                 s  = self.hidden_activation(s)
                 stack_list.append(s)
