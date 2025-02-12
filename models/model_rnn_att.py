@@ -57,11 +57,11 @@ class custom_attn(nn.Module):
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
 
     def scaled_dot_product_attention(self, Q, K, V, mask):
-        mask_1, mask_2 = mask
+        
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         
-        if mask_1 != None:
-            attn_scores += mask_1                                    # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+        if mask != None:
+            attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             attn_scores += 0
 
@@ -137,13 +137,16 @@ class build_model(nn.Module):
                 nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
                 custom_attn(self.hidden_neuron_size, self.num_heads, self.drop_rate, self.bias),
                 nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
-                nn.Linear(self.hidden_neuron_size, self.feature_size, bias=self.bias)
+                nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
         self.norm_layer           = nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True) 
         self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        mask                      = torch.full((1, 1, self.input_sequence_size*2, self.input_sequence_size*2), float("-inf"))
+        mask                      = torch.triu(mask , diagonal=1)
+        self.register_buffer('mask', mask)  
 
         # Activation functions
         self.hidden_activation = self.get_activation(self.hidden_activation)
@@ -176,8 +179,6 @@ class build_model(nn.Module):
 
 
     def forward(self, history_s_list, history_a_list, s, a_list):
-        
-        device    = next(self.parameters()).device 
 
         if len(history_a_list) > 0:
 
@@ -185,7 +186,6 @@ class build_model(nn.Module):
             s_list = list()
 
             stack_list = list()
-
             for i in range(history_s_list.size(1)):
                 history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
                 history_s  = self.hidden_activation(history_s)
@@ -193,7 +193,6 @@ class build_model(nn.Module):
                 history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
                 history_a  = self.hidden_activation(history_a)
                 stack_list.append(history_a)
-
             s  = self.state_linear(s.unsqueeze(1))
             s  = self.hidden_activation(s)
             stack_list.append(s)
@@ -204,54 +203,24 @@ class build_model(nn.Module):
                 a  = self.hidden_activation(a)
                 stack_list.append(a)
 
-                h  = torch.cat(stack_list, dim=1)
-                h  = h + self.positional_encoding[:, :h.size(1), :]
+                h    = torch.cat(stack_list, dim=1)
+                long = h.size(1)
+                h    = h + self.positional_encoding[:, :long, :]
 
+                h    = F.pad(h, pad=(0, 0, 0, 2 * self.input_sequence_size - h.size(1)), mode='constant', value= 0) 
 
-
-
-                if i == 0: 
-                    encoder_size     = h.size(1)
-                    encoder_pad_size = 2 * self.input_sequence_size - encoder_size
-                    decoder_size     = encoder_size
-                    decoder_pad_size = encoder_pad_size
-                else:
-                    encoder_size     = h.size(1)
-                    encoder_pad_size = 2 * self.input_sequence_size - encoder_size
-                    decoder_size     = h.size(1) - 2
-                    decoder_pad_size = 2 * self.input_sequence_size - decoder_size
-
-                h             = F.pad(h, pad=(0, 0, 0, encoder_pad_size), mode='constant', value= 0) 
-                mask_1        = torch.zeros(decoder_size, decoder_size).float().to(device)
-                mask_1        = F.pad(mask_1, pad=(0, decoder_pad_size, 0, decoder_pad_size), mode='constant', value= -1e20) 
-                mask_2        = torch.ones (decoder_size, decoder_size).float().to(device)
-                mask_2        = F.pad(mask_2, pad=(0, decoder_pad_size, 0, decoder_pad_size), mode='constant', value= 0) 
-                mask          = (mask_1, mask_2)
-
-
-
-
-                h_list = list()
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
                     h_  = attention_norm_layer(h)
-                    if i == 0:
-                        h = h + attention_layer(h_, h_, h_, mask)
-                    else:
-                        h = h + attention_layer(prev_h_list[j], prev_h_list[j], h_, mask)
+                    h   = h + attention_layer(h_, h_, h_, self.mask)
                     h_  = fully_connected_norm_layer(h)
                     h   = h + fully_connected_layer(h_)
-                    h_list.append(h)
-                prev_h_list = h_list
                 h  = self.norm_layer(h)
             
-        
-
-                
-                r  = self.reward_linear(h[:, -2, :])   
+                r  = self.reward_linear(h[:, long - 2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h[:, -1, :])   
+                s  = self.state_linear_(h[:, long - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
@@ -272,7 +241,6 @@ class build_model(nn.Module):
             s_list = list()
 
             stack_list = list()
-
             s  = self.state_linear(s.unsqueeze(1))
             s  = self.hidden_activation(s)
             stack_list.append(s)
@@ -283,54 +251,24 @@ class build_model(nn.Module):
                 a  = self.hidden_activation(a)
                 stack_list.append(a)
 
-                h  = torch.cat(stack_list, dim=1)
-                h  = h + self.positional_encoding[:, :h.size(1), :]
+                h    = torch.cat(stack_list, dim=1)
+                long = h.size(1)
+                h    = h + self.positional_encoding[:, :long, :]
 
+                h    = F.pad(h, pad=(0, 0, 0, 2 * self.input_sequence_size - h.size(1)), mode='constant', value= 0) 
 
-
-
-                if i == 0: 
-                    encoder_size     = h.size(1)
-                    encoder_pad_size = 2 * self.input_sequence_size - encoder_size
-                    decoder_size     = encoder_size
-                    decoder_pad_size = encoder_pad_size
-                else:
-                    encoder_size     = h.size(1)
-                    encoder_pad_size = 2 * self.input_sequence_size - encoder_size
-                    decoder_size     = h.size(1) - 2
-                    decoder_pad_size = 2 * self.input_sequence_size - decoder_size
-
-                h             = F.pad(h, pad=(0, 0, 0, encoder_pad_size), mode='constant', value= 0) 
-                mask_1        = torch.zeros(decoder_size, decoder_size).float().to(device)
-                mask_1        = F.pad(mask_1, pad=(0, decoder_pad_size, 0, decoder_pad_size), mode='constant', value= -1e20) 
-                mask_2        = torch.ones (decoder_size, decoder_size).float().to(device)
-                mask_2        = F.pad(mask_2, pad=(0, decoder_pad_size, 0, decoder_pad_size), mode='constant', value= 0) 
-                mask          = (mask_1, mask_2)
-
-
-
-
-                h_list = list()
                 for j, layer in enumerate(self.transformer_layers):
                     attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
                     h_  = attention_norm_layer(h)
-                    if i == 0:
-                        h = h + attention_layer(h_, h_, h_, mask)
-                    else:
-                        h = h + attention_layer(prev_h_list[j], prev_h_list[j], h_, mask)
+                    h   = h + attention_layer(h_, h_, h_, self.mask)
                     h_  = fully_connected_norm_layer(h)
                     h   = h + fully_connected_layer(h_)
-                    h_list.append(h)
-                prev_h_list = h_list
                 h  = self.norm_layer(h)
 
-
-
-
-                r  = self.reward_linear(h[:, -2, :])   
+                r  = self.reward_linear(h[:, long - 2, :])   
                 r  = self.output_activation(r)
 
-                s  = self.state_linear_(h[:, -1, :])   
+                s  = self.state_linear_(h[:, long - 1, :])   
                 s  = self.hidden_activation(s)
 
                 r_list.append(r)
