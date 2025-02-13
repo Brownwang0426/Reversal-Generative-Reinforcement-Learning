@@ -47,11 +47,11 @@ Crucial model regarding how you set up your agent's neural network
 
 class build_model(nn.Module):
     def __init__(self,
-                 h_input_neuron_size,
-                 hidden_neuron_size,
+                 input_neuron_size_,
                  input_neuron_size,
-                 input_sequence_size,
                  output_neuron_size,
+                 hidden_neuron_size,
+                 input_sequence_size,
                  neural_type,
                  num_layers,
                  num_heads,
@@ -67,11 +67,11 @@ class build_model(nn.Module):
 
         super(build_model, self).__init__()
 
-        self.h_input_neuron_size  = h_input_neuron_size
-        self.hidden_neuron_size   = hidden_neuron_size
+        self.input_neuron_size_   = input_neuron_size_
         self.input_neuron_size    = input_neuron_size
-        self.input_sequence_size  = input_sequence_size
         self.output_neuron_size   = output_neuron_size
+        self.hidden_neuron_size   = hidden_neuron_size
+        self.input_sequence_size  = input_sequence_size
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
@@ -91,8 +91,8 @@ class build_model(nn.Module):
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-        self.recurrent_layer      = neural_types[self.neural_type.lower()](self.input_neuron_size, self.h_input_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
-        self.reward_linear        = nn.Linear(self.h_input_neuron_size, self.output_neuron_size, bias=self.bias)
+        self.recurrent_layer      = neural_types[self.neural_type.lower()](self.input_neuron_size, self.input_neuron_size_, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate)
+        self.reward_linear        = nn.Linear(self.input_neuron_size_, self.output_neuron_size, bias=self.bias)
 
         # Activation functions
         self.hidden_activation    = self.get_activation(self.hidden_activation)

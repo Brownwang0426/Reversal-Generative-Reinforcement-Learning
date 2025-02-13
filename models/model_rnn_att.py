@@ -86,15 +86,15 @@ class custom_attn(nn.Module):
         return output
 
 
-    
+
 
 class build_model(nn.Module):
     def __init__(self,
-                 h_input_neuron_size,
-                 hidden_neuron_size,
+                 input_neuron_size_,
                  input_neuron_size,
-                 input_sequence_size,
                  output_neuron_size,
+                 hidden_neuron_size,
+                 input_sequence_size,
                  neural_type,
                  num_layers,
                  num_heads,
@@ -110,11 +110,11 @@ class build_model(nn.Module):
 
         super(build_model, self).__init__()
 
-        self.h_input_neuron_size  = h_input_neuron_size
-        self.hidden_neuron_size   = hidden_neuron_size
+        self.input_neuron_size_   = input_neuron_size_
         self.input_neuron_size    = input_neuron_size
-        self.input_sequence_size  = input_sequence_size
         self.output_neuron_size   = output_neuron_size
+        self.hidden_neuron_size   = hidden_neuron_size
+        self.input_sequence_size  = input_sequence_size
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
@@ -128,7 +128,7 @@ class build_model(nn.Module):
         self.drop_rate            = drop_rate
         self.alpha                = alpha
 
-        self.state_linear         = nn.Linear(self.h_input_neuron_size, self.hidden_neuron_size, bias=self.bias)
+        self.state_linear         = nn.Linear(self.input_neuron_size_ , self.hidden_neuron_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
         self.transformer_layers   = \
@@ -143,7 +143,7 @@ class build_model(nn.Module):
         ])
         self.norm_layer           = nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True) 
         self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.h_input_neuron_size, bias=self.bias)
+        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.input_neuron_size_ , bias=self.bias)
         mask                      = torch.full((1, 1, self.input_sequence_size*2, self.input_sequence_size*2), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
