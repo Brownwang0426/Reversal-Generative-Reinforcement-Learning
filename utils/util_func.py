@@ -35,6 +35,9 @@ warnings.filterwarnings('ignore')
 import concurrent.futures
 import hashlib
 
+
+
+
 def load_performance_from_csv(filename='performance_log.csv'):
     performance_log = []
     with open(filename, mode='r', newline='') as file:
@@ -101,6 +104,9 @@ def initialize_desired_reward(shape, device):
 
 
 
+"""
+We let agent took some history states and actions into consideration and also gave loss weight proportional to its position in time step.
+"""
 def update_future_action(iteration_for_deducing,
                          model_list,
                          history_state,
@@ -110,6 +116,8 @@ def update_future_action(iteration_for_deducing,
                          desired_reward,
                          beta,
                          loss_scale):
+
+    loss_weights = torch.tensor([loss_scale ** j for j in range(desired_reward.size(1))], device=desired_reward.device)
 
     for i in range(iteration_for_deducing):
 
@@ -125,10 +133,7 @@ def update_future_action(iteration_for_deducing,
         loss_function      = model.loss_function
         output_reward, \
         output_state       = model(history_state, history_action, present_state, future_action_)
-        
-        total_loss = 0
-        for j in range(output_reward.size(1)):
-            total_loss += loss_function(output_reward[:, j], desired_reward[:, j]) * (loss_scale ** j)
+        total_loss         = torch.sum(loss_function(output_reward, desired_reward) * loss_weights)
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
@@ -157,7 +162,7 @@ def sequentialize(state_list, action_list, reward_list, history_time_size):
 
 
 def hash_tensor(tensor):
-    tensor = tensor.cpu()  # Make sure the tensor is on the CPU
+    tensor = tensor.cpu()  
     return hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
 
 def fast_check_with_hash(hash_1d, hash_2d):
@@ -207,6 +212,12 @@ def update_long_term_experience_buffer(present_state_tensor_dict,
 
 
 
+"""
+We strongely suggest you not to use total_loss_B because:
+1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
+2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
+3 - In our experiments, taking states into account in PER does jeopardize the performance.
+"""
 def obtain_TD_error(model,
                     present_state_tensor,
                     future_action_tensor,
@@ -224,12 +235,6 @@ def obtain_TD_error(model,
 
         model.eval()
 
-        """
-        We strongely suggest you not to use total_loss_B because:
-        1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
-        2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
-        3 - In our experiments, taking states into account in PER does jeopardize the performance.
-        """
         loss_function                 = model.loss_function_
         output_reward, output_state   = model([], [], present_state, future_action)
         total_loss_A                  = loss_function(output_reward, future_reward) 
@@ -295,6 +300,9 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
 
 
 
+"""
+We update the TD error in the replay buffer before training using the updated neural network.
+"""
 def update_model(iteration_for_learning,
                  present_state_tensor_dict,
                  future_action_tensor_dict,
@@ -304,31 +312,28 @@ def update_model(iteration_for_learning,
                  PER_epsilon ,
                  PER_exponent):
 
-    for _ in range(iteration_for_learning):
+    key                  = list(present_state_tensor_dict.keys())[0]
+    present_state_tensor = present_state_tensor_dict[key]
+    future_action_tensor = future_action_tensor_dict[key]
+    future_reward_tensor = future_reward_tensor_dict[key]
+    future_state_tensor  = future_state_tensor_dict [key]
 
-        key                  = random.choice(list(present_state_tensor_dict.keys()))
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+    TD_error             = obtain_TD_error (model, 
+                                            present_state_tensor  ,
+                                            future_action_tensor  ,
+                                            future_reward_tensor  ,
+                                            future_state_tensor )
 
-        """
-        We update the TD error in the replay buffer after each training step (iteration) using the updated neural network.
-        """
-        TD_error             = obtain_TD_error (model, 
-                                                present_state_tensor  ,
-                                                future_action_tensor  ,
-                                                future_reward_tensor  ,
-                                                future_state_tensor )
+    TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+    TD_error_p           = TD_error / torch.sum(TD_error)
+    indices              = torch.multinomial(TD_error_p, iteration_for_learning, replacement = True)
 
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p           = TD_error / torch.sum(TD_error)
-        indices              = torch.multinomial(TD_error_p, 1, replacement = True)
+    for i in range(len(indices)):
 
-        present_state = present_state_tensor [indices]
-        future_action = future_action_tensor [indices]
-        future_reward = future_reward_tensor [indices]
-        future_state  = future_state_tensor  [indices]
+        present_state = present_state_tensor [indices[i]].unsqueeze(0)
+        future_action = future_action_tensor [indices[i]].unsqueeze(0)
+        future_reward = future_reward_tensor [indices[i]].unsqueeze(0)
+        future_state  = future_state_tensor  [indices[i]].unsqueeze(0)
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -351,7 +356,7 @@ def update_model_list(iteration_for_learning,
                       future_action_tensor_dict,
                       future_reward_tensor_dict,
                       future_state_tensor_dict ,
-                      model_list,  # List of models
+                      model_list, 
                       PER_epsilon,
                       PER_exponent):
 
@@ -370,18 +375,18 @@ def update_model_list(iteration_for_learning,
 
 
 
+"""
+Parallel training of multiple models on the same GPU.
+"""
 def update_model_list_parallel(iteration_for_learning,
                                present_state_tensor_dict,
                                future_action_tensor_dict,
                                future_reward_tensor_dict,
                                future_state_tensor_dict ,
-                               model_list,  # List of models
+                               model_list, 
                                PER_epsilon,
                                PER_exponent):
 
-    """
-    Parallel training of multiple models on the same GPU.
-    """
     results = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_model = {
