@@ -251,6 +251,9 @@ def obtain_TD_error(model,
 
 
 
+"""
+Though not written in paper, we applied PER to drop unimportant experiences.
+"""
 def clear_long_term_experience_buffer(present_state_tensor_dict, 
                                       future_action_tensor_dict,
                                       future_reward_tensor_dict, 
@@ -264,35 +267,34 @@ def clear_long_term_experience_buffer(present_state_tensor_dict,
                                       PER_exponent,
                                       buffer_limit):
 
-    buffer_limit_per_key = int( buffer_limit / len(list(present_state_tensor_dict.keys())) )
+    key                  = list(present_state_tensor_dict.keys())[0]
+    present_state_tensor = present_state_tensor_dict[key]
+    future_action_tensor = future_action_tensor_dict[key]
+    future_reward_tensor = future_reward_tensor_dict[key]
+    future_state_tensor  = future_state_tensor_dict [key]
+
+    TD_error = 0
+    for model in model_list:
+        TD_error += obtain_TD_error(model, 
+                                    present_state_tensor  ,
+                                    future_action_tensor  ,
+                                    future_reward_tensor  ,
+                                    future_state_tensor  )
     
-    for key in list(present_state_tensor_dict.keys()):
+    TD_error             =(TD_error + PER_epsilon) ** PER_exponent
+    TD_error_p           = TD_error / torch.sum(TD_error)
+    indices              = torch.multinomial(TD_error_p, min(buffer_limit, len(TD_error_p)), replacement = False)
 
-        present_state_tensor = present_state_tensor_dict[key]
-        future_action_tensor = future_action_tensor_dict[key]
-        future_reward_tensor = future_reward_tensor_dict[key]
-        future_state_tensor  = future_state_tensor_dict [key]
+    present_state_tensor_dict [key] = present_state_tensor [indices]
+    future_action_tensor_dict [key] = future_action_tensor [indices]
+    future_reward_tensor_dict [key] = future_reward_tensor [indices]
+    future_state_tensor_dict  [key] = future_state_tensor  [indices]
+    present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
+    future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
+    future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
+    future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.cpu().numpy()].tolist()
 
-        TD_error = 0
-        for model in model_list:
-            TD_error += obtain_TD_error(model, 
-                                        present_state_tensor  ,
-                                        future_action_tensor  ,
-                                        future_reward_tensor  ,
-                                        future_state_tensor  )
-        
-        TD_error             =(TD_error + PER_epsilon) ** PER_exponent
-        TD_error_p           = TD_error / torch.sum(TD_error)
-        indices              = torch.multinomial(TD_error_p, min(buffer_limit_per_key, len(TD_error_p)), replacement = False)
-
-        present_state_tensor_dict [key] = present_state_tensor [indices]
-        future_action_tensor_dict [key] = future_action_tensor [indices]
-        future_reward_tensor_dict [key] = future_reward_tensor [indices]
-        future_state_tensor_dict  [key] = future_state_tensor  [indices]
-        present_state_hash_dict   [key] = np.array(present_state_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_action_hash_dict   [key] = np.array(future_action_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_reward_hash_dict   [key] = np.array(future_reward_hash_dict [key])[indices.cpu().numpy()].tolist()
-        future_state_hash_dict    [key] = np.array(future_state_hash_dict  [key])[indices.cpu().numpy()].tolist()
+    print(f'Current buffer size: {len(present_state_tensor_dict [key])}')
 
     return present_state_tensor_dict, future_action_tensor_dict, future_reward_tensor_dict, future_state_tensor_dict,\
            present_state_hash_dict, future_action_hash_dict, future_reward_hash_dict, future_state_hash_dict
