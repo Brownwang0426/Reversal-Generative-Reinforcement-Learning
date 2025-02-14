@@ -218,16 +218,16 @@ We strongely suggest you not to use total_loss_B because:
 3 - In our experiments, taking states into account in PER does jeopardize the performance.
 """
 def obtain_TD_error(model,
-                    present_state_tensor,
-                    future_action_tensor,
-                    future_reward_tensor,
-                    future_state_tensor
+                    present_state_stack,
+                    future_action_stack,
+                    future_reward_stack,
+                    future_state_stack
                     ):
 
-    dataset      = TensorDataset(present_state_tensor,
-                                 future_action_tensor,
-                                 future_reward_tensor,
-                                 future_state_tensor )
+    dataset      = TensorDataset(present_state_stack,
+                                 future_action_stack,
+                                 future_reward_stack,
+                                 future_state_stack  )
     data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
 
     for present_state, future_action, future_reward, future_state in data_loader:
