@@ -178,120 +178,72 @@ class build_model(nn.Module):
         self.loss_function_ = losses[self.loss .lower()]
 
 
+
+
     def forward(self, history_s_list, history_a_list, s, a_list):
 
-        if len(history_a_list) > 0:
+        r_list = list()
+        s_list = list()
 
-            r_list = list()
-            s_list = list()
+        stack_list = list()
+        for i in range(history_s_list.size(1)):
+            history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
+            history_s  = self.hidden_activation(history_s)
+            stack_list.append(history_s)
+            history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
+            history_a  = self.hidden_activation(history_a)
+            stack_list.append(history_a)
+        s  = self.state_linear(s.unsqueeze(1))
+        s  = self.hidden_activation(s)
+        stack_list.append(s)
 
-            stack_list = list()
-            for i in range(history_s_list.size(1)):
-                history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
-                history_s  = self.hidden_activation(history_s)
-                stack_list.append(history_s)
-                history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
-                history_a  = self.hidden_activation(history_a)
-                stack_list.append(history_a)
+        for i in range(a_list.size(1)):
+
+            a  = self.action_linear(a_list[:,i].unsqueeze(1))
+            a  = self.hidden_activation(a)
+            stack_list.append(a)
+
+            h    = torch.cat(stack_list, dim=1)
+
+            """
+            Transformer decoder
+            """
+            long = h.size(1)
+            h    = h + self.positional_encoding[:, :long, :]
+            for j, layer in enumerate(self.transformer_layers):
+                attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
+                h_  = attention_norm_layer(h)
+                h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
+                h_  = fully_connected_norm_layer(h)
+                h   = h + fully_connected_layer(h_)
+            h  = self.norm_layer(h)
+
+            """
+            We utilize the last idx in h to derive the latest reward and state.
+            """
+            r  = self.reward_linear(h[:, - 1, :])   
+            r  = self.output_activation(r)
+            s  = self.state_linear_(h[:, - 1, :])   
+            s  = self.hidden_activation(s)
+
+            r_list.append(r)
+            s_list.append(s)
+
+            """
+            We save the latest state into the next round or time step.
+            """
             s  = self.state_linear(s.unsqueeze(1))
             s  = self.hidden_activation(s)
             stack_list.append(s)
 
-            for i in range(a_list.size(1)):
-
-                a  = self.action_linear(a_list[:,i].unsqueeze(1))
-                a  = self.hidden_activation(a)
-                stack_list.append(a)
-
-                h    = torch.cat(stack_list, dim=1)
-                long = h.size(1)
-
-                h    = h + self.positional_encoding[:, :long, :]
-
-                for j, layer in enumerate(self.transformer_layers):
-                    attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
-                    h_  = attention_norm_layer(h)
-                    h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
-                    h_  = fully_connected_norm_layer(h)
-                    h   = h + fully_connected_layer(h_)
-                h  = self.norm_layer(h)
-
-                """
-                We utilize the last idx in h to derive the latest reward and state.
-                """
-                r  = self.reward_linear(h[:, - 1, :])   
-                r  = self.output_activation(r)
-                s  = self.state_linear_(h[:, - 1, :])   
-                s  = self.hidden_activation(s)
-
-                r_list.append(r)
-                s_list.append(s)
-
-                """
-                We save the latest state into the next round or time step.
-                """
-                s  = self.state_linear(s.unsqueeze(1))
-                s  = self.hidden_activation(s)
-                stack_list.append(s)
-
-            r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-            s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-            r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-            s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-        
-        else:
-
-            r_list = list()
-            s_list = list()
-
-            stack_list = list()
-            s  = self.state_linear(s.unsqueeze(1))
-            s  = self.hidden_activation(s)
-            stack_list.append(s)
-
-            for i in range(a_list.size(1)):
-
-                a  = self.action_linear(a_list[:,i].unsqueeze(1))
-                a  = self.hidden_activation(a)
-                stack_list.append(a)
-
-                h    = torch.cat(stack_list, dim=1)
-                long = h.size(1)
-
-                h    = h + self.positional_encoding[:, :long, :]
-
-                for j, layer in enumerate(self.transformer_layers):
-                    attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
-                    h_  = attention_norm_layer(h)
-                    h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
-                    h_  = fully_connected_norm_layer(h)
-                    h   = h + fully_connected_layer(h_)
-                h  = self.norm_layer(h)
-
-                """
-                We utilize the last idx in h to derive the latest reward and state.
-                """
-                r  = self.reward_linear(h[:, - 1, :])   
-                r  = self.output_activation(r)
-                s  = self.state_linear_(h[:, - 1, :])   
-                s  = self.hidden_activation(s)
-
-                r_list.append(r)
-                s_list.append(s)
-
-                """
-                We save the latest state into the next round or time step.
-                """
-                s  = self.state_linear(s.unsqueeze(1))
-                s  = self.hidden_activation(s)
-                stack_list.append(s)
-
-            r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-            s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-            r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-            s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-            
+        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
+        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
+        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
+        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+    
         return r_list, s_list
+
+
 
 
     def generate_positional_encoding(self, sequence_size, feature_size):

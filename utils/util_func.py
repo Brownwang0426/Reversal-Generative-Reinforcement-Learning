@@ -65,8 +65,8 @@ def retrieve_history(state_list, action_list, history_size, device):
         history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
         history_action    = torch.stack(action_list [-history_size:]    , dim=0).unsqueeze(0).to(device)
     else:
-        history_state     = []
-        history_action    = []
+        history_state     = torch.empty(0, 0, 0)
+        history_action    = torch.empty(0, 0, 0)
     return history_state, history_action
 
 
@@ -168,18 +168,18 @@ def hash_tensor(tensor):
 def fast_check_with_hash(hash_1d, hash_2d):
     return hash_1d not in hash_2d
 
-def update_long_term_experience_buffer(present_state_stack, 
-                                       future_action_stack,
-                                       future_reward_stack, 
-                                       future_state_stack,
-                                       present_state_hash_list, 
-                                       future_action_hash_list, 
-                                       future_reward_hash_list, 
-                                       future_state_hash_list,
-                                       present_state_list,
-                                       future_action_list,
-                                       future_reward_list,
-                                       future_state_list ):
+def update_long_term_experience_replay_buffer(present_state_stack, 
+                                              future_action_stack,
+                                              future_reward_stack, 
+                                              future_state_stack,
+                                              present_state_hash_list, 
+                                              future_action_hash_list, 
+                                              future_reward_hash_list, 
+                                              future_state_hash_list,
+                                              present_state_list,
+                                              future_action_list,
+                                              future_reward_list,
+                                              future_state_list ):
 
     for i in range(len(present_state_list)):
         present_state      = present_state_list  [i]
@@ -235,7 +235,7 @@ def obtain_TD_error(model,
         model.eval()
 
         loss_function                 = model.loss_function_
-        output_reward, output_state   = model([], [], present_state, future_action)
+        output_reward, output_state   = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
         total_loss_A                  = loss_function(output_reward, future_reward) 
         # total_loss_B                  = loss_function(output_state, future_state)
 
@@ -253,18 +253,18 @@ def obtain_TD_error(model,
 """
 Though not written in paper, we applied PER to drop unimportant experiences.
 """
-def clear_long_term_experience_buffer(present_state_stack, 
-                                      future_action_stack,
-                                      future_reward_stack, 
-                                      future_state_stack,
-                                      present_state_hash_list, 
-                                      future_action_hash_list, 
-                                      future_reward_hash_list, 
-                                      future_state_hash_list ,
-                                      model_list,
-                                      PER_epsilon,
-                                      PER_exponent,
-                                      buffer_limit):
+def clear_long_term_experience_replay_buffer(present_state_stack, 
+                                             future_action_stack,
+                                             future_reward_stack, 
+                                             future_state_stack,
+                                             present_state_hash_list, 
+                                             future_action_hash_list, 
+                                             future_reward_hash_list, 
+                                             future_state_hash_list ,
+                                             model_list,
+                                             PER_epsilon,
+                                             PER_exponent,
+                                             buffer_limit):
 
     TD_error = 0
     for model in model_list:
@@ -329,7 +329,7 @@ def update_model(iteration_for_learning,
         selected_optimizer.zero_grad()
 
         loss_function               = model.loss_function
-        output_reward, output_state = model([], [], present_state, future_action)
+        output_reward, output_state = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
         total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state )
         total_loss.backward()     
 
