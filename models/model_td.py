@@ -251,6 +251,6 @@ class build_model(nn.Module):
             'xavier_normal': nn.init.xavier_normal_
         }
         initializer = initializers[initializer.lower()]
-        for layer in self.children():
+        for layer in self.modules():
             if isinstance(layer, nn.Linear):
                 initializer(layer.weight)
