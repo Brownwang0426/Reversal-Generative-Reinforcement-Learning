@@ -120,7 +120,7 @@ def update_future_action(iteration_for_deducing,
 
         model              = random.choice(model_list)
 
-        future_action_     = torch.sigmoid(future_action)
+        future_action_     = torch.tanh(future_action)
         future_action_     = future_action_.detach().requires_grad_(True)
 
         model.train()
@@ -133,7 +133,7 @@ def update_future_action(iteration_for_deducing,
         total_loss         = torch.sum(loss_function(envisaged_reward, desired_reward) * loss_weights)
         total_loss.backward() 
 
-        future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
+        future_action     -= future_action_.grad * (1 - future_action_**2) * beta 
 
     return future_action
 

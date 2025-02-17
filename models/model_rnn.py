@@ -55,9 +55,6 @@ class build_model(nn.Module):
                  neural_type,
                  num_layers,
                  num_heads,
-                 hidden_activation,
-                 output_activation,
-                 shift,
                  initializer,
                  optimizer,
                  loss,
@@ -75,9 +72,6 @@ class build_model(nn.Module):
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
-        self.hidden_activation    = hidden_activation
-        self.output_activation    = output_activation
-        self.shift                = shift
         self.initializer          = initializer
         self.optimizer            = optimizer
         self.loss                 = loss
@@ -96,10 +90,7 @@ class build_model(nn.Module):
         self.recurrent_layer      = neural_types[self.neural_type.lower()](self.hidden_neuron_size, self.hidden_neuron_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=bidirectional)
         self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.input_neuron_size_ , bias=self.bias)
-
-        # Activation functions
-        self.hidden_activation    = self.get_activation(self.hidden_activation)
-        self.output_activation    = self.get_activation(self.output_activation)
+        self.norm_layer_          = nn.LayerNorm(self.input_neuron_size_, elementwise_affine=True) 
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.initializer  )
@@ -137,22 +128,18 @@ class build_model(nn.Module):
         stack_list = list()
         for i in range(history_s_list.size(1)):
             history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
-            history_s  = self.hidden_activation(history_s)
             stack_list.append(history_s)
             history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
-            history_a  = self.hidden_activation(history_a)
             stack_list.append(history_a)
         s  = self.state_linear(s.unsqueeze(1))
-        s  = self.hidden_activation(s)
         stack_list.append(s)
 
         for i in range(a_list.size(1)):
 
             a  = self.action_linear(a_list[:,i].unsqueeze(1))
-            a  = self.hidden_activation(a)
             stack_list.append(a)
 
-            h  = torch.cat(stack_list, dim=1)
+            h    = torch.cat(stack_list, dim=1)
 
             """
             RNN, GRU, LSTM
@@ -163,9 +150,9 @@ class build_model(nn.Module):
             We utilize the last idx in h to derive the latest reward and state.
             """
             r  = self.reward_linear(h[:, - 1, :])   
-            r  = self.output_activation(r)
+            r  = torch.tanh(r)
             s  = self.state_linear_(h[:, - 1, :])   
-            s  = self.hidden_activation(s)
+            s  = self.norm_layer_(s)
 
             r_list.append(r)
             s_list.append(s)
@@ -174,27 +161,17 @@ class build_model(nn.Module):
             We save the latest state into the next round or time step.
             """
             s  = self.state_linear(s.unsqueeze(1))
-            s  = self.hidden_activation(s)
             stack_list.append(s)
 
         r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
         s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
         r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
         s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
-
+    
         return r_list, s_list
+    
 
 
-
-
-    def get_activation(self,  activation):
-        activations = {
-            'relu': nn.ReLU(),
-            'leaky_relu': nn.LeakyReLU(),
-            'sigmoid': nn.Sigmoid(),
-            'tanh': nn.Tanh()
-        }
-        return activations[ activation.lower()]
 
     def initialize_weights(self, initializer):
         initializers = {

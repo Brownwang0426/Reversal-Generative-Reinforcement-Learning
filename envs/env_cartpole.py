@@ -64,12 +64,12 @@ def vectorizing_state(state, device):      # Reminder: change this for your spec
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2)
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
-    vectorized_action = torch.eye(action_size)[action_argmax].to(device)
+    vectorized_action = (torch.eye(action_size)[action_argmax].to(device)) - 0.5 * 2
     return vectorized_action, action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done:
-        reward = torch.zeros(reward_size).to(device)
+        reward = torch.zeros(reward_size).to(device) - 1
     else:
         reward = torch.ones(reward_size).to(device)
     return reward
