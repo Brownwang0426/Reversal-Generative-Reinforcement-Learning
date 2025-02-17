@@ -104,9 +104,6 @@ def initialize_desired_reward(shape, device):
 
 
 
-"""
-We let agent took some history states and actions into consideration and also gave loss weight proportional to its position in time step.
-"""
 def update_future_action(iteration_for_deducing,
                          model_list,
                          history_state,
@@ -131,9 +128,9 @@ def update_future_action(iteration_for_deducing,
         selected_optimizer.zero_grad()
         
         loss_function      = model.loss_function
-        output_reward, \
-        output_state       = model(history_state, history_action, present_state, future_action_)
-        total_loss         = torch.sum(loss_function(output_reward, desired_reward) * loss_weights)
+        envisaged_reward, \
+        envisaged_state    = model(history_state, history_action, present_state, future_action_)
+        total_loss         = torch.sum(loss_function(envisaged_reward, desired_reward) * loss_weights)
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
@@ -211,12 +208,6 @@ def update_long_term_experience_replay_buffer(present_state_stack,
 
 
 
-"""
-We strongely suggest you not to use total_loss_B because:
-1 - The orignal meaning in PER is that the suprising experiences are taken into account with priority.
-2 - The meaning of "surpising" mainly points to how the predicted reward deviates from actual reward, not states.
-3 - In our experiments, taking states into account in PER does jeopardize the performance.
-"""
 def obtain_TD_error(model,
                     present_state_stack,
                     future_action_stack,
@@ -235,13 +226,14 @@ def obtain_TD_error(model,
         model.eval()
 
         loss_function                 = model.loss_function_
-        output_reward, output_state   = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
-        total_loss_A                  = loss_function(output_reward, future_reward) 
-        # total_loss_B                  = loss_function(output_state, future_state)
+        envisaged_reward, \
+        envisaged_state               = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
+        total_loss_A                  = loss_function(envisaged_reward, future_reward) 
+        total_loss_B                  = loss_function(envisaged_state, future_state)
 
         total_loss                    = 0
         total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1, 2))
-        # total_loss                   += torch.sum(torch.abs(total_loss_B), dim=(1, 2))
+        total_loss                    = torch.sum(torch.abs(total_loss_B), dim=(1, 2))
 
         TD_error                      = total_loss.detach()
 
@@ -250,9 +242,6 @@ def obtain_TD_error(model,
 
 
 
-"""
-Though not written in paper, we applied PER to drop unimportant experiences.
-"""
 def clear_long_term_experience_replay_buffer(present_state_stack, 
                                              future_action_stack,
                                              future_reward_stack, 
@@ -329,8 +318,9 @@ def update_model(iteration_for_learning,
         selected_optimizer.zero_grad()
 
         loss_function               = model.loss_function
-        output_reward, output_state = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
-        total_loss                  = loss_function(output_reward, future_reward) + loss_function(output_state, future_state )
+        envisaged_reward, \
+        envisaged_state             = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
 
         selected_optimizer.step() 
