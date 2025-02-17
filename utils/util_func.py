@@ -284,9 +284,6 @@ def clear_long_term_experience_replay_buffer(present_state_stack,
 
 
 
-"""
-We update the TD error in the replay buffer before training using the updated neural network.
-"""
 def update_model(iteration_for_learning,
                  present_state_stack,
                  future_action_stack,
@@ -354,9 +351,6 @@ def update_model_list(iteration_for_learning,
 
 
 
-"""
-Parallel training of multiple models on the same GPU.
-"""
 def update_model_list_parallel(iteration_for_learning,
                                present_state_stack,
                                future_action_stack,
