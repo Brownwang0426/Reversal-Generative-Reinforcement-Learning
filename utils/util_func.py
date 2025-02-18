@@ -276,8 +276,6 @@ def clear_long_term_experience_replay_buffer(present_state_stack,
     future_reward_hash_list = np.array(future_reward_hash_list)[indices.cpu().numpy()].tolist()
     future_state_hash_list  = np.array(future_state_hash_list )[indices.cpu().numpy()].tolist()
 
-    print(f'Current buffer size: {len(present_state_stack)}')
-
     return present_state_stack, future_action_stack, future_reward_stack, future_state_stack,\
            present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
 
