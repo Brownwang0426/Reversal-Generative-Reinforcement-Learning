@@ -52,7 +52,7 @@ def load_performance_from_csv(filename='performance_log.csv'):
 
 
 
-def load_list_from_pickle(filename):
+def load_buffer_from_pickle(filename):
     with open(filename, 'rb') as file:
         list = dill.load(file)
     return list
@@ -140,18 +140,18 @@ def update_future_action(iteration_for_deducing,
 
 
 
-def sequentialize(state_list, action_list, reward_list, history_time_size):
+def sequentialize(state_list, action_list, reward_list, sequence_size):
 
     present_state_list = []
     future_action_list = []
     future_reward_list = []
     future_state_list  = []
 
-    for j in range(len(reward_list[:-history_time_size+1])):
-        present_state_list.append(                  state_list [ j                               ]          )
-        future_action_list.append(      torch.stack(action_list[ j   : j+history_time_size       ], dim=0)  )
-        future_reward_list.append(      torch.stack(reward_list[ j   : j+history_time_size       ], dim=0)  )
-        future_state_list.append (      torch.stack(state_list [ j+1 : j+history_time_size+1     ], dim=0)  )
+    for j in range(len(reward_list[:-sequence_size+1])):
+        present_state_list.append(                  state_list [ j                           ]          )
+        future_action_list.append(      torch.stack(action_list[ j   : j+sequence_size       ], dim=0)  )
+        future_reward_list.append(      torch.stack(reward_list[ j   : j+sequence_size       ], dim=0)  )
+        future_state_list.append (      torch.stack(state_list [ j+1 : j+sequence_size+1     ], dim=0)  )
 
     return present_state_list, future_action_list, future_reward_list, future_state_list
 
@@ -392,6 +392,6 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 
 
-def save_list_to_pickle(filename, *list):
+def save_buffer_to_pickle(filename, *list):
     with open(filename, 'wb') as file:
         dill.dump(list, file)
