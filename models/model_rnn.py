@@ -81,19 +81,17 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
-        self.state_action_norm    = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
 
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,
             'lstm': nn.LSTM
         }
-        bidirectional             = False
-        self.recurrent_layer      = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=bidirectional)
+        self.bidirectional        = False
+        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
         
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size  , bias=self.bias)
-        self.state_norm           = nn.LayerNorm(self.state_size, elementwise_affine=True) 
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -132,28 +130,25 @@ class build_model(nn.Module):
         
         for i in range(history_s.size(1)):
             s  = self.state_linear(history_s[:, i].unsqueeze(1))
-            s  = self.state_action_norm(s)
             window_list.append(s)
             a  = self.action_linear(history_a[:,i].unsqueeze(1))
-            a  = self.state_action_norm(a)
             window_list.append(a)
 
         s  = self.state_linear(present_s.unsqueeze(1))
-        s  = self.state_action_norm(s)
         window_list.append(s)
 
         for i in range(future_a.size(1)):
 
             a  = self.action_linear(future_a[:,i].unsqueeze(1))
-            a  = self.state_action_norm(a)
             window_list.append(a)
 
             h  = torch.cat(window_list, dim=1)
-
+            h  = torch.tanh(h)
+            
             """
             RNN, GRU, LSTM
             """
-            h, _ = self.recurrent_layer(h)
+            h, _ = self.recurrent_layers(h)
             
             """
             We utilize the last idx in h to derive the latest reward and state.
@@ -161,7 +156,7 @@ class build_model(nn.Module):
             r  = self.reward_linear(h[:, - 1, :])   
             r  = torch.tanh(r)
             s  = self.state_linear_(h[:, - 1, :])   
-            s  = self.state_norm(s)
+            s  = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -170,13 +165,10 @@ class build_model(nn.Module):
             We save the latest state into the next round or time step.
             """
             s  = self.state_linear(s.unsqueeze(1))
-            s  = self.state_action_norm(s)
             window_list.append(s)
 
-        future_r = torch.stack(future_r_list, dim=0) # future_r becomes [sequence_size, batch_size, reward_size]
-        future_s = torch.stack(future_s_list, dim=0) # future_s becomes [sequence_size, batch_size, state_size ]
-        future_r = future_r.permute(1, 0, 2)         # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = future_s.permute(1, 0, 2)         # future_s becomes [batch_size, sequence_size, state_size ]
+        future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
     
         return future_r, future_s
 

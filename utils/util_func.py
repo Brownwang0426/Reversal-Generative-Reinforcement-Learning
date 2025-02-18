@@ -300,6 +300,7 @@ def update_model(iteration_for_learning,
     TD_error             =(TD_error + PER_epsilon) ** PER_exponent
     TD_error_p           = TD_error / torch.sum(TD_error)
     indices              = torch.multinomial(TD_error_p, iteration_for_learning, replacement = True)
+    indices              = indices[torch.randperm(indices.size(0))]
 
     for i in range(len(indices)):
 

@@ -38,19 +38,20 @@ import hashlib
 
 
 class custom_attn(nn.Module):
-    def __init__(self, feature_size, num_heads, drop_rate, bias):
+    def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
         assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
-        self.bias          = bias
         self.feature_size  = feature_size
         self.num_heads     = num_heads
         self.head_size     = feature_size // num_heads
+        self.bias          = bias
+        self.drop_rate     = drop_rate
         self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = nn.Dropout(drop_rate)
-        self.resid_dropout = nn.Dropout(drop_rate)
+        self.attn_dropout  = nn.Dropout(self.drop_rate)
+        self.resid_dropout = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
@@ -124,28 +125,25 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
-        self.state_action_norm    = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                custom_attn(self.feature_size, self.num_heads, self.drop_rate, self.bias),
+                custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        
         mask                      = torch.full((1, 1, self.sequence_size*2, self.sequence_size*2), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size  , bias=self.bias)
-        self.state_norm           = nn.LayerNorm(self.state_size, elementwise_affine=True) 
 
 
         # Initialize weights for fully connected layers
@@ -185,23 +183,20 @@ class build_model(nn.Module):
         
         for i in range(history_s.size(1)):
             s  = self.state_linear(history_s[:, i].unsqueeze(1))
-            s  = self.state_action_norm(s)
             window_list.append(s)
             a  = self.action_linear(history_a[:,i].unsqueeze(1))
-            a  = self.state_action_norm(a)
             window_list.append(a)
 
         s  = self.state_linear(present_s.unsqueeze(1))
-        s  = self.state_action_norm(s)
         window_list.append(s)
 
         for i in range(future_a.size(1)):
 
             a  = self.action_linear(future_a[:,i].unsqueeze(1))
-            a  = self.state_action_norm(a)
             window_list.append(a)
 
             h  = torch.cat(window_list, dim=1)
+            h  = torch.tanh(h)
 
             """
             Transformer decoder
@@ -222,7 +217,7 @@ class build_model(nn.Module):
             r  = self.reward_linear(h[:, - 1, :])   
             r  = torch.tanh(r)
             s  = self.state_linear_(h[:, - 1, :])   
-            s  = self.state_norm(s)
+            s  = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -231,13 +226,10 @@ class build_model(nn.Module):
             We save the latest state into the next round or time step.
             """
             s  = self.state_linear(s.unsqueeze(1))
-            s  = self.state_action_norm(s)
             window_list.append(s)
 
-        future_r = torch.stack(future_r_list, dim=0) # future_r becomes [sequence_size, batch_size, reward_size]
-        future_s = torch.stack(future_s_list, dim=0) # future_s becomes [sequence_size, batch_size, state_size ]
-        future_r = future_r.permute(1, 0, 2)         # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = future_s.permute(1, 0, 2)         # future_s becomes [batch_size, sequence_size, state_size ]
+        future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
     
         return future_r, future_s
 
