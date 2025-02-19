@@ -65,8 +65,8 @@ def retrieve_history(state_list, action_list, history_size, device):
         history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
         history_action    = torch.stack(action_list [-history_size:]    , dim=0).unsqueeze(0).to(device)
     else:
-        history_state     = torch.empty(0, 0, 0)
-        history_action    = torch.empty(0, 0, 0)
+        history_state     = torch.empty(0, 0, 0).to(device)
+        history_action    = torch.empty(0, 0, 0).to(device)
     return history_state, history_action
 
 
@@ -214,6 +214,9 @@ def obtain_TD_error(model,
                     future_reward_stack,
                     future_state_stack
                     ):
+    
+    device       = present_state_stack.device
+    torch_empty  = torch.empty(0, 0, 0).to(device)
 
     dataset      = TensorDataset(present_state_stack,
                                  future_action_stack,
@@ -227,7 +230,7 @@ def obtain_TD_error(model,
 
         loss_function                 = model.loss_function_
         envisaged_reward, \
-        envisaged_state               = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
+        envisaged_state               = model(torch_empty, torch_empty, present_state, future_action)
         total_loss_A                  = loss_function(envisaged_reward, future_reward) 
         total_loss_B                  = loss_function(envisaged_state, future_state)
 
@@ -290,6 +293,9 @@ def update_model(iteration_for_learning,
                  model,
                  PER_epsilon ,
                  PER_exponent):
+    
+    device               = present_state_stack.device
+    torch_empty          = torch.empty(0, 0, 0).to(device)
 
     TD_error             = obtain_TD_error (model, 
                                             present_state_stack  ,
@@ -315,7 +321,7 @@ def update_model(iteration_for_learning,
 
         loss_function               = model.loss_function
         envisaged_reward, \
-        envisaged_state             = model(torch.empty(0, 0, 0), torch.empty(0, 0, 0), present_state, future_action)
+        envisaged_state             = model(torch_empty, torch_empty, present_state, future_action)
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
 

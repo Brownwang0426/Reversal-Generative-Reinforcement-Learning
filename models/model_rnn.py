@@ -127,13 +127,12 @@ class build_model(nn.Module):
         future_s_list = list()
 
         window_list   = list()
-        
-        for i in range(history_s.size(1)):
-            s  = self.state_linear(history_s[:, i].unsqueeze(1))
-            window_list.append(s)
-            a  = self.action_linear(history_a[:,i].unsqueeze(1))
-            window_list.append(a)
-
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+            for i in range(history_s.size(1)):
+                window_list.append(history_s[:, i:i+1]) 
+                window_list.append(history_a[:, i:i+1]) 
         s  = self.state_linear(present_s.unsqueeze(1))
         window_list.append(s)
 
