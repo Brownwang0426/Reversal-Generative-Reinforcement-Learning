@@ -154,7 +154,7 @@ class build_model(nn.Module):
             We utilize the last idx in h to derive the latest reward and state.
             """
             r  = self.reward_linear(h[:, - 1, :])   
-            r  = torch.tanh(r)
+            r  = torch.sigmoid(r)
             s  = self.state_linear_(h[:, - 1, :])   
             s  = torch.tanh(s)
 
