@@ -90,8 +90,10 @@ class build_model(nn.Module):
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
         
-        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.feature_size, self.state_size  , bias=self.bias)
+        self.reward_linear_0      = nn.Linear(self.feature_size, self.feature_size , bias=self.bias)
+        self.reward_linear_1      = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
+        self.state_linear_0       = nn.Linear(self.feature_size, self.feature_size , bias=self.bias)
+        self.state_linear_1       = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -126,20 +128,29 @@ class build_model(nn.Module):
         future_r_list = list()
         future_s_list = list()
 
-        window_list   = list()
+
+
+
         if history_s.size(1) > 0:
             history_s = self.state_linear (history_s)  
             history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
+
+
+
+
+        window_list   = list()
+
+        if history_s.size(1) > 0:
             for i in range(history_s.size(1)):
                 window_list.append(history_s[:, i:i+1]) 
                 window_list.append(history_a[:, i:i+1]) 
-        s  = self.state_linear(present_s.unsqueeze(1))
-        window_list.append(s)
-
+        window_list.append(present_s)
+        
         for i in range(future_a.size(1)):
 
-            a  = self.action_linear(future_a[:,i].unsqueeze(1))
-            window_list.append(a)
+            window_list.append(future_a[:, i:i+1])
 
             h  = torch.cat(window_list, dim=1)
             h  = torch.tanh(h)
@@ -152,19 +163,22 @@ class build_model(nn.Module):
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
-            r  = self.reward_linear(h[:, - 1, :])   
-            r  = torch.sigmoid(r)
-            s  = self.state_linear_(h[:, - 1, :])   
-            s  = torch.tanh(s)
+            r = self.reward_linear_0(h[:, - 1, :])  
+            r = torch.tanh(r) 
+            r = self.reward_linear_1(r)  
+            r = torch.sigmoid(r)
+            s = self.state_linear_0(h[:, - 1, :])   
+            s = torch.tanh(s) 
+            s = self.state_linear_1(s)   
+            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
 
-            """
-            We save the latest state into the next round or time step.
-            """
-            s  = self.state_linear(s.unsqueeze(1))
-            window_list.append(s)
+            present_s = s
+            present_s = self.state_linear(present_s.unsqueeze(1))
+
+            window_list.append(present_s)
 
         future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]

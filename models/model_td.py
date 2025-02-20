@@ -198,7 +198,6 @@ class build_model(nn.Module):
             for i in range(history_s.size(1)):
                 window_list.append(history_s[:, i:i+1]) 
                 window_list.append(history_a[:, i:i+1]) 
-
         window_list.append(present_s)
         
         for i in range(future_a.size(1)):
@@ -237,11 +236,8 @@ class build_model(nn.Module):
             future_s_list.append(s)
 
             present_s = s
-
-            """
-            We save the latest state into the next round or time step.
-            """
             present_s = self.state_linear(present_s.unsqueeze(1))
+
             window_list.append(present_s)
 
         future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
