@@ -90,10 +90,8 @@ class build_model(nn.Module):
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
         
-        self.reward_linear_0      = nn.Linear(self.feature_size, self.feature_size , bias=self.bias)
-        self.reward_linear_1      = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
-        self.state_linear_0       = nn.Linear(self.feature_size, self.feature_size , bias=self.bias)
-        self.state_linear_1       = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
+        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
+        self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -163,13 +161,9 @@ class build_model(nn.Module):
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
-            r = self.reward_linear_0(h[:, - 1, :])  
-            r = torch.tanh(r) 
-            r = self.reward_linear_1(r)  
+            r = self.reward_linear(h[:, - 1, :])  
             r = torch.sigmoid(r)
-            s = self.state_linear_0(h[:, - 1, :])   
-            s = torch.tanh(s) 
-            s = self.state_linear_1(s)   
+            s = self.state_linear_(h[:, - 1, :])   
             s = torch.tanh(s)
 
             future_r_list.append(r)
