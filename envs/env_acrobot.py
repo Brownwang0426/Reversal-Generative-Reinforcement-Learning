@@ -72,7 +72,7 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done:
-        reward = torch.ones(reward_size).to(device)
+        reward = torch.ones(reward_size).to(device) 
     else:
         reward = torch.zeros(reward_size).to(device)
     return reward

@@ -38,19 +38,20 @@ import hashlib
 
 
 class custom_attn(nn.Module):
-    def __init__(self, feature_size, num_heads, drop_rate, bias):
+    def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
         assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
-        self.bias          = bias
         self.feature_size  = feature_size
         self.num_heads     = num_heads
         self.head_size     = feature_size // num_heads
+        self.bias          = bias
+        self.drop_rate     = drop_rate
         self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = nn.Dropout(drop_rate)
-        self.resid_dropout = nn.Dropout(drop_rate)
+        self.attn_dropout  = nn.Dropout(self.drop_rate)
+        self.resid_dropout = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
@@ -90,19 +91,16 @@ class custom_attn(nn.Module):
 
 class build_model(nn.Module):
     def __init__(self,
-                 input_neuron_size_,
-                 input_neuron_size,
-                 output_neuron_size,
-                 hidden_neuron_size,
-                 input_sequence_size,
+                 state_size,
+                 action_size,
+                 reward_size,
+                 feature_size,
+                 sequence_size,
                  neural_type,
                  num_layers,
                  num_heads,
-                 hidden_activation,
-                 output_activation,
-                 shift,
-                 initializer,
-                 optimizer,
+                 init,
+                 opti,
                  loss,
                  bias,
                  drop_rate,
@@ -110,50 +108,45 @@ class build_model(nn.Module):
 
         super(build_model, self).__init__()
 
-        self.input_neuron_size_   = input_neuron_size_
-        self.input_neuron_size    = input_neuron_size
-        self.output_neuron_size   = output_neuron_size
-        self.hidden_neuron_size   = hidden_neuron_size
-        self.input_sequence_size  = input_sequence_size
+        self.state_size           = state_size
+        self.action_size          = action_size
+        self.reward_size          = reward_size
+        self.feature_size         = feature_size
+        self.sequence_size        = sequence_size
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
-        self.hidden_activation    = hidden_activation
-        self.output_activation    = output_activation
-        self.shift                = shift
-        self.initializer          = initializer
-        self.optimizer            = optimizer
+        self.init                 = init
+        self.opti                 = opti
         self.loss                 = loss
         self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
 
-        self.state_linear         = nn.Linear(self.input_neuron_size_ , self.hidden_neuron_size, bias=self.bias)
-        self.action_linear        = nn.Linear(self.input_neuron_size  , self.hidden_neuron_size, bias=self.bias)
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.input_sequence_size, self.hidden_neuron_size ), requires_grad=False)
+        self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
+        self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
-                custom_attn(self.hidden_neuron_size, self.num_heads, self.drop_rate, self.bias),
-                nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True),
-                nn.Linear(self.hidden_neuron_size, self.hidden_neuron_size, bias=self.bias)
+                nn.LayerNorm(self.feature_size, elementwise_affine=True),
+                custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
+                nn.LayerNorm(self.feature_size, elementwise_affine=True),
+                nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
-        self.norm_layer           = nn.LayerNorm(self.hidden_neuron_size, elementwise_affine=True) 
-        self.reward_linear        = nn.Linear(self.hidden_neuron_size, self.output_neuron_size , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.hidden_neuron_size, self.input_neuron_size_ , bias=self.bias)
-        mask                      = torch.full((1, 1, self.input_sequence_size*2, self.input_sequence_size*2), float("-inf"))
+        self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
+        mask                      = torch.full((1, 1, self.sequence_size*2, self.sequence_size*2), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
-        # Activation functions
-        self.hidden_activation = self.get_activation(self.hidden_activation)
-        self.output_activation = self.get_activation(self.output_activation)
+        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
+        self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
         # Initialize weights for fully connected layers
-        self.initialize_weights(self.initializer  )
+        self.initialize_weights(self.init  )
 
         # Optimizer
         optimizers = {
@@ -161,7 +154,7 @@ class build_model(nn.Module):
             'sgd': optim.SGD,
             'rmsprop': optim.RMSprop
         }
-        self.selected_optimizer = optimizers[self.optimizer.lower()](self.parameters(), lr=self.alpha)
+        self.selected_optimizer = optimizers[self.opti.lower()](self.parameters(), lr=self.alpha)
 
         # Loss function
         losses = {
@@ -180,68 +173,71 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s_list, history_a_list, s, a_list):
+    def forward(self, history_s, history_a, present_s, future_a):
 
-        r_list = list()
-        s_list = list()
+        future_r_list = list()
+        future_s_list = list()
 
-        stack_list = list()
-        for i in range(history_s_list.size(1)):
-            history_s  = self.state_linear(history_s_list[:, i].unsqueeze(1))
-            history_s  = self.hidden_activation(history_s)
-            stack_list.append(history_s)
-            history_a  = self.action_linear(history_a_list[:,i].unsqueeze(1))
-            history_a  = self.hidden_activation(history_a)
-            stack_list.append(history_a)
-        s  = self.state_linear(s.unsqueeze(1))
-        s  = self.hidden_activation(s)
-        stack_list.append(s)
 
-        for i in range(a_list.size(1)):
 
-            a  = self.action_linear(a_list[:,i].unsqueeze(1))
-            a  = self.hidden_activation(a)
-            stack_list.append(a)
 
-            h    = torch.cat(stack_list, dim=1)
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
+
+
+
+
+        window_list   = list()
+
+        if history_s.size(1) > 0:
+            for i in range(history_s.size(1)):
+                window_list.append(history_s[:, i:i+1]) 
+                window_list.append(history_a[:, i:i+1]) 
+        window_list.append(present_s)
+        
+        for i in range(future_a.size(1)):
+
+            window_list.append(future_a[:, i:i+1])
+
+            h  = torch.cat(window_list, dim=1)
+            h  = torch.tanh(h)
 
             """
             Transformer decoder
             """
             long = h.size(1)
             h    = h + self.positional_encoding[:, :long, :]
-            for j, layer in enumerate(self.transformer_layers):
-                attention_norm_layer, attention_layer, fully_connected_norm_layer, fully_connected_layer = layer
-                h_  = attention_norm_layer(h)
-                h   = h + attention_layer(h_, h_, h_, self.mask[:, :, :long, :long])
-                h_  = fully_connected_norm_layer(h)
-                h   = h + fully_connected_layer(h_)
-            h  = self.norm_layer(h)
+            for layer in self.transformer_layers:
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+                h_  = attention_norm(h)
+                h   = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
+                h_  = fully_connected_norm(h)
+                h   = h + fully_connected_linear(h_)
+            h  = self.transformer_norm(h)
 
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
-            r  = self.reward_linear(h[:, - 1, :])   
-            r  = self.output_activation(r)
-            s  = self.state_linear_(h[:, - 1, :])   
-            s  = self.hidden_activation(s)
+            r = self.reward_linear(h[:, - 1, :])  
+            r = torch.sigmoid(r)
+            s = self.state_linear_(h[:, - 1, :])   
+            s = torch.tanh(s)
 
-            r_list.append(r)
-            s_list.append(s)
+            future_r_list.append(r)
+            future_s_list.append(s)
 
-            """
-            We save the latest state into the next round or time step.
-            """
-            s  = self.state_linear(s.unsqueeze(1))
-            s  = self.hidden_activation(s)
-            stack_list.append(s)
+            present_s = s
+            present_s = self.state_linear(present_s.unsqueeze(1))
 
-        r_list = torch.stack(r_list, dim=0) # r_list becomes [sequence_size, batch_size, feature_size]
-        s_list = torch.stack(s_list, dim=0) # s_list becomes [sequence_size, batch_size, feature_size]
-        r_list = r_list.permute(1, 0, 2)    # r_list becomes [batch_size, sequence_size, feature_size]
-        s_list = s_list.permute(1, 0, 2)    # s_list becomes [batch_size, sequence_size, feature_size]
+            window_list.append(present_s)
+
+        future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
     
-        return r_list, s_list
+        return future_r, future_s
 
 
 
@@ -255,15 +251,6 @@ class build_model(nn.Module):
                     pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * i)/feature_size)))
         return pe.unsqueeze(0)  # Shape: (1, sequence_size, feature_size)
 
-    def get_activation(self,  activation):
-        activations = {
-            'relu': nn.ReLU(),
-            'leaky_relu': nn.LeakyReLU(),
-            'sigmoid': nn.Sigmoid(),
-            'tanh': nn.Tanh()
-        }
-        return activations[ activation.lower()]
-
     def initialize_weights(self, initializer):
         initializers = {
             'random_uniform': nn.init.uniform_,
@@ -274,6 +261,6 @@ class build_model(nn.Module):
             'xavier_normal': nn.init.xavier_normal_
         }
         initializer = initializers[initializer.lower()]
-        for layer in self.children():
+        for layer in self.modules():
             if isinstance(layer, nn.Linear):
                 initializer(layer.weight)
