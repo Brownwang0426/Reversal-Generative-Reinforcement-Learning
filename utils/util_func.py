@@ -203,7 +203,8 @@ def update_long_term_experience_replay_buffer(history_state_stack,
                                               present_state_list,
                                               future_action_list,
                                               future_reward_list,
-                                              future_state_list ):
+                                              future_state_list,
+                                              buffer_limit ):
 
     for i in range(len(present_state_list)):
         history_state       = history_state_list  [i]
@@ -226,19 +227,34 @@ def update_long_term_experience_replay_buffer(history_state_stack,
             fast_check_with_hash(future_reward_hash  , future_reward_hash_list ) or   \
             fast_check_with_hash(future_state_hash   , future_state_hash_list  ) :
 
-            history_state_stack  = torch.cat((history_state_stack,    history_state.unsqueeze(0) ), dim=0)
-            history_action_stack = torch.cat((history_action_stack,   history_action.unsqueeze(0)), dim=0)
-            present_state_stack  = torch.cat((present_state_stack,    present_state.unsqueeze(0) ), dim=0)
-            future_action_stack  = torch.cat((future_action_stack,    future_action.unsqueeze(0) ), dim=0)
-            future_reward_stack  = torch.cat((future_reward_stack,    future_reward.unsqueeze(0) ), dim=0)
-            future_state_stack   = torch.cat((future_state_stack,     future_state .unsqueeze(0) ), dim=0)
-            history_state_hash_list.append ( history_state_hash  )
+            history_state_stack     = torch.cat((history_state_stack,    history_state.unsqueeze(0) ), dim=0)
+            history_action_stack    = torch.cat((history_action_stack,   history_action.unsqueeze(0)), dim=0)
+            present_state_stack     = torch.cat((present_state_stack,    present_state.unsqueeze(0) ), dim=0)
+            future_action_stack     = torch.cat((future_action_stack,    future_action.unsqueeze(0) ), dim=0)
+            future_reward_stack     = torch.cat((future_reward_stack,    future_reward.unsqueeze(0) ), dim=0)
+            future_state_stack      = torch.cat((future_state_stack,     future_state .unsqueeze(0) ), dim=0)
+            history_state_hash_list .append ( history_state_hash  )
             history_action_hash_list.append( history_action_hash )
-            present_state_hash_list.append ( present_state_hash  )
-            future_action_hash_list.append ( future_action_hash  )
-            future_reward_hash_list.append ( future_reward_hash  )
-            future_state_hash_list .append ( future_state_hash   )
+            present_state_hash_list .append ( present_state_hash  )
+            future_action_hash_list .append ( future_action_hash  )
+            future_reward_hash_list .append ( future_reward_hash  )
+            future_state_hash_list  .append ( future_state_hash   )
 
+    indices_to_keep = random.sample(range(len(present_state_stack)), min(buffer_limit, len(present_state_stack)))
+
+    history_state_stack      = history_state_stack      [indices_to_keep]
+    history_action_stack     = history_action_stack     [indices_to_keep]
+    present_state_stack      = present_state_stack      [indices_to_keep]
+    future_action_stack      = future_action_stack      [indices_to_keep]
+    future_reward_stack      = future_reward_stack      [indices_to_keep]
+    future_state_stack       = future_state_stack       [indices_to_keep]
+    history_state_hash_list  = [history_state_hash_list [i] for i in indices_to_keep]
+    history_action_hash_list = [history_action_hash_list[i] for i in indices_to_keep]
+    present_state_hash_list  = [present_state_hash_list [i] for i in indices_to_keep]
+    future_action_hash_list  = [future_action_hash_list [i] for i in indices_to_keep]
+    future_reward_hash_list  = [future_reward_hash_list [i] for i in indices_to_keep]
+    future_state_hash_list   = [future_state_hash_list  [i] for i in indices_to_keep]
+        
     return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack,\
            history_state_hash_list, history_action_hash_list, present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
 
@@ -305,7 +321,7 @@ def update_model(iteration_for_learning,
     exponent_priority    = priority ** PER_exponent
     priority_probability = exponent_priority / torch.sum(exponent_priority)
     
-    for _ in range(iteration_for_learning):
+    for _ in range(min(iteration_for_learning, len(present_state_stack))):
 
         indice         = torch.multinomial(priority_probability, 1, replacement = True)[0]
         history_state  = history_state_stack [indice].unsqueeze(0)
@@ -324,21 +340,21 @@ def update_model(iteration_for_learning,
         envisaged_reward, \
         envisaged_state             = model(history_state, history_action, present_state, future_action)
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-        # total_loss                  = total_loss / ( len(future_reward_stack) * importance)
+        # total_loss                  = total_loss / ( len(present_state_stack) * importance)
         total_loss.backward()     
 
         selected_optimizer.step() 
 
-        # obsolute_TD_error_          = obtain_obsolute_TD_error(model, 
-        #                                                        history_state  ,
-        #                                                        history_action ,
-        #                                                        present_state  ,
-        #                                                        future_action  ,
-        #                                                        future_reward  ,
-        #                                                        future_state   )[0]
-        # priority_                   = obsolute_TD_error_ + PER_epsilon
-        # exponent_priority[indice]   = priority_ ** PER_exponent                                
-        # priority_probability        = exponent_priority / torch.sum(exponent_priority)
+        obsolute_TD_error_          = obtain_obsolute_TD_error(model, 
+                                                               history_state  ,
+                                                               history_action ,
+                                                               present_state  ,
+                                                               future_action  ,
+                                                               future_reward  ,
+                                                               future_state   )[0]
+        priority_                   = obsolute_TD_error_ + PER_epsilon
+        exponent_priority[indice]   = priority_ ** PER_exponent                                
+        priority_probability        = exponent_priority / torch.sum(exponent_priority)
 
     return model
 
