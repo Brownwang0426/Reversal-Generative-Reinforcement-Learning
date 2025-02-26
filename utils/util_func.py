@@ -299,6 +299,13 @@ def obtain_obsolute_TD_error(model,
 
 
 
+"""
+We did not use Important Sampling Weight Control in the original PER.
+"""
+"""
+We update the priority of the selected sample after being used to train the model.
+We hope in the future, we can update all priorities of all the experiences after each training  iteration, rather than just updating only the slected experience's priority.
+"""
 def update_model(iteration_for_learning,
                  history_state_stack,
                  history_action_stack,
