@@ -245,51 +245,6 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def obtain_obsolute_TD_error(model,
-                             history_state_stack,
-                             history_action_stack,
-                             present_state_stack,
-                             future_action_stack,
-                             future_reward_stack,
-                             future_state_stack
-                             ):
-
-    dataset      = TensorDataset(history_state_stack,
-                                 history_action_stack,
-                                 present_state_stack,
-                                 future_action_stack,
-                                 future_reward_stack,
-                                 future_state_stack  )
-    data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
-
-    for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-
-        model.eval()
-
-        loss_function                 = model.loss_function_
-        envisaged_reward, \
-        envisaged_state               = model(history_state, history_action, present_state, future_action)
-        total_loss_A                  = loss_function(envisaged_reward, future_reward) 
-        total_loss_B                  = loss_function(envisaged_state, future_state)
-
-        total_loss                    = 0
-        total_loss                   += torch.sum(torch.abs(total_loss_A), dim=(1, 2))
-        total_loss                    = torch.sum(torch.abs(total_loss_B), dim=(1, 2))
-
-        TD_error                      = total_loss.detach()
-
-    return TD_error
-
-
-
-
-"""
-We did not use Important Sampling Weight Control in the original PER.
-"""
-"""
-We update the priority of the selected sample after being used to train the model.
-We hope in the future, we can update all priorities of all the experiences after each training  iteration, rather than just updating only the slected experience's priority.
-"""
 def update_model(iteration_for_learning,
                  history_state_stack,
                  history_action_stack,
@@ -297,31 +252,17 @@ def update_model(iteration_for_learning,
                  future_action_stack,
                  future_reward_stack,
                  future_state_stack ,
-                 model,
-                 PER_epsilon ,
-                 PER_exponent):
+                 model):
 
-    obsolute_TD_error    = obtain_obsolute_TD_error(model, 
-                                                    history_state_stack  ,
-                                                    history_action_stack  ,
-                                                    present_state_stack  ,
-                                                    future_action_stack  ,
-                                                    future_reward_stack  ,
-                                                    future_state_stack )
-    priority             = obsolute_TD_error + PER_epsilon
-    exponent_priority    = priority ** PER_exponent
-    priority_probability = exponent_priority / torch.sum(exponent_priority)
-    
     for _ in range(min(iteration_for_learning, len(present_state_stack))):
 
-        indice         = torch.multinomial(priority_probability, 1, replacement = True)[0]
+        indice         = np.random.randint(len(present_state_stack))
         history_state  = history_state_stack [indice].unsqueeze(0)
         history_action = history_action_stack[indice].unsqueeze(0)
         present_state  = present_state_stack [indice].unsqueeze(0)
         future_action  = future_action_stack [indice].unsqueeze(0)
         future_reward  = future_reward_stack [indice].unsqueeze(0)
         future_state   = future_state_stack  [indice].unsqueeze(0)
-        # importance     = exponent_priority   [indice]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -331,21 +272,9 @@ def update_model(iteration_for_learning,
         envisaged_reward, \
         envisaged_state             = model(history_state, history_action, present_state, future_action)
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-        # total_loss                  = total_loss / ( len(present_state_stack) * importance)
         total_loss.backward()     
 
         selected_optimizer.step() 
-
-        obsolute_TD_error_          = obtain_obsolute_TD_error(model, 
-                                                               history_state  ,
-                                                               history_action ,
-                                                               present_state  ,
-                                                               future_action  ,
-                                                               future_reward  ,
-                                                               future_state   )[0]
-        priority_                   = obsolute_TD_error_ + PER_epsilon
-        exponent_priority[indice]   = priority_ ** PER_exponent                                
-        priority_probability        = exponent_priority / torch.sum(exponent_priority)
 
     return model
 
@@ -359,9 +288,7 @@ def update_model_list(iteration_for_learning,
                       future_action_stack,
                       future_reward_stack,
                       future_state_stack,
-                      model_list, 
-                      PER_epsilon,
-                      PER_exponent):
+                      model_list):
 
     for i, model in enumerate(model_list):
         model_list[i] = update_model(iteration_for_learning,
@@ -371,9 +298,7 @@ def update_model_list(iteration_for_learning,
                                      future_action_stack,
                                      future_reward_stack,
                                      future_state_stack,
-                                     model,
-                                     PER_epsilon,
-                                     PER_exponent)
+                                     model)
 
     return model_list
 
@@ -392,24 +317,10 @@ def limit_buffer(history_state_stack,
                  future_action_hash_list, 
                  future_reward_hash_list, 
                  future_state_hash_list,
-                 model_list,
-                 PER_epsilon,
-                 PER_exponent,
                  buffer_limit ):
 
-    obsolute_TD_error    = 0
-    for model in model_list:
-        obsolute_TD_error   += obtain_obsolute_TD_error(model, 
-                                                        history_state_stack  ,
-                                                        history_action_stack  ,
-                                                        present_state_stack  ,
-                                                        future_action_stack  ,
-                                                        future_reward_stack  ,
-                                                        future_state_stack )
-    priority             = obsolute_TD_error + PER_epsilon
-    exponent_priority    = priority ** PER_exponent
-    priority_probability = exponent_priority / torch.sum(exponent_priority)
-    indices_to_keep      = torch.multinomial(priority_probability, min(buffer_limit, len(present_state_stack)), replacement = False)
+    probability              = torch.ones(len(present_state_stack)) / len(present_state_stack) 
+    indices_to_keep          = torch.multinomial(probability, min(buffer_limit, len(present_state_stack)), replacement = False)
 
     history_state_stack      = history_state_stack      [indices_to_keep]
     history_action_stack     = history_action_stack     [indices_to_keep]
