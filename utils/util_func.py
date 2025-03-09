@@ -254,7 +254,7 @@ def update_model(iteration_for_learning,
                  future_state_stack ,
                  model):
 
-    for _ in range(min(iteration_for_learning, len(present_state_stack))):
+    for _ in range(iteration_for_learning):
 
         indice         = np.random.randint(len(present_state_stack))
         history_state  = history_state_stack [indice].unsqueeze(0)
