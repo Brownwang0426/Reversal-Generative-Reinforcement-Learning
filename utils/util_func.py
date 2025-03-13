@@ -245,7 +245,7 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def update_model(iteration_for_learning,
+def update_model(iteration_per_experience,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -254,7 +254,7 @@ def update_model(iteration_for_learning,
                  future_state_stack ,
                  model):
 
-    for _ in range(iteration_for_learning):
+    for _ in range(iteration_per_experience * len(history_state_stack)):
 
         indice         = np.random.randint(len(present_state_stack))
         history_state  = history_state_stack [indice].unsqueeze(0)
@@ -281,7 +281,7 @@ def update_model(iteration_for_learning,
 
 
 
-def update_model_list(iteration_for_learning,
+def update_model_list(iteration_per_experience,
                       history_state_stack,
                       history_action_stack,
                       present_state_stack,
@@ -291,7 +291,7 @@ def update_model_list(iteration_for_learning,
                       model_list):
 
     for i, model in enumerate(model_list):
-        model_list[i] = update_model(iteration_for_learning,
+        model_list[i] = update_model(iteration_per_experience,
                                      history_state_stack,
                                      history_action_stack,
                                      present_state_stack,
