@@ -245,66 +245,6 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def update_model(iteration_per_experience,
-                 history_state_stack,
-                 history_action_stack,
-                 present_state_stack,
-                 future_action_stack,
-                 future_reward_stack,
-                 future_state_stack ,
-                 model):
-
-    for _ in range(iteration_per_experience * len(history_state_stack)):
-
-        indice         = np.random.randint(len(present_state_stack))
-        history_state  = history_state_stack [indice].unsqueeze(0)
-        history_action = history_action_stack[indice].unsqueeze(0)
-        present_state  = present_state_stack [indice].unsqueeze(0)
-        future_action  = future_action_stack [indice].unsqueeze(0)
-        future_reward  = future_reward_stack [indice].unsqueeze(0)
-        future_state   = future_state_stack  [indice].unsqueeze(0)
-
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        envisaged_reward, \
-        envisaged_state             = model(history_state, history_action, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-        total_loss.backward()     
-
-        selected_optimizer.step() 
-
-    return model
-
-
-
-
-def update_model_list(iteration_per_experience,
-                      history_state_stack,
-                      history_action_stack,
-                      present_state_stack,
-                      future_action_stack,
-                      future_reward_stack,
-                      future_state_stack,
-                      model_list):
-
-    for i, model in enumerate(model_list):
-        model_list[i] = update_model(iteration_per_experience,
-                                     history_state_stack,
-                                     history_action_stack,
-                                     present_state_stack,
-                                     future_action_stack,
-                                     future_reward_stack,
-                                     future_state_stack,
-                                     model)
-
-    return model_list
-
-
-
-
 def limit_buffer(history_state_stack, 
                  history_action_stack,
                  present_state_stack, 
@@ -337,6 +277,63 @@ def limit_buffer(history_state_stack,
         
     return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack,\
            history_state_hash_list, history_action_hash_list, present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
+
+
+
+
+def update_model(iteration_for_learning_per_experience,
+                 history_state_stack,
+                 history_action_stack,
+                 present_state_stack,
+                 future_action_stack,
+                 future_reward_stack,
+                 future_state_stack ,
+                 model):
+
+    for _ in range(iteration_for_learning_per_experience * len(history_state_stack)):
+
+        indice         = np.random.randint(len(present_state_stack))
+        history_state  = history_state_stack [indice].unsqueeze(0)
+        history_action = history_action_stack[indice].unsqueeze(0)
+        present_state  = present_state_stack [indice].unsqueeze(0)
+        future_action  = future_action_stack [indice].unsqueeze(0)
+        future_reward  = future_reward_stack [indice].unsqueeze(0)
+        future_state   = future_state_stack  [indice].unsqueeze(0)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
+    
+def update_model_list(iteration_for_learning_per_experience,
+                      history_state_stack,
+                      history_action_stack,
+                      present_state_stack,
+                      future_action_stack,
+                      future_reward_stack,
+                      future_state_stack,
+                      model_list):
+
+    for i, model in enumerate(model_list):
+        model_list[i] = update_model(iteration_for_learning_per_experience,
+                                     history_state_stack,
+                                     history_action_stack,
+                                     present_state_stack,
+                                     future_action_stack,
+                                     future_reward_stack,
+                                     future_state_stack,
+                                     model)
+
+    return model_list
 
 
 
