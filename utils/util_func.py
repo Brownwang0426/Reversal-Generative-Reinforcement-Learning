@@ -104,7 +104,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action(iteration_for_deducing,
+def update_future_action(epoch_for_deducing,
                          model_list,
                          history_state,
                          history_action,
@@ -114,26 +114,32 @@ def update_future_action(iteration_for_deducing,
                          beta,
                          loss_scale):
 
+    model_list_   = copy.deepcopy(model_list)
+
     loss_weights = torch.tensor([loss_scale ** j for j in range(desired_reward.size(1))], device=desired_reward.device)
 
-    for i in range(iteration_for_deducing):
+    for _ in range(epoch_for_deducing):
 
-        model              = random.choice(model_list)
+        random.shuffle(model_list_)
 
-        future_action_     = torch.sigmoid(future_action)
-        future_action_     = future_action_.detach().requires_grad_(True)
+        for model in model_list_:
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-        
-        loss_function      = model.loss_function
-        envisaged_reward, \
-        envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = torch.sum(loss_function(envisaged_reward, desired_reward) * loss_weights)
-        total_loss.backward() 
+            model              = random.choice(model_list)
 
-        future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
+            future_action_     = torch.sigmoid(future_action)
+            future_action_     = future_action_.detach().requires_grad_(True)
+
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
+            
+            loss_function      = model.loss_function
+            envisaged_reward, \
+            envisaged_state    = model(history_state, history_action, present_state, future_action_)
+            total_loss         = torch.sum(loss_function(envisaged_reward, desired_reward) * loss_weights)
+            total_loss.backward() 
+
+            future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
 
     return future_action
 
@@ -281,7 +287,7 @@ def limit_buffer(history_state_stack,
 
 
 
-def update_model(iteration_for_learning_per_experience,
+def update_model(epoch_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -290,31 +296,33 @@ def update_model(iteration_for_learning_per_experience,
                  future_state_stack ,
                  model):
 
-    for _ in range(iteration_for_learning_per_experience * len(history_state_stack)):
+    dataset      = TensorDataset(history_state_stack,
+                                 history_action_stack,
+                                 present_state_stack,
+                                 future_action_stack,
+                                 future_reward_stack,
+                                 future_state_stack  )
+    data_loader  = DataLoader(dataset, batch_size = 1, shuffle=True)
 
-        indice         = np.random.randint(len(present_state_stack))
-        history_state  = history_state_stack [indice].unsqueeze(0)
-        history_action = history_action_stack[indice].unsqueeze(0)
-        present_state  = present_state_stack [indice].unsqueeze(0)
-        future_action  = future_action_stack [indice].unsqueeze(0)
-        future_reward  = future_reward_stack [indice].unsqueeze(0)
-        future_state   = future_state_stack  [indice].unsqueeze(0)
+    for _ in range(epoch_for_learning):
 
-        model.train()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
 
-        loss_function               = model.loss_function
-        envisaged_reward, \
-        envisaged_state             = model(history_state, history_action, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-        total_loss.backward()     
+            model.train()
+            selected_optimizer = model.selected_optimizer
+            selected_optimizer.zero_grad()
 
-        selected_optimizer.step() 
+            loss_function               = model.loss_function
+            envisaged_reward, \
+            envisaged_state             = model(history_state, history_action, present_state, future_action)
+            total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+            total_loss.backward()     
+
+            selected_optimizer.step() 
 
     return model
     
-def update_model_list(iteration_for_learning_per_experience,
+def update_model_list(epoch_for_learning,
                       history_state_stack,
                       history_action_stack,
                       present_state_stack,
@@ -324,7 +332,7 @@ def update_model_list(iteration_for_learning_per_experience,
                       model_list):
 
     for i, model in enumerate(model_list):
-        model_list[i] = update_model(iteration_for_learning_per_experience,
+        model_list[i] = update_model(epoch_for_learning,
                                      history_state_stack,
                                      history_action_stack,
                                      present_state_stack,
