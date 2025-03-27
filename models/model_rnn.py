@@ -45,6 +45,23 @@ Crucial model regarding how you set up your agent's neural network
 - In our experience, how the neural net of the agent handles the information flow toward reward will have immense impact on the performance of the agent. 
 """
 
+
+
+
+class custom_loss(nn.Module):
+    def __init__(self, loss_scale, sequence_size):
+        super(custom_loss, self).__init__()
+        self.loss_weight = nn.Parameter(torch.tensor([loss_scale ** i for i in range(sequence_size)]), requires_grad=False)
+
+    def forward(self, output, target):
+        output           = torch.sum(output, dim=2)  # Shape: (batch_size, sequence_size)
+        target           = torch.sum(target, dim=2)  # Shape: (batch_size, sequence_size)
+        loss             = torch.sum(((output - target) ** 2) * self.loss_weight)  # Shape: () scalar
+        return loss / output.shape[0]
+    
+
+
+
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -57,7 +74,7 @@ class build_model(nn.Module):
                  num_heads,
                  init,
                  opti,
-                 loss,
+                 loss_scale,
                  bias,
                  drop_rate,
                  alpha):
@@ -74,7 +91,7 @@ class build_model(nn.Module):
         self.num_heads            = num_heads
         self.init                 = init
         self.opti                 = opti
-        self.loss                 = loss
+        self.loss_scale           = loss_scale
         self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
@@ -89,7 +106,7 @@ class build_model(nn.Module):
         }
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
-        
+
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
@@ -105,21 +122,10 @@ class build_model(nn.Module):
         self.selected_optimizer = optimizers[self.opti.lower()](self.parameters(), lr=self.alpha)
 
         # Loss function
-        losses = {
-            'mean_squared_error': torch.nn.MSELoss(),
-            'binary_crossentropy': torch.nn.BCELoss()
-        }
-        self.loss_function = losses[self.loss .lower()]
-
-        # Loss function
-        losses = {
-            'mean_squared_error': torch.nn.MSELoss(reduction='none'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='none')
-        }
-        self.loss_function_ = losses[self.loss .lower()]
+        self.loss_function = custom_loss(self.loss_scale, self.sequence_size)
 
 
-    
+
 
     def forward(self, history_s, history_a, present_s, future_a):
 
@@ -152,12 +158,12 @@ class build_model(nn.Module):
 
             h  = torch.cat(window_list, dim=1)
             h  = torch.tanh(h)
-            
+
             """
             RNN, GRU, LSTM
             """
             h, _ = self.recurrent_layers(h)
-            
+
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
@@ -195,3 +201,5 @@ class build_model(nn.Module):
         for layer in self.modules():
             if isinstance(layer, nn.Linear):
                 initializer(layer.weight)
+
+

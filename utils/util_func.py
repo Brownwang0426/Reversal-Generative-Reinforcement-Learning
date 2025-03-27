@@ -111,12 +111,9 @@ def update_future_action(epoch_for_deducing,
                          present_state,
                          future_action,
                          desired_reward,
-                         beta,
-                         loss_scale):
+                         beta):
 
     model_list_   = copy.deepcopy(model_list)
-
-    loss_weights = torch.tensor([loss_scale ** j for j in range(desired_reward.size(1))], device=desired_reward.device)
 
     for _ in range(epoch_for_deducing):
 
@@ -136,7 +133,7 @@ def update_future_action(epoch_for_deducing,
             loss_function      = model.loss_function
             envisaged_reward, \
             envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = torch.sum(loss_function(envisaged_reward, desired_reward) * loss_weights)
+            total_loss         = loss_function(envisaged_reward, desired_reward)
             total_loss.backward() 
 
             future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 

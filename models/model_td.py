@@ -89,6 +89,20 @@ class custom_attn(nn.Module):
 
 
 
+class custom_loss(nn.Module):
+    def __init__(self, loss_scale, sequence_size):
+        super(custom_loss, self).__init__()
+        self.loss_weight = nn.Parameter(torch.tensor([loss_scale ** i for i in range(sequence_size)]), requires_grad=False)
+
+    def forward(self, output, target):
+        output           = torch.sum(output, dim=2)  # Shape: (batch_size, sequence_size)
+        target           = torch.sum(target, dim=2)  # Shape: (batch_size, sequence_size)
+        loss             = torch.sum(((output - target) ** 2) * self.loss_weight)  # Shape: () scalar
+        return loss / output.shape[0]
+    
+
+
+
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -101,7 +115,7 @@ class build_model(nn.Module):
                  num_heads,
                  init,
                  opti,
-                 loss,
+                 loss_scale,
                  bias,
                  drop_rate,
                  alpha):
@@ -118,7 +132,7 @@ class build_model(nn.Module):
         self.num_heads            = num_heads
         self.init                 = init
         self.opti                 = opti
-        self.loss                 = loss
+        self.loss_scale           = loss_scale
         self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
@@ -157,18 +171,7 @@ class build_model(nn.Module):
         self.selected_optimizer = optimizers[self.opti.lower()](self.parameters(), lr=self.alpha)
 
         # Loss function
-        losses = {
-            'mean_squared_error': torch.nn.MSELoss(),
-            'binary_crossentropy': torch.nn.BCELoss()
-        }
-        self.loss_function = losses[self.loss .lower()]
-
-        # Loss function
-        losses = {
-            'mean_squared_error': torch.nn.MSELoss(reduction='none'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='none')
-        }
-        self.loss_function_ = losses[self.loss .lower()]
+        self.loss_function = custom_loss(self.loss_scale, self.sequence_size)
 
 
 
