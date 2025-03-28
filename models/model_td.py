@@ -98,8 +98,18 @@ class custom_loss(nn.Module):
         output           = torch.sum(output, dim=2)  # Shape: (batch_size, sequence_size)
         target           = torch.sum(target, dim=2)  # Shape: (batch_size, sequence_size)
         loss             = torch.sum(((output - target) ** 2) * self.loss_weight)  # Shape: () scalar
-        return loss / output.shape[0]
+        return loss # / output.shape[0] 
     
+# class custom_loss(nn.Module):
+#     def __init__(self, loss_scale, sequence_size):
+#         super(custom_loss, self).__init__()
+#         self.loss_weight = nn.Parameter(torch.tensor([loss_scale ** i for i in range(sequence_size)]), requires_grad=False)
+# 
+#     def forward(self, output, target):                     # Shape: (batch_size, sequence_size, feature_size)
+#         loss = torch.sum((output - target) ** 2, dim = 2)  # Shape: (batch_size, sequence_size)
+#         loss = torch.sum( loss * self.loss_weight )  
+#         return loss # / output.shape[0] 
+
 
 
 
@@ -108,6 +118,7 @@ class build_model(nn.Module):
                  state_size,
                  action_size,
                  reward_size,
+                 reward_scale,
                  feature_size,
                  sequence_size,
                  neural_type,
@@ -125,6 +136,7 @@ class build_model(nn.Module):
         self.state_size           = state_size
         self.action_size          = action_size
         self.reward_size          = reward_size
+        self.reward_scale         = reward_scale
         self.feature_size         = feature_size
         self.sequence_size        = sequence_size
         self.neural_type          = neural_type
@@ -225,7 +237,7 @@ class build_model(nn.Module):
             We utilize the last idx in h to derive the latest reward and state.
             """
             r = self.reward_linear(h[:, - 1, :])  
-            r = torch.sigmoid(r)
+            r = torch.sigmoid(r) * self.reward_scale
             s = self.state_linear_(h[:, - 1, :])   
             s = torch.tanh(s)
 
