@@ -98,8 +98,8 @@ def initialize_future_action(init, noise_t, noise_r, shape, device):
 
 
 
-def initialize_desired_reward(shape, device):
-    return  torch.ones(shape).to(device)
+def initialize_desired_reward(future_size, reward_scale, device):
+    return  torch.ones((1, future_size, 1)).to(device) * reward_scale
 
 
 
