@@ -104,7 +104,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action(epoch_for_deducing,
+def update_future_action(epoch_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -115,7 +115,7 @@ def update_future_action(epoch_for_deducing,
 
     model_list_   = copy.deepcopy(model_list)
 
-    for _ in range(epoch_for_deducing):
+    for _ in range(epoch_for_planning):
 
         random.shuffle(model_list_)
 
@@ -256,7 +256,7 @@ def update_model(epoch_for_learning,
                  future_reward_stack,
                  future_state_stack ,
                  model,
-                 batch_size):
+                 batch_ratio):
 
     dataset      = TensorDataset(history_state_stack,
                                  history_action_stack,
@@ -264,6 +264,7 @@ def update_model(epoch_for_learning,
                                  future_action_stack,
                                  future_reward_stack,
                                  future_state_stack  )
+    batch_size   = int(len(dataset) * batch_ratio) + 1
     data_loader  = DataLoader(dataset, batch_size = batch_size, shuffle=True)
 
     for _ in range(epoch_for_learning):
