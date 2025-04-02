@@ -293,7 +293,7 @@ def update_model_list(epoch_for_learning,
                       future_reward_stack,
                       future_state_stack,
                       model_list,
-                      batch_size):
+                      batch_ratio):
 
     for i, model in enumerate(model_list):
         model_list[i] = update_model(epoch_for_learning,
@@ -304,7 +304,7 @@ def update_model_list(epoch_for_learning,
                                      future_reward_stack,
                                      future_state_stack,
                                      model,
-                                     batch_size)
+                                     batch_ratio)
 
     return model_list
 
