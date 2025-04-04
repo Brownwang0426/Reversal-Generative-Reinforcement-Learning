@@ -256,7 +256,7 @@ def update_model(epoch_for_learning,
                  future_reward_stack,
                  future_state_stack ,
                  model,
-                 batch_ratio):
+                 batch_size):
 
     dataset      = TensorDataset(history_state_stack,
                                  history_action_stack,
@@ -264,7 +264,6 @@ def update_model(epoch_for_learning,
                                  future_action_stack,
                                  future_reward_stack,
                                  future_state_stack  )
-    batch_size   = int(len(dataset) * batch_ratio) + 1
     data_loader  = DataLoader(dataset, batch_size = batch_size, shuffle=True)
 
     for _ in range(epoch_for_learning):
@@ -293,7 +292,7 @@ def update_model_list(epoch_for_learning,
                       future_reward_stack,
                       future_state_stack,
                       model_list,
-                      batch_ratio):
+                      batch_size):
 
     for i, model in enumerate(model_list):
         model_list[i] = update_model(epoch_for_learning,
@@ -304,7 +303,7 @@ def update_model_list(epoch_for_learning,
                                      future_reward_stack,
                                      future_state_stack,
                                      model,
-                                     batch_ratio)
+                                     batch_size)
 
     return model_list
 
