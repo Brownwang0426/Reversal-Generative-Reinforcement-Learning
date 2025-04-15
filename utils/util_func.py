@@ -104,7 +104,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action(epoch_for_planning,
+def update_future_action(iteration_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -113,30 +113,24 @@ def update_future_action(epoch_for_planning,
                          desired_reward,
                          beta):
 
-    model_list_   = copy.deepcopy(model_list)
+    for _ in range(iteration_for_planning):
 
-    for _ in range(epoch_for_planning):
+        model              = random.choice(model_list)
 
-        random.shuffle(model_list_)
+        future_action_     = torch.sigmoid(future_action)
+        future_action_     = future_action_.detach().requires_grad_(True)
 
-        for model in model_list_:
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+        
+        loss_function      = model.loss_function
+        envisaged_reward, \
+        envisaged_state    = model(history_state, history_action, present_state, future_action_)
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
+        total_loss.backward() 
 
-            model              = random.choice(model_list)
-
-            future_action_     = torch.sigmoid(future_action)
-            future_action_     = future_action_.detach().requires_grad_(True)
-
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
-            
-            loss_function      = model.loss_function
-            envisaged_reward, \
-            envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
-            total_loss.backward() 
-
-            future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
+        future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
 
     return future_action
 
@@ -248,62 +242,118 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def update_model(epoch_for_learning,
+def obtain_obsolute_TD_error(model,
+                             history_state_stack,
+                             history_action_stack,
+                             present_state_stack,
+                             future_action_stack,
+                             future_reward_stack,
+                             future_state_stack
+                             ):
+ 
+     dataset      = TensorDataset(history_state_stack,
+                                  history_action_stack,
+                                  present_state_stack,
+                                  future_action_stack,
+                                  future_reward_stack,
+                                  future_state_stack  )
+     data_loader  = DataLoader(dataset, batch_size = len(dataset), shuffle=False)
+ 
+     for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
+ 
+         model.eval()
+ 
+         loss_function                 = model.loss_function_
+         envisaged_reward, \
+         envisaged_state               = model(history_state, history_action, present_state, future_action)
+         total_loss_r                  = loss_function(envisaged_reward, future_reward) 
+         total_loss_s                  = loss_function(envisaged_state, future_state)
+         total_loss                    = 0
+         total_loss                   += torch.sum(torch.abs(total_loss_r), dim=(1, 2))
+         total_loss                    = torch.sum(torch.abs(total_loss_s), dim=(1, 2))
+         TD_error                      = total_loss.detach()
+ 
+     return TD_error
+
+def update_model(iteration_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
                  future_action_stack,
                  future_reward_stack,
                  future_state_stack ,
-                 model,
-                 batch_size):
+                 model):
 
-    dataset      = TensorDataset(history_state_stack,
-                                 history_action_stack,
-                                 present_state_stack,
-                                 future_action_stack,
-                                 future_reward_stack,
-                                 future_state_stack  )
-    data_loader  = DataLoader(dataset, batch_size = batch_size, shuffle=True)
+    PER_epsilon  = 1e-20
+    PER_exponent = 2
 
-    for _ in range(epoch_for_learning):
+    obsolute_TD_error    = obtain_obsolute_TD_error(model, 
+                                                    history_state_stack  ,
+                                                    history_action_stack ,
+                                                    present_state_stack  ,
+                                                    future_action_stack  ,
+                                                    future_reward_stack  ,
+                                                    future_state_stack )
+    priority             = obsolute_TD_error + PER_epsilon
+    exponent_priority    = priority ** PER_exponent
+    priority_probability = exponent_priority / torch.sum(exponent_priority)
 
-        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
+    for _ in range(min(iteration_for_learning, len(present_state_stack))):
 
-            model.train()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        indice         = torch.multinomial(priority_probability, 1, replacement = True)[0]
+        history_state  = history_state_stack [indice].unsqueeze(0)
+        history_action = history_action_stack[indice].unsqueeze(0)
+        present_state  = present_state_stack [indice].unsqueeze(0)
+        future_action  = future_action_stack [indice].unsqueeze(0)
+        future_reward  = future_reward_stack [indice].unsqueeze(0)
+        future_state   = future_state_stack  [indice].unsqueeze(0)
+        # importance     = exponent_priority   [indice]
+ 
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
 
-            loss_function               = model.loss_function
-            envisaged_reward, \
-            envisaged_state             = model(history_state, history_action, present_state, future_action)
-            total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-            total_loss.backward()     
-
-            selected_optimizer.step() 
-
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        # total_loss                  = total_loss / ( len(present_state_stack) * importance)
+        total_loss.backward()     
+ 
+        selected_optimizer.step() 
+ 
+        obsolute_TD_error_          = obtain_obsolute_TD_error(model, 
+                                                               history_state  ,
+                                                               history_action ,
+                                                               present_state  ,
+                                                               future_action  ,
+                                                               future_reward  ,
+                                                               future_state   )[0]
+        priority_                   = obsolute_TD_error_ + PER_epsilon
+        exponent_priority[indice]   = priority_ ** PER_exponent                             
+        priority_probability        = exponent_priority / torch.sum(exponent_priority)
+ 
     return model
     
-def update_model_list(epoch_for_learning,
+def update_model_list(iteration_for_learning,
                       history_state_stack,
                       history_action_stack,
                       present_state_stack,
                       future_action_stack,
                       future_reward_stack,
                       future_state_stack,
-                      model_list,
-                      batch_size):
+                      model_list
+                      ):
 
     for i, model in enumerate(model_list):
-        model_list[i] = update_model(epoch_for_learning,
+        model_list[i] = update_model(iteration_for_learning,
                                      history_state_stack,
                                      history_action_stack,
                                      present_state_stack,
                                      future_action_stack,
                                      future_reward_stack,
                                      future_state_stack,
-                                     model,
-                                     batch_size)
+                                     model)
 
     return model_list
 
