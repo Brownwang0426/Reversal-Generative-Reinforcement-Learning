@@ -54,18 +54,14 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     state_0 = quantifying(-1, 1, 100,      -1,      1 , state[0], device)
     state_1 = quantifying(-1, 1, 100,      -1,      1 , state[1], device)
     state_2 = quantifying(-1, 1, 100,      -1,      1 , state[2], device)
     state_3 = quantifying(-1, 1, 100,      -1,      1 , state[3], device)
     state_4 = quantifying(-1, 1, 100, -12.567, 12.567 , state[4], device)
     state_5 = quantifying(-1, 1, 100, -28.274, 28.274 , state[5], device)
-    if done:
-        state_6 = torch.tensor([1]).to(device)
-    else:
-        state_6 = torch.tensor([0]).to(device)
-    state   = torch.cat((state_0, state_1, state_2, state_3, state_4, state_5, state_6), dim = 0)
+    state   = torch.cat((state_0, state_1, state_2, state_3, state_4, state_5), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
