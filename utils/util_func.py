@@ -266,9 +266,9 @@ def update_model(epoch_for_learning,
                                  future_state_stack  )
     data_loader  = DataLoader(dataset, batch_size = batch_size, shuffle=True)
 
-    for _ in range(epoch_for_learning):
+    for _ in tqdm(range(epoch_for_learning)):
 
-        for history_state, history_action, present_state, future_action, future_reward, future_state in tqdm(data_loader):
+        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
 
             model.train()
             selected_optimizer = model.selected_optimizer
