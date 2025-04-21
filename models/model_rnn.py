@@ -142,13 +142,11 @@ class build_model(nn.Module):
 
         if history_s.size(1) > 0:
             for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1]) 
-                window_list.append(history_a[:, i:i+1]) 
-        window_list.append(present_s)
+                window_list.append(history_s[:, i:i+1, :] + history_a[:, i:i+1, :]) 
         
         for i in range(future_a.size(1)):
 
-            window_list.append(future_a[:, i:i+1])
+            window_list.append(present_s + future_a[:, i:i+1, :])
 
             h  = torch.cat(window_list, dim=1)
             h  = torch.tanh(h)
@@ -171,8 +169,6 @@ class build_model(nn.Module):
 
             present_s = s
             present_s = self.state_linear(present_s.unsqueeze(1))
-
-            window_list.append(present_s)
 
         future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
