@@ -55,8 +55,8 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(-1, 1, 100, -0.6, 0.6, state[0], device)
-    state_1 = quantifying(-1, 1, 100, -0.1, 0.1, state[1], device)
+    state_0 = quantifying(0, 1, 100, -0.6, 0.6, state[0], device)
+    state_1 = quantifying(0, 1, 100, -0.1, 0.1, state[1], device)
     state   = torch.cat((state_0, state_1), dim = 0)
     return state
 
