@@ -111,11 +111,12 @@ def update_future_action(epoch_for_planning,
                          present_state,
                          future_action,
                          desired_reward,
-                         beta):
+                         beta,
+                         future_gamma):
 
-    gamma        = 1.05
-    time_weights = torch.tensor([gamma ** t for t in range(desired_reward.size(1))], device=desired_reward.device)
-    time_weights = time_weights.view(1, desired_reward.size(1), 1)
+    future_gamma   = 1.05
+    future_weights = torch.tensor([future_gamma ** t for t in range(desired_reward.size(1))], device=desired_reward.device)
+    future_weights = future_weights.view(1, desired_reward.size(1), 1)
 
     model_list_  = copy.deepcopy(model_list)
 
@@ -137,7 +138,7 @@ def update_future_action(epoch_for_planning,
             loss_function      = model.loss_function
             envisaged_reward, \
             envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward * time_weights, desired_reward * time_weights)
+            total_loss         = loss_function(envisaged_reward * future_weights, desired_reward * future_weights)
             total_loss.backward() 
 
             future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
