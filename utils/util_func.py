@@ -104,6 +104,12 @@ def initialize_desired_reward(shape, device):
 
 
 
+"""
+In our experience, how to handle
+loss_function(envisaged_reward, desired_reward)
+will have great impact on the performance of the agent
+Therefor, a good future_gamma should be designed for the agent to properly handle reward in both policy-oriented and strategy-oriented environments.
+"""
 def update_future_action(epoch_for_planning,
                          model_list,
                          history_state,
@@ -114,7 +120,6 @@ def update_future_action(epoch_for_planning,
                          beta,
                          future_gamma):
 
-    future_gamma   = 1.05
     future_weights = torch.tensor([future_gamma ** t for t in range(desired_reward.size(1))], device=desired_reward.device)
     future_weights = future_weights.view(1, desired_reward.size(1), 1)
 
