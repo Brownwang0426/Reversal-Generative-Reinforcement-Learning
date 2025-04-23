@@ -235,7 +235,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1, :])  
             r = torch.sigmoid(r)
             s = self.state_linear_(h[:, - 1, :])   
-            s = torch.sigmoid(s)
+            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
