@@ -73,7 +73,7 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     return vectorized_action, action_argmax
 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(0, 1, reward_size, -200, 325, reward, device)       
+    reward = quantifying(0, 1, reward_size, -200, 325, summed_reward, device)       
     return reward
 
 
