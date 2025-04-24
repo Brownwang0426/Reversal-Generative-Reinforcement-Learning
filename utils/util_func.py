@@ -312,7 +312,7 @@ def update_model(iteration_for_learning,
 
     for _ in tqdm(range(iteration_for_learning)):
 
-        indices        = torch.multinomial(priority_probability, batch_size, replacement = True)
+        indices        = torch.multinomial(priority_probability, min(batch_size, len(present_state_stack)), replacement = False)
         history_state  = history_state_stack [indices]
         history_action = history_action_stack[indices]
         present_state  = present_state_stack [indices]
