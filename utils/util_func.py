@@ -104,12 +104,6 @@ def initialize_desired_reward(shape, device):
 
 
 
-"""
-In our experience, how to handle
-loss_function(envisaged_reward, desired_reward)
-will have great impact on the performance of the agent
-Therefor, a good future_gamma should be designed for the agent to properly handle reward in both policy-oriented and strategy-oriented environments.
-"""
 def update_future_action(iteration_for_planning,
                          model_list,
                          history_state,
@@ -117,11 +111,7 @@ def update_future_action(iteration_for_planning,
                          present_state,
                          future_action,
                          desired_reward,
-                         beta,
-                         future_gamma):
-
-    future_weights = torch.tensor([future_gamma ** t for t in range(desired_reward.size(1))], device=desired_reward.device)
-    future_weights = future_weights.view(1, desired_reward.size(1), 1)
+                         beta):
 
     for _ in range(iteration_for_planning):
 
@@ -137,7 +127,7 @@ def update_future_action(iteration_for_planning,
         loss_function      = model.loss_function
         envisaged_reward, \
         envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward * future_weights, desired_reward * future_weights)
+        total_loss         = loss_function(envisaged_reward, desired_reward)
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
@@ -312,7 +302,7 @@ def update_model(iteration_for_learning,
 
     for _ in tqdm(range(iteration_for_learning)):
 
-        indices        = torch.multinomial(priority_probability, min(batch_size, len(present_state_stack)), replacement = False)
+        indices        = torch.multinomial(priority_probability, min(batch_size, len(present_state_stack)), replacement = True)
         history_state  = history_state_stack [indices]
         history_action = history_action_stack[indices]
         present_state  = present_state_stack [indices]
