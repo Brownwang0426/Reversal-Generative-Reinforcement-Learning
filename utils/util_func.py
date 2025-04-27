@@ -117,7 +117,7 @@ def update_future_action(iteration_for_planning,
 
         model              = random.choice(model_list)
 
-        future_action_     = torch.sigmoid(future_action)
+        future_action_     = torch.tanh(future_action)
         future_action_     = future_action_.detach().requires_grad_(True)
 
         model.train()
@@ -130,7 +130,7 @@ def update_future_action(iteration_for_planning,
         total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
         total_loss.backward() 
 
-        future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
+        future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
 
     return future_action
 
@@ -302,7 +302,7 @@ def update_model(iteration_for_learning,
 
     for _ in tqdm(range(iteration_for_learning)):
 
-        indices        = torch.multinomial(priority_probability, min(batch_size, len(present_state_stack)), replacement = True)
+        indices        = torch.multinomial(priority_probability, batch_size, replacement = True)
         history_state  = history_state_stack [indices]
         history_action = history_action_stack[indices]
         present_state  = present_state_stack [indices]
