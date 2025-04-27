@@ -121,8 +121,6 @@ def update_future_action(epoch_for_planning,
 
         for model in model_list_:
 
-            model              = random.choice(model_list)
-
             future_action_     = torch.sigmoid(future_action)
             future_action_     = future_action_.detach().requires_grad_(True)
 
