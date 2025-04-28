@@ -279,8 +279,9 @@ def update_model(iteration_for_learning,
                  model,
                  batch_size):
 
-    PER_epsilon  = 1e-20
-    PER_exponent = 2
+    PER_epsilon     = 1e-20
+    PER_exponent    = 2
+    PER_replacement = False
 
     obsolute_TD_error    = obtain_obsolute_TD_error(model, 
                                                     history_state_stack  ,
@@ -295,7 +296,7 @@ def update_model(iteration_for_learning,
 
     for _ in tqdm(range(iteration_for_learning)):
 
-        indices        = torch.multinomial(priority_probability, batch_size, replacement = True)
+        indices        = torch.multinomial(priority_probability, min(batch_size, len(present_state_stack)), replacement = PER_replacement)
         history_state  = history_state_stack [indices]
         history_action = history_action_stack[indices]
         present_state  = present_state_stack [indices]
