@@ -82,17 +82,10 @@ def initialize_future_action(init, noise_t, noise_r, shape, device):
     input = 0
     if   init == "random_uniform":
         for _ in range(noise_t):
-            input += (torch.rand(shape) * (noise_r * 2) - noise_r).to(device) 
+            input += (( 2 * torch.rand  (shape)                     -1 ) * noise_r).to(device) 
     elif init == "random_normal":
         for _ in range(noise_t):
-            input +=  torch.normal(mean=0, std=noise_r, size=shape).to(device) 
-    elif (init == "glorot_uniform") or (init == "xavier_uniform"):
-        for _ in range(noise_t):
-            limit = np.sqrt(6 / (shape[1] + shape[1]))
-            input += (torch.rand(shape) * (limit * 2) - limit).to(device) 
-    elif (init == "glorot_normal" ) or (init == "xavier_normal"):
-        for _ in range(noise_t):
-            input += torch.normal(mean=0, std = np.sqrt(2 / (shape[1] + shape[1])) * noise_r, size=shape).to(device) 
+            input += ((     torch.normal(mean=0, std=1, size=shape)    ) * noise_r).to(device) 
     return input
 
 
