@@ -60,7 +60,7 @@ def vectorizing_state(state, done, device):      # Reminder: change this for you
         state_2 = torch.tensor([1]).to(device)
     else:
         state_2 = torch.tensor([-1]).to(device)
-    state   = torch.cat((state_0, state_1), dim = 0)
+    state   = torch.cat((state_1, state_2), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
