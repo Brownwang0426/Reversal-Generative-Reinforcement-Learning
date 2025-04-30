@@ -55,8 +55,8 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(0, 1, 10,  1 , 4, state['direction'], device)
-    state_1 = torch.tensor(state['image'].ravel()/10).to(device) 
+    state_0 = quantifying(-1, 1, 10,  1 , 4, state['direction'], device)
+    state_1 = (torch.tensor(state['image'].ravel()/10).to(device))- 0.5 * 2
     state   = torch.cat((state_0, state_1), dim = 0)
     return state
 

@@ -55,7 +55,7 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state = torch.eye(16)[state].to(device)
+    state = (torch.eye(16)[state].to(device)) - 0.5 * 2
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
