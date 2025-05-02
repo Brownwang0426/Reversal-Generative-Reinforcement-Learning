@@ -106,7 +106,6 @@ def update_future_action(epoch_for_planning,
                          desired_reward,
                          beta):
 
-
     model_list_   = copy.deepcopy(model_list)
 
     for _ in range(epoch_for_planning):
@@ -115,7 +114,7 @@ def update_future_action(epoch_for_planning,
 
         for model in model_list_:
 
-            future_action_     = torch.tanh(future_action)
+            future_action_     = torch.sigmoid(future_action)
             future_action_     = future_action_.detach().requires_grad_(True)
 
             model.train()
@@ -125,10 +124,10 @@ def update_future_action(epoch_for_planning,
             loss_function      = model.loss_function
             envisaged_reward, \
             envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
+            total_loss         = loss_function(envisaged_reward[:, :, :], desired_reward[:, :, :])
             total_loss.backward() 
 
-            future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
+            future_action     -= future_action_.grad * (1 - future_action_) * future_action_ * beta 
 
     return future_action
 
@@ -276,7 +275,7 @@ def obtain_obsolute_TD_error(model,
 
     return TD_error
 
-def update_model_(epoch_for_learning,
+def update_model_(iteration_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -302,7 +301,7 @@ def update_model_(epoch_for_learning,
     exponent_priority    = priority ** PER_exponent
     priority_probability = exponent_priority / torch.sum(exponent_priority)
 
-    for _ in tqdm(range(epoch_for_learning)):
+    for _ in tqdm(range(iteration_for_learning)):
 
         indices        = torch.multinomial(priority_probability, batch_size, replacement = PER_replacement)
         history_state  = history_state_stack [indices]
