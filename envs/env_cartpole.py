@@ -59,9 +59,9 @@ def vectorizing_state(state, done, device):      # Reminder: change this for you
     state_2 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2], device)
     state_3 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3], device)
     if done:
-        state_4 = torch.tensor([1]).to(device)
+        state_4 = torch.ones(100).to(device)
     else:
-        state_4 = torch.tensor([-1]).to(device)
+        state_4 = torch.zeros(100).to(device) - 1
     state   = torch.cat((state_0, state_1, state_2, state_3, state_4), dim = 0)
     return state
 

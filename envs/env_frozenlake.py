@@ -57,9 +57,9 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
 def vectorizing_state(state, done, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     state_1 = (torch.eye(16)[state].to(device) - 0.5) * 2
     if done:
-        state_2 = torch.tensor([1]).to(device)
+        state_2 = torch.ones(10).to(device)
     else:
-        state_2 = torch.tensor([-1]).to(device)
+        state_2 = torch.zeros(10).to(device) - 1
     state   = torch.cat((state_1, state_2), dim = 0)
     return state
 
