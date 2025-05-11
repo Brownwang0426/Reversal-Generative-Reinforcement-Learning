@@ -132,23 +132,19 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s = self.state_linear (history_s)  
             history_a = self.action_linear(history_a) 
+        else:
+            pass
         present_s = self.state_linear (present_s.unsqueeze(1))
         future_a  = self.action_linear(future_a) 
 
-
-
-
-        window_list   = list()
-
         if history_s.size(1) > 0:
-            for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
         
         for i in range(future_a.size(1)):
 
-            window_list.append(present_s + future_a[:, i:i+1])
-
-            h  = torch.cat(window_list, dim=1)
+            h =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
             h  = torch.tanh(h)
             
             """
