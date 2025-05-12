@@ -197,8 +197,6 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s = self.state_linear (history_s)  
             history_a = self.action_linear(history_a) 
-        else:
-            pass
         present_s = self.state_linear (present_s.unsqueeze(1))
         future_a  = self.action_linear(future_a) 
 
@@ -209,8 +207,9 @@ class build_model(nn.Module):
         
         for i in range(future_a.size(1)):
 
-            h =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
-            h  = torch.tanh(h)
+            history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+
+            h  = torch.tanh(history_s_a)
 
             """
             Transformer decoder
