@@ -97,7 +97,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action_(itrtn_for_planning,
+def update_future_action(itrtn_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -127,7 +127,7 @@ def update_future_action_(itrtn_for_planning,
 
     return future_action
 
-def update_future_action(epoch_for_planning,
+def update_future_action_(epoch_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -367,7 +367,41 @@ def update_model_(itrtn_for_learning,
 
     return model
 
-def update_model(epoch_for_learning,
+def update_model(itrtn_for_learning,
+                 history_state_stack,
+                 history_action_stack,
+                 present_state_stack,
+                 future_action_stack,
+                 future_reward_stack,
+                 future_state_stack ,
+                 model,
+                 batch_size):
+
+    for _ in tqdm(range(itrtn_for_learning)):
+
+        indices        = torch.randperm(len(present_state_stack))[:batch_size] 
+        history_state  = history_state_stack [indices]
+        history_action = history_action_stack[indices]
+        present_state  = present_state_stack [indices]
+        future_action  = future_action_stack [indices]
+        future_reward  = future_reward_stack [indices]
+        future_state   = future_state_stack  [indices]
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
+
+def update_model_(epoch_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -403,7 +437,7 @@ def update_model(epoch_for_learning,
 
     return model
 
-def update_model_list(epoch_for_learning,
+def update_model_list(epoch_itrtn_for_learning,
                       history_state_stack,
                       history_action_stack,
                       present_state_stack,
@@ -414,7 +448,7 @@ def update_model_list(epoch_for_learning,
                       batch_size):
 
     for i, model in enumerate(model_list):
-        model_list[i] = update_model(epoch_for_learning,
+        model_list[i] = update_model(epoch_itrtn_for_learning,
                                      history_state_stack,
                                      history_action_stack,
                                      present_state_stack,
