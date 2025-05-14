@@ -337,7 +337,7 @@ def caculate_final_indices(priority_probability, top_k, batch_size):
 
     return final_indices
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -401,7 +401,7 @@ def update_model(itrtn_for_learning,
 
     return model
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
