@@ -348,7 +348,7 @@ def update_model(itrtn_for_learning,
                  batch_size):
 
     batch_size      = min(batch_size, len(present_state_stack))  # to prevent batch_size > len(present_state_stack)
-    top_k           = 1 
+    top_k           = 0
     top_k           = min(top_k, batch_size)  # to prevent top_k > batch_size
 
     PER_epsilon     = 1e-10
