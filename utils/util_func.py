@@ -320,8 +320,11 @@ def update_model(itrtn_for_learning,
 
     PER_epsilon     = 1e-10
     PER_exponent    = 2
-    PER_replacement = False
-    batch_size      = min(batch_size, len(present_state_stack))
+    PER_replacement = True
+    if PER_replacement==False:
+        batch_size      = min(batch_size, len(present_state_stack))
+    else:
+        pass
     
     obsolute_TD_error    = obtain_obsolute_TD_error(model, 
                                                     history_state_stack  ,
