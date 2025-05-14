@@ -281,7 +281,7 @@ def obtain_obsolute_TD_error(model,
                              future_state_stack
                              ):
     
-    batch_size   = 25
+    batch_size   = 10
     dataset      = TensorDataset(history_state_stack,
                                  history_action_stack,
                                  present_state_stack,
@@ -292,21 +292,23 @@ def obtain_obsolute_TD_error(model,
     
     TD_error     = torch.tensor([]).to(history_state_stack.device)
 
-    for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
- 
-        model.eval()
- 
-        loss_function                 = model.loss_function_
-        envisaged_reward, \
-        envisaged_state               = model(history_state, history_action, present_state, future_action)
-        total_loss_r                  = loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) 
-        total_loss_s                  = loss_function(envisaged_state[:, :, :], future_state[:, :, :]) 
-        total_loss                    = torch.sum(torch.abs(total_loss_r), dim=(1, 2)) + torch.sum(torch.abs(total_loss_s), dim=(1, 2))
-        TD_error                      = torch.cat((TD_error, total_loss.detach()))  
+    model.eval()
+
+    with torch.no_grad():
+
+        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
+    
+            loss_function                 = model.loss_function_
+            envisaged_reward, \
+            envisaged_state               = model(history_state, history_action, present_state, future_action)
+            total_loss_r                  = loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) 
+            total_loss_s                  = loss_function(envisaged_state[:, :, :], future_state[:, :, :]) 
+            total_loss                    = torch.sum(torch.abs(total_loss_r), dim=(1, 2)) + torch.sum(torch.abs(total_loss_s), dim=(1, 2))
+            TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -316,7 +318,7 @@ def update_model_(itrtn_for_learning,
                  model,
                  batch_size):
 
-    PER_epsilon     = 1e-20
+    PER_epsilon     = 1e-10
     PER_exponent    = 2
     PER_replacement = False
     batch_size      = min(batch_size, len(present_state_stack))
@@ -367,7 +369,7 @@ def update_model_(itrtn_for_learning,
 
     return model
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
