@@ -313,18 +313,23 @@ def caculate_final_indices(priority_probability, top_k, batch_size):
     if top_k != 0:
 
         top_indices = torch.topk(priority_probability, top_k).indices
-        
-        mask              = torch.ones(priority_probability.size(0), dtype=torch.bool, device=priority_probability.device)
-        mask[top_indices] = False
 
-        remaining_probs   = priority_probability[mask]
-        remaining_probs  /= remaining_probs.sum()  
+        if batch_size - top_k > 0:
+            
+            mask              = torch.ones(priority_probability.size(0), dtype=torch.bool, device=priority_probability.device)
+            mask[top_indices] = False
 
-        remaining_indices = torch.arange(priority_probability.size(0), device=priority_probability.device)[mask]
+            remaining_probs   = priority_probability[mask]
+            remaining_probs  /= remaining_probs.sum()  
 
-        other_indices     = remaining_indices[torch.multinomial(remaining_probs, batch_size - top_k, replacement=False)]
+            remaining_indices = torch.arange(priority_probability.size(0), device=priority_probability.device)[mask]
 
-        final_indices     = torch.cat([top_indices, other_indices])
+            other_indices     = remaining_indices[torch.multinomial(remaining_probs, batch_size - top_k, replacement=False)]
+            final_indices     = torch.cat([top_indices, other_indices])
+
+        else:
+
+            final_indices = top_indices
 
     else:
         
