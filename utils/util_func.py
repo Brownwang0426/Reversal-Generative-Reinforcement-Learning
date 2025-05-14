@@ -310,7 +310,7 @@ def obtain_obsolute_TD_error(model,
 
 def caculate_final_indices(priority_probability, top_k, batch_size):
 
-    if rtop_k != 0:
+    if top_k != 0:
 
         top_indices = torch.topk(priority_probability, top_k).indices
         
