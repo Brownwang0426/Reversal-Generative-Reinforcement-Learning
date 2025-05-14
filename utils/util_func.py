@@ -308,6 +308,30 @@ def obtain_obsolute_TD_error(model,
 
     return TD_error
 
+def caculate_final_indices(priority_probability, top_k, batch_size):
+
+    if rtop_k != 0:
+
+        top_indices = torch.topk(priority_probability, top_k).indices
+        
+        mask              = torch.ones(priority_probability.size(0), dtype=torch.bool, device=priority_probability.device)
+        mask[top_indices] = False
+
+        remaining_probs   = priority_probability[mask]
+        remaining_probs  /= remaining_probs.sum()  
+
+        remaining_indices = torch.arange(priority_probability.size(0), device=priority_probability.device)[mask]
+
+        other_indices     = remaining_indices[torch.multinomial(remaining_probs, batch_size - top_k, replacement=False)]
+
+        final_indices     = torch.cat([top_indices, other_indices])
+
+    else:
+        
+        final_indices     = torch.multinomial(priority_probability, batch_size, replacement=False)
+
+    return final_indices
+
 def update_model(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
@@ -318,13 +342,12 @@ def update_model(itrtn_for_learning,
                  model,
                  batch_size):
 
+    batch_size      = min(batch_size, len(present_state_stack))  # to prevent batch_size > len(present_state_stack)
+    top_k           = 1 
+    top_k           = min(top_k, batch_size)  # to prevent top_k > batch_size
+
     PER_epsilon     = 1e-10
     PER_exponent    = 2
-    PER_replacement = True
-    if PER_replacement==False:
-        batch_size      = min(batch_size, len(present_state_stack))
-    else:
-        pass
     
     obsolute_TD_error    = obtain_obsolute_TD_error(model, 
                                                     history_state_stack  ,
@@ -339,13 +362,14 @@ def update_model(itrtn_for_learning,
 
     for _ in tqdm(range(itrtn_for_learning)):
 
-        indices        = torch.multinomial(priority_probability, batch_size, replacement = PER_replacement)
-        history_state  = history_state_stack [indices]
-        history_action = history_action_stack[indices]
-        present_state  = present_state_stack [indices]
-        future_action  = future_action_stack [indices]
-        future_reward  = future_reward_stack [indices]
-        future_state   = future_state_stack  [indices]
+        final_indices  = caculate_final_indices(priority_probability, top_k, batch_size)
+
+        history_state  = history_state_stack [final_indices]
+        history_action = history_action_stack[final_indices]
+        present_state  = present_state_stack [final_indices]
+        future_action  = future_action_stack [final_indices]
+        future_reward  = future_reward_stack [final_indices]
+        future_state   = future_state_stack  [final_indices]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -359,16 +383,16 @@ def update_model(itrtn_for_learning,
 
         selected_optimizer.step() 
 
-        obsolute_TD_error           = obtain_obsolute_TD_error(model, 
-                                                               history_state  ,
-                                                               history_action ,
-                                                               present_state  ,
-                                                               future_action  ,
-                                                               future_reward  ,
-                                                               future_state   )
-        priority                    = obsolute_TD_error + PER_epsilon
-        exponent_priority[indices]  = priority ** PER_exponent                             
-        priority_probability        = exponent_priority / torch.sum(exponent_priority)
+        obsolute_TD_error                 = obtain_obsolute_TD_error(model, 
+                                                                     history_state  ,
+                                                                     history_action ,
+                                                                     present_state  ,
+                                                                     future_action  ,
+                                                                     future_reward  ,
+                                                                     future_state   )
+        priority                          = obsolute_TD_error + PER_epsilon
+        exponent_priority[final_indices]  = priority ** PER_exponent                             
+        priority_probability              = exponent_priority / torch.sum(exponent_priority)
 
     return model
 
