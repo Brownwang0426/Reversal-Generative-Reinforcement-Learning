@@ -105,6 +105,8 @@ def update_future_action(itrtn_for_planning,
                          future_action,
                          desired_reward,
                          beta):
+    
+    desired_reward = desired_reward[:, -1, :]
 
     for _ in range(itrtn_for_planning):
 
@@ -120,7 +122,7 @@ def update_future_action(itrtn_for_planning,
         loss_function      = model.loss_function
         envisaged_reward, \
         envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward)
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -337,7 +339,7 @@ def caculate_final_indices(priority_probability, top_k, batch_size):
 
     return final_indices
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
@@ -401,7 +403,7 @@ def update_model_(itrtn_for_learning,
 
     return model
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  history_state_stack,
                  history_action_stack,
                  present_state_stack,
