@@ -52,14 +52,15 @@ RGRL/
 │
 ├── models/                  # model implementation files
 │   ├── __init__.py          # package indicator
-│   ├── model_rnn_att.py     # model implementation file for recurrent_attention
+│   ├── ...                  # model implementation file for ...
+│   ├── model_td.py          # model implementation file for transformer decoder 
 │   └── model_rnn.py         # model implementation file for rnn, gru, lstm
 │
 ├── utils/                   # utility functions
 │   ├── __init__.py          # package indicator
 │   └── util_func.py         # utility function 
 │
-├── train.py                 # main script for training the model
+├── main.py                  # main script for training and using the model
 │
 ├── paper.pdf                # main technical paper for understanding the mechansim behind RGRL
 │
