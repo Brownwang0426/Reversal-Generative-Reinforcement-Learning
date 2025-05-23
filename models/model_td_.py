@@ -37,8 +37,6 @@ import concurrent.futures
 import hashlib
 
 
-
-
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
@@ -48,24 +46,13 @@ class custom_attn(nn.Module):
         self.head_size     = feature_size // num_heads
         self.bias          = bias
         self.drop_rate     = drop_rate
-        # self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(self.drop_rate)
         self.resid_dropout = nn.Dropout(self.drop_rate)
 
-        self.neural_type = 'rnn'
-        neural_types = {
-            'rnn': nn.RNN,
-            'gru': nn.GRU,
-            'lstm': nn.LSTM
-        }
-        self.W_q     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_k     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_v     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_o     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
@@ -91,11 +78,11 @@ class custom_attn(nn.Module):
     def forward(self, Q, K, V, mask=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
-        Q    = self.split_heads(self.W_q(Q)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        K    = self.split_heads(self.W_k(K)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        V    = self.split_heads(self.W_v(V)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
-        output      = self.W_o(self.combine_heads(attn_output))[0]
+        output      = self.W_o(self.combine_heads(attn_output))
         output      = self.resid_dropout(output)
         return output
 
@@ -139,7 +126,7 @@ class build_model(nn.Module):
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.sequence_size, self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
@@ -151,7 +138,7 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, self.sequence_size, self.sequence_size), float("-inf"))
+        mask                      = torch.full((1, 1, 2 * self.sequence_size, 2 * self.sequence_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
@@ -200,14 +187,18 @@ class build_model(nn.Module):
         present_s = self.state_linear (present_s.unsqueeze(1))
         future_a  = self.action_linear(future_a) 
 
+
+
+
         if history_s.size(1) > 0:
-            history_s_a = history_s + history_a
+            history_s_a = torch.stack([history_s, history_a], dim=2) 
+            history_s_a = history_s_a.view(history_s.size(0), history_s.size(1) * 2, history_s.size(2))  
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
         
         for i in range(future_a.size(1)):
 
-            history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+            history_s_a = torch.cat([history_s_a, future_a[:, i:i+1]], dim=1)
 
             h  = torch.tanh(history_s_a)
 
@@ -237,6 +228,8 @@ class build_model(nn.Module):
 
             present_s = s
             present_s = self.state_linear(present_s.unsqueeze(1))
+
+            history_s_a =  torch.cat([history_s_a, present_s], dim=1)
 
         future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
