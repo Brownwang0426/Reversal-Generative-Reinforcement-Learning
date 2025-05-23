@@ -303,9 +303,8 @@ def obtain_obsolute_TD_error(model,
             loss_function                 = model.loss_function_
             envisaged_reward, \
             envisaged_state               = model(history_state, history_action, present_state, future_action)
-            total_loss_r                  = loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) 
-            total_loss_s                  = loss_function(envisaged_state[:, :, :], future_state[:, :, :]) 
-            total_loss                    = torch.sum(torch.abs(total_loss_r), dim=(1, 2)) + torch.sum(torch.abs(total_loss_s), dim=(1, 2))
+            total_loss                    = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) 
+            total_loss                    = torch.sum(torch.abs(total_loss), dim=(1)) 
             TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
