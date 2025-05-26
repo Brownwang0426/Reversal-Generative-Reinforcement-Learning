@@ -449,7 +449,11 @@ def create_data_loader(history_state_stack,
                                  future_action_stack,
                                  future_reward_stack,
                                  future_state_stack  )
-    data_loader  = DataLoader(dataset, batch_size = batch_size, shuffle=True)
+    data_loader  = DataLoader   (dataset, 
+                                 batch_size = batch_size, 
+                                 shuffle=True,
+                                 num_workers=4,
+                                 persistent_workers=True)
     return data_loader
 
 def update_model(epoch_for_learning,
@@ -469,9 +473,9 @@ def update_model(epoch_for_learning,
             envisaged_reward, \
             envisaged_state             = model(history_state, history_action, present_state, future_action)
             total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-            total_loss.backward()     
 
-            selected_optimizer.step() 
+            total_loss.backward()
+            selected_optimizer.step()
 
     return model
 
