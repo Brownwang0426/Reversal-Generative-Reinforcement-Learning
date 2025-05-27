@@ -129,6 +129,9 @@ def update_future_action(itrtn_for_planning,
 
     return future_action
 
+
+
+
 def update_future_action_(epoch_for_planning,
                          model_list,
                          history_state,
@@ -341,21 +344,6 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-def create_data_from_(history_state_stack,
-                     history_action_stack,
-                     present_state_stack,
-                     future_action_stack,
-                     future_reward_stack,
-                     future_state_stack,
-                     batch_size ):
-    dataset      = TensorDataset(history_state_stack,
-                                 history_action_stack,
-                                 present_state_stack,
-                                 future_action_stack,
-                                 future_reward_stack,
-                                 future_state_stack  )
-    return dataset
-
 def update_model_(itrtn_for_learning,
                  dataset,
                  model,
@@ -396,22 +384,6 @@ def update_model_(itrtn_for_learning,
 
 
 
-
-def create_data_from(history_state_stack,
-                     history_action_stack,
-                     present_state_stack,
-                     future_action_stack,
-                     future_reward_stack,
-                     future_state_stack,
-                     batch_size ):
-    dataset      = TensorDataset(history_state_stack,
-                                 history_action_stack,
-                                 present_state_stack,
-                                 future_action_stack,
-                                 future_reward_stack,
-                                 future_state_stack  )
-    return dataset
-
 def update_model(itrtn_for_learning,
                  dataset,
                  model,
@@ -443,28 +415,14 @@ def update_model(itrtn_for_learning,
 
 
 
-def create_data_from_(history_state_stack,
-                     history_action_stack,
-                     present_state_stack,
-                     future_action_stack,
-                     future_reward_stack,
-                     future_state_stack,
-                     batch_size ):
-    dataset      = TensorDataset(history_state_stack,
-                                 history_action_stack,
-                                 present_state_stack,
-                                 future_action_stack,
-                                 future_reward_stack,
-                                 future_state_stack  )
+def update_model_(epoch_for_learning,
+                 dataset,
+                 model,
+                 batch_size):
+
     data_loader  = DataLoader   (dataset, 
                                  batch_size = batch_size, 
                                  shuffle=True)
-    return data_loader
-
-def update_model_(epoch_for_learning,
-                 data_loader,
-                 model,
-                 batch_size):
 
     model.train()
     selected_optimizer = model.selected_optimizer
@@ -484,6 +442,9 @@ def update_model_(epoch_for_learning,
             selected_optimizer.step()
 
     return model
+
+
+
 
 def update_model_list(epoch_itrtn_for_learning,
                       data_loader,
