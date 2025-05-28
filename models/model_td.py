@@ -158,8 +158,8 @@ class build_model(nn.Module):
 
         # Loss function
         losses = {
-            'mean_squared_error': torch.nn.MSELoss(reduction='sum'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='sum')
+            'mean_squared_error': torch.nn.MSELoss(reduction='mean'),
+            'binary_crossentropy': torch.nn.BCELoss(reduction='mean')
         }
         self.loss_function = losses[self.loss .lower()]
 

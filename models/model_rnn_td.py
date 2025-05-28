@@ -1,4 +1,3 @@
-@ -1,263 +0,0 @@
 
 import gymnasium as gym
 from gymnasium.wrappers import TimeLimit
@@ -38,6 +37,8 @@ import concurrent.futures
 import hashlib
 
 
+
+
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
@@ -47,13 +48,24 @@ class custom_attn(nn.Module):
         self.head_size     = feature_size // num_heads
         self.bias          = bias
         self.drop_rate     = drop_rate
-        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        # self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        # self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        # self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        # self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(self.drop_rate)
         self.resid_dropout = nn.Dropout(self.drop_rate)
 
+        self.neural_type = 'rnn'
+        neural_types = {
+            'rnn': nn.RNN,
+            'gru': nn.GRU,
+            'lstm': nn.LSTM
+        }
+        self.W_q     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
+        self.W_k     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
+        self.W_v     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
+        self.W_o     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
+        
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
@@ -79,11 +91,11 @@ class custom_attn(nn.Module):
     def forward(self, Q, K, V, mask=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
-        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        Q    = self.split_heads(self.W_q(Q)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
-        output      = self.W_o(self.combine_heads(attn_output))
+        output      = self.W_o(self.combine_heads(attn_output))[0]
         output      = self.resid_dropout(output)
         return output
 
@@ -159,8 +171,8 @@ class build_model(nn.Module):
 
         # Loss function
         losses = {
-            'mean_squared_error': torch.nn.MSELoss(reduction='sum'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='sum')
+            'mean_squared_error': torch.nn.MSELoss(reduction='mean'),
+            'binary_crossentropy': torch.nn.BCELoss(reduction='mean')
         }
         self.loss_function = losses[self.loss .lower()]
 
