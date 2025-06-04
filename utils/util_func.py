@@ -219,20 +219,12 @@ def update_long_term_experience_replay_buffer(history_state_stack,
                                               future_reward_list,
                                               future_state_list):
 
-    for i in range(len(present_state_list)):
-        history_state       = history_state_list  [i]
-        history_action      = history_action_list [i]
-        present_state       = present_state_list  [i]
-        future_action       = future_action_list  [i]
-        future_reward       = future_reward_list  [i]
-        future_state        = future_state_list   [i]
-
-        history_state_stack     = torch.cat((history_state_stack,    history_state.unsqueeze (0) ), dim=0)
-        history_action_stack    = torch.cat((history_action_stack,   history_action.unsqueeze(0) ), dim=0)
-        present_state_stack     = torch.cat((present_state_stack,    present_state.unsqueeze (0) ), dim=0)
-        future_action_stack     = torch.cat((future_action_stack,    future_action.unsqueeze (0) ), dim=0)
-        future_reward_stack     = torch.cat((future_reward_stack,    future_reward.unsqueeze (0) ), dim=0)
-        future_state_stack      = torch.cat((future_state_stack,     future_state .unsqueeze (0) ), dim=0)
+    history_state_stack     = torch.cat((history_state_stack,   torch.stack(history_state_list ) ), dim=0)
+    history_action_stack    = torch.cat((history_action_stack,  torch.stack(history_action_list) ), dim=0)
+    present_state_stack     = torch.cat((present_state_stack,   torch.stack(present_state_list ) ), dim=0)
+    future_action_stack     = torch.cat((future_action_stack,   torch.stack(future_action_list ) ), dim=0)
+    future_reward_stack     = torch.cat((future_reward_stack,   torch.stack(future_reward_list ) ), dim=0)
+    future_state_stack      = torch.cat((future_state_stack,    torch.stack(future_state_list  ) ), dim=0)
 
     return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack
 
