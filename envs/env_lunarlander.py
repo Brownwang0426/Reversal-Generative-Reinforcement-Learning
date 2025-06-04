@@ -80,4 +80,52 @@ def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):
     reward = quantifying(-1, 1, reward_size, -200, 325, summed_reward, device)       
     return reward
 
+class randomizer(gym.Wrapper):
+    def __init__(self, env, pos_range=(-0.1, 0.1), vel_range=(-0.1, 0.1),
+                 angle_range=(-0.1, 0.1), angular_vel_range=(-0.1, 0.1),
+                 max_attempts=100):
+        super().__init__(env)
+        self.pos_range = pos_range
+        self.vel_range = vel_range
+        self.angle_range = angle_range
+        self.angular_vel_range = angular_vel_range
+        self.max_attempts = max_attempts
 
+        # Constants from source
+        self.VIEWPORT_W = 600
+        self.SCALE = 30.0
+
+    def reset(self, **kwargs):
+        for _ in range(self.max_attempts):
+            obs, info = self.env.reset(**kwargs)
+
+            lander = self.env.unwrapped.lander
+            if lander is None:
+                return obs, info
+
+            # Position: world units
+            x_center = self.VIEWPORT_W / self.SCALE / 2
+            x_pos = x_center + np.random.uniform(*self.pos_range)
+            y_pos = np.random.uniform(1.0, 1.4)
+
+            # Random dynamics
+            x_vel = np.random.uniform(*self.vel_range)
+            y_vel = np.random.uniform(*self.vel_range)
+            angle = np.random.uniform(*self.angle_range)
+            angular_vel = np.random.uniform(*self.angular_vel_range)
+
+            # Set Box2D body state
+            lander.position = (x_pos, y_pos)
+            lander.linearVelocity = (x_vel, y_vel)
+            lander.angle = angle
+            lander.angularVelocity = angular_vel
+
+            # Force observation recomputation by stepping with zero action
+            obs, _, terminated, truncated, _ = self.env.step(0)
+
+            # Check if state is reasonable
+            if not np.any(np.isnan(obs)) and not terminated and not truncated:
+                return obs, info
+
+        print("⚠️ Warning: Couldn't find valid initial state after max attempts. Using default.")
+        return self.env.reset(**kwargs)

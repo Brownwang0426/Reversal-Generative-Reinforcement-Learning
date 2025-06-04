@@ -75,11 +75,39 @@ def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):
             reward = torch.ones(reward_size).to(device)
         else:
             reward = torch.zeros(reward_size).to(device) - 1
-    else:
+    elif state:
         x, y = divmod(state, 4)
         distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         max_distance = np.sqrt(3**2 + 3**2)  # 4.24
         idx = int(100 * (1 - (distance / max_distance)))
         reward = torch.zeros(reward_size).to(device) - 1
-        reward[0: idx        ] = 1
+        reward[0: idx] = 1
+    else:
+        reward = torch.zeros(reward_size).to(device) - 1
     return reward
+
+class randomizer(gym.Wrapper):
+    def __init__(self, env, max_attempts=100):
+        super().__init__(env)
+        self.max_attempts = max_attempts
+        self.desc = env.unwrapped.desc.astype('U') 
+        self.valid_start_positions = [
+            i for i, c in enumerate(self.desc.flatten())
+            if c in ['F', 'S'] 
+        ]
+
+    def reset(self, **kwargs):
+        for _ in range(self.max_attempts):
+
+            start_state = np.random.choice(self.valid_start_positions)
+
+            obs, info = self.env.reset(**kwargs)
+            self.env.unwrapped.s = start_state  
+            obs = start_state
+
+            done = (obs == self.env.unwrapped.nrow * self.env.unwrapped.ncol - 1)  
+            if not done:
+                return obs, info
+
+        print("⚠️ Warning: Couldn't find valid initial state after max attempts. Using default.")
+        return self.env.reset(**kwargs)
