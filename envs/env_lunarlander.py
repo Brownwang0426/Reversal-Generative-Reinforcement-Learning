@@ -82,13 +82,13 @@ def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):
 
 class randomizer(gym.Wrapper):
     def __init__(self, env, pos_range=(-0.1, 0.1), vel_range=(-0.1, 0.1),
-                 angle_range=(-0.1, 0.1), angular_vel_range=(-0.1, 0.1),
+                 angle_pos_range=(-0.1, 0.1), angle_vel_range=(-0.1, 0.1),
                  max_attempts=100):
         super().__init__(env)
         self.pos_range = pos_range
         self.vel_range = vel_range
-        self.angle_range = angle_range
-        self.angular_vel_range = angular_vel_range
+        self.angle_pos_range = angle_pos_range
+        self.angle_vel_range = angle_vel_range
         self.max_attempts = max_attempts
 
         # Constants from source
@@ -108,22 +108,81 @@ class randomizer(gym.Wrapper):
             x_pos = x_center + np.random.uniform(*self.pos_range)
             y_pos = np.random.uniform(1.0, 1.4)
 
-            # Random dynamics
+            # Random y_posnamics
             x_vel = np.random.uniform(*self.vel_range)
             y_vel = np.random.uniform(*self.vel_range)
-            angle = np.random.uniform(*self.angle_range)
-            angular_vel = np.random.uniform(*self.angular_vel_range)
+            angle = np.random.uniform(*self.angle_pos_range)
+            angle_vel = np.random.uniform(*self.angle_vel_range)
 
-            # Set Box2D body state
+            # Set Box2D boy_pos state
             lander.position = (x_pos, y_pos)
             lander.linearVelocity = (x_vel, y_vel)
             lander.angle = angle
-            lander.angularVelocity = angular_vel
+            lander.angularVelocity = angle_vel
 
             # Force observation recomputation by stepping with zero action
             obs, _, terminated, truncated, _ = self.env.step(0)
 
             # Check if state is reasonable
+            if not np.any(np.isnan(obs)) and not terminated and not truncated:
+                return obs, info
+
+        print("⚠️ Warning: Couldn't find valid initial state after max attempts. Using default.")
+        return self.env.reset(**kwargs)
+
+
+class randomizer(gym.Wrapper):
+    def __init__(self, env, 
+                 x_pos_range=(5, 15), x_vel_range=(-1, 1),
+                 y_pos_range=(3.5, 11), y_vel_range=(-1, 1),
+                 angle_pos_range=(-1, 1), angle_vel_range=(-1, 1), 
+                 max_attempts=50):
+        super().__init__(env)
+        self.x_pos_range = x_pos_range
+        self.x_vel_range = x_vel_range
+        self.y_pos_range = y_pos_range
+        self.y_vel_range = y_vel_range
+        self.angle_pos_range = angle_pos_range
+        self.angle_vel_range = angle_vel_range
+        self.max_attempts = max_attempts
+
+        self.SCALE = 30
+        self.VIEWPORT_W = 600 # 600/30= 20
+        self.VIEWPORT_H = 400 # 400/30= 13.33
+
+    def reset(self, **kwargs):
+        for _ in range(self.max_attempts):
+            obs, info = self.env.reset(**kwargs)
+
+            lander = self.env.unwrapped.lander
+            legs = self.env.unwrapped.legs
+            if lander is None or legs is None:
+                return obs, info
+
+            # Random offsets from center
+            x_pos = np.random.uniform(*self.x_pos_range)
+            x_vel = np.random.uniform(*self.x_vel_range)
+            y_pos = np.random.uniform(*self.y_pos_range)  
+            y_vel = np.random.uniform(*self.y_vel_range)
+            angle_pos = np.random.uniform(*self.angle_pos_range)
+            angle_vel = np.random.uniform(*self.angle_vel_range)
+
+            # Move lander
+            lander.position = (x_pos, y_pos)
+            lander.linearVelocity = (x_vel, y_vel)
+            lander.angle = angle_pos
+            lander.angularVelocity = angle_vel
+
+            # Move legs accordingly
+            for leg in legs:
+                leg.position = (x_pos, y_pos)
+                leg.linearVelocity = (x_vel, y_vel)
+                leg.angle = angle_pos
+                leg.angularVelocity = angle_vel
+
+            # Allow Box2D to stabilize the scene
+            obs, _, terminated, truncated, _ = self.env.step(0)
+
             if not np.any(np.isnan(obs)) and not terminated and not truncated:
                 return obs, info
 

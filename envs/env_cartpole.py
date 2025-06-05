@@ -76,14 +76,17 @@ def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):
     return reward
 
 class randomizer(gym.Wrapper):
-    def __init__(self, env, pos_range=(-0.05, 0.05), vel_range=(-0.05, 0.05),
-                 angle_range=(-0.05, 0.05), angular_vel_range=(-0.05, 0.05),
+    def __init__(self, env, 
+                 pos_range=(-1.5, 1.5), 
+                 vel_range=(-1, 1),
+                 angle_pos_range=(-1, 1), 
+                 angle_vel_range=(-1, 1),
                  max_attempts=100):
         super().__init__(env)
         self.pos_range = pos_range
         self.vel_range = vel_range
-        self.angle_range = angle_range
-        self.angular_vel_range = angular_vel_range
+        self.angle_pos_range = angle_pos_range
+        self.angle_vel_range = angle_vel_range
         self.max_attempts = max_attempts
 
     def reset(self, **kwargs):
@@ -100,8 +103,8 @@ class randomizer(gym.Wrapper):
             state = np.array([
                 np.random.uniform(*self.pos_range),
                 np.random.uniform(*self.vel_range),
-                np.random.uniform(*self.angle_range),
-                np.random.uniform(*self.angular_vel_range)
+                np.random.uniform(*self.angle_pos_range),
+                np.random.uniform(*self.angle_vel_range)
             ])
             self.env.unwrapped.state = state
             obs = state
