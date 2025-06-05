@@ -80,3 +80,34 @@ def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):
     else:
         reward = torch.zeros(reward_size).to(device) - 1
     return reward
+
+class randomizer(gym.Wrapper):
+    def __init__(self, env,
+                 angle_pos_range=(-np.pi, np.pi),
+                 angular_vel_range=(-1.0, 1.0),
+                 max_attempts=100):
+        super().__init__(env)
+        self.angle_pos_range = angle_pos_range
+        self.angular_vel_range = angular_vel_range
+        self.max_attempts = max_attempts
+
+    def reset(self, **kwargs):
+        for _ in range(self.max_attempts):
+            obs, info = self.env.reset(**kwargs)
+
+            # Sample raw state: [theta1, theta2, theta1_dot, theta2_dot]
+            theta1 = np.random.uniform(*self.angle_pos_range)
+            theta2 = np.random.uniform(*self.angle_pos_range)
+            theta1_dot = np.random.uniform(*self.angular_vel_range)
+            theta2_dot = np.random.uniform(*self.angular_vel_range)
+
+            self.env.unwrapped.state = np.array([theta1, theta2, theta1_dot, theta2_dot])
+
+            # Get updated observation
+            obs = self.env.unwrapped._get_ob()
+
+            if self.env.observation_space.contains(obs):
+                return obs, info
+
+        print("⚠️ Warning: Couldn't find valid initial state after max attempts. Using default.")
+        return self.env.reset(**kwargs)

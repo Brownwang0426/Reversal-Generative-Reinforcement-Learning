@@ -73,3 +73,30 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     reward = quantifying(-1, 1, reward_size, -0.6, 0.6, state[0], device)
     return reward
+
+class randomizer(gym.Wrapper):
+    def __init__(self, env,
+                 pos_range=(-1.5, 0.5),
+                 vel_range=(-0.05, 0.05),
+                 max_attempts=100):
+        super().__init__(env)
+        self.pos_range = pos_range
+        self.vel_range = vel_range
+        self.max_attempts = max_attempts
+
+    def reset(self, **kwargs):
+        for _ in range(self.max_attempts):
+            obs, info = self.env.reset(**kwargs)
+
+            position = np.random.uniform(*self.pos_range)
+            velocity = np.random.uniform(*self.vel_range)
+
+            self.env.unwrapped.state = np.array([position, velocity])
+            obs = np.array([position, velocity], dtype=np.float32)
+
+            if self.env.observation_space.contains(obs):
+                return obs, info
+
+        print("⚠️ Warning: Couldn't find valid initial state after max attempts. Using default.")
+        return self.env.reset(**kwargs)
+

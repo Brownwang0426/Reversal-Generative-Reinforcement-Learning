@@ -78,3 +78,11 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     reward = quantifying(-1, 1, reward_size, -1, 1, summed_reward, device)
     return reward
+
+class randomizer(gym.Wrapper):
+    def __init__(self, env, max_attempts=100):
+        super().__init__(env)
+        self.max_attempts = max_attempts
+
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
