@@ -206,38 +206,71 @@ def sequentialize(state_list, action_list, reward_list, history_size, future_siz
 
 
 
+def hash_tensor(tensor):
+    tensor = tensor.cpu()  
+    return hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
+
+def fast_check_with_hash(hash_1d, hash_2d):
+    return hash_1d not in hash_2d
+
 def update_long_term_experience_replay_buffer(history_state_stack, 
                                               history_action_stack,
                                               present_state_stack, 
                                               future_action_stack,
                                               future_reward_stack, 
                                               future_state_stack,
-                                              episode_recorder,
-                                              last_episode,
+                                              history_state_hash_list, 
+                                              history_action_hash_list, 
+                                              present_state_hash_list, 
+                                              future_action_hash_list, 
+                                              future_reward_hash_list, 
+                                              future_state_hash_list,
                                               history_state_list,
                                               history_action_list,
                                               present_state_list,
                                               future_action_list,
                                               future_reward_list,
                                               future_state_list):
-    
-    num_new_experiences     = len(present_state_list)
-    episode_recorder.extend([last_episode] * num_new_experiences)
 
-    history_state  = torch.stack(history_state_list )
-    history_action = torch.stack(history_action_list)
-    present_state  = torch.stack(present_state_list )
-    future_action  = torch.stack(future_action_list )
-    future_reward  = torch.stack(future_reward_list )
-    future_state   = torch.stack(future_state_list  )
-    history_state_stack     = torch.cat((history_state_stack, history_state    ), dim=0)
-    history_action_stack    = torch.cat((history_action_stack,history_action   ), dim=0)
-    present_state_stack     = torch.cat((present_state_stack, present_state    ), dim=0)
-    future_action_stack     = torch.cat((future_action_stack, future_action    ), dim=0)
-    future_reward_stack     = torch.cat((future_reward_stack, future_reward    ), dim=0)
-    future_state_stack      = torch.cat((future_state_stack,  future_state     ), dim=0)
+    for i in range(len(present_state_list)):
+        history_state       = history_state_list  [i]
+        history_action      = history_action_list [i]
+        present_state       = present_state_list  [i]
+        future_action       = future_action_list  [i]
+        future_reward       = future_reward_list  [i]
+        future_state        = future_state_list   [i]
+        history_state_hash  = hash_tensor(history_state )
+        history_action_hash = hash_tensor(history_action)
+        present_state_hash  = hash_tensor(present_state )
+        future_action_hash  = hash_tensor(future_action )
+        future_reward_hash  = hash_tensor(future_reward )
+        future_state_hash   = hash_tensor(future_state  )
 
-    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack, episode_recorder
+        if  fast_check_with_hash(history_state_hash  , history_state_hash_list ) or   \
+            fast_check_with_hash(history_action_hash , history_action_hash_list) or   \
+            fast_check_with_hash(present_state_hash  , present_state_hash_list ) or   \
+            fast_check_with_hash(future_action_hash  , future_action_hash_list ) or   \
+            fast_check_with_hash(future_reward_hash  , future_reward_hash_list ) or   \
+            fast_check_with_hash(future_state_hash   , future_state_hash_list  ) :
+
+            history_state_stack     = torch.cat((history_state_stack,    history_state.unsqueeze (0) ), dim=0)
+            history_action_stack    = torch.cat((history_action_stack,   history_action.unsqueeze(0) ), dim=0)
+            present_state_stack     = torch.cat((present_state_stack,    present_state.unsqueeze (0) ), dim=0)
+            future_action_stack     = torch.cat((future_action_stack,    future_action.unsqueeze (0) ), dim=0)
+            future_reward_stack     = torch.cat((future_reward_stack,    future_reward.unsqueeze (0) ), dim=0)
+            future_state_stack      = torch.cat((future_state_stack,     future_state .unsqueeze (0) ), dim=0)
+            history_state_hash_list .append ( history_state_hash  )
+            history_action_hash_list.append ( history_action_hash )
+            present_state_hash_list .append ( present_state_hash  )
+            future_action_hash_list .append ( future_action_hash  )
+            future_reward_hash_list .append ( future_reward_hash  )
+            future_state_hash_list  .append ( future_state_hash   )
+        
+        else:
+            pass
+        
+    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack,\
+           history_state_hash_list, history_action_hash_list, present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
 
 
 
@@ -335,6 +368,10 @@ def update_model_(itrtn_for_learning,
         subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=False)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
+            history_len      = np.random.randint(history_state.size(1))
+            history_state    = history_state [:, -history_len:,:]
+            history_action   = history_action[:, -history_len:,:]
+
             selected_optimizer.zero_grad()
 
             envisaged_reward, \
@@ -366,6 +403,10 @@ def update_model(itrtn_for_learning,
         subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=False)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
+            history_len      = np.random.randint(history_state.size(1))
+            history_state    = history_state [:, -history_len:,:]
+            history_action   = history_action[:, -history_len:,:]
+
             selected_optimizer.zero_grad()
 
             envisaged_reward, \
@@ -396,6 +437,10 @@ def update_model_(epoch_for_learning,
     for _ in tqdm(range(epoch_for_learning)):
 
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
+            
+            history_len      = np.random.randint(history_state.size(1))
+            history_state    = history_state [:, -history_len:,:]
+            history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -433,31 +478,32 @@ def limit_buffer(history_state_stack,
                  future_action_stack,
                  future_reward_stack, 
                  future_state_stack,
-                 buffer_limit,
-                 episode_recorder ):
-    
-    seen = set()
-    latest_episodes = []
-    for ep in reversed(episode_recorder):
-        if ep not in seen:
-            seen.add(ep)
-            latest_episodes.append(ep)
-            if len(latest_episodes) == buffer_limit:
-                break
-    latest_episodes = set(latest_episodes)
+                 history_state_hash_list, 
+                 history_action_hash_list, 
+                 present_state_hash_list, 
+                 future_action_hash_list, 
+                 future_reward_hash_list, 
+                 future_state_hash_list,
+                 buffer_limit ):
 
-    indices = [i for i, ep in enumerate(episode_recorder) if ep in latest_episodes]
-    indices_tensor = torch.tensor(indices, dtype=torch.long, device=present_state_stack.device)
+    probability              = torch.ones(len(present_state_stack)) / len(present_state_stack) 
+    indices_to_keep          = torch.multinomial(probability, min(buffer_limit, len(present_state_stack)), replacement = False)
 
-    history_state_stack      = history_state_stack      [indices_tensor]
-    history_action_stack     = history_action_stack     [indices_tensor]
-    present_state_stack      = present_state_stack      [indices_tensor]
-    future_action_stack      = future_action_stack      [indices_tensor]
-    future_reward_stack      = future_reward_stack      [indices_tensor]
-    future_state_stack       = future_state_stack       [indices_tensor]
-    episode_recorder         = [episode_recorder[i] for i in indices]
-
-    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack, episode_recorder
+    history_state_stack      = history_state_stack      [indices_to_keep]
+    history_action_stack     = history_action_stack     [indices_to_keep]
+    present_state_stack      = present_state_stack      [indices_to_keep]
+    future_action_stack      = future_action_stack      [indices_to_keep]
+    future_reward_stack      = future_reward_stack      [indices_to_keep]
+    future_state_stack       = future_state_stack       [indices_to_keep]
+    history_state_hash_list  = [history_state_hash_list [i] for i in indices_to_keep]
+    history_action_hash_list = [history_action_hash_list[i] for i in indices_to_keep]
+    present_state_hash_list  = [present_state_hash_list [i] for i in indices_to_keep]
+    future_action_hash_list  = [future_action_hash_list [i] for i in indices_to_keep]
+    future_reward_hash_list  = [future_reward_hash_list [i] for i in indices_to_keep]
+    future_state_hash_list   = [future_state_hash_list  [i] for i in indices_to_keep]
+        
+    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack,\
+           history_state_hash_list, history_action_hash_list, present_state_hash_list, future_action_hash_list, future_reward_hash_list, future_state_hash_list
 
 
 
