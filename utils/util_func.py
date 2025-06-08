@@ -97,7 +97,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action_(itrtn_for_planning,
+def update_future_action(itrtn_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -130,7 +130,7 @@ def update_future_action_(itrtn_for_planning,
 
 
 
-def update_future_action(epoch_for_planning,
+def update_future_action_(epoch_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -212,21 +212,32 @@ def update_long_term_experience_replay_buffer(history_state_stack,
                                               future_action_stack,
                                               future_reward_stack, 
                                               future_state_stack,
+                                              episode_recorder,
+                                              last_episode,
                                               history_state_list,
                                               history_action_list,
                                               present_state_list,
                                               future_action_list,
                                               future_reward_list,
                                               future_state_list):
+    
+    num_new_experiences     = len(present_state_list)
+    episode_recorder.extend([last_episode] * num_new_experiences)
 
-    history_state_stack     = torch.cat((history_state_stack,   torch.stack(history_state_list ) ), dim=0)
-    history_action_stack    = torch.cat((history_action_stack,  torch.stack(history_action_list) ), dim=0)
-    present_state_stack     = torch.cat((present_state_stack,   torch.stack(present_state_list ) ), dim=0)
-    future_action_stack     = torch.cat((future_action_stack,   torch.stack(future_action_list ) ), dim=0)
-    future_reward_stack     = torch.cat((future_reward_stack,   torch.stack(future_reward_list ) ), dim=0)
-    future_state_stack      = torch.cat((future_state_stack,    torch.stack(future_state_list  ) ), dim=0)
+    history_state  = torch.stack(history_state_list )
+    history_action = torch.stack(history_action_list)
+    present_state  = torch.stack(present_state_list )
+    future_action  = torch.stack(future_action_list )
+    future_reward  = torch.stack(future_reward_list )
+    future_state   = torch.stack(future_state_list  )
+    history_state_stack     = torch.cat((history_state_stack, history_state    ), dim=0)
+    history_action_stack    = torch.cat((history_action_stack,history_action   ), dim=0)
+    present_state_stack     = torch.cat((present_state_stack, present_state    ), dim=0)
+    future_action_stack     = torch.cat((future_action_stack, future_action    ), dim=0)
+    future_reward_stack     = torch.cat((future_reward_stack, future_reward    ), dim=0)
+    future_state_stack      = torch.cat((future_state_stack,  future_state     ), dim=0)
 
-    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack
+    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack, episode_recorder
 
 
 
@@ -338,7 +349,7 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -369,7 +380,7 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model(epoch_for_learning,
+def update_model_(epoch_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -422,16 +433,31 @@ def limit_buffer(history_state_stack,
                  future_action_stack,
                  future_reward_stack, 
                  future_state_stack,
-                 buffer_limit ):
+                 buffer_limit,
+                 episode_recorder ):
+    
+    seen = set()
+    latest_episodes = []
+    for ep in reversed(episode_recorder):
+        if ep not in seen:
+            seen.add(ep)
+            latest_episodes.append(ep)
+            if len(latest_episodes) == buffer_limit:
+                break
+    latest_episodes = set(latest_episodes)
 
-    history_state_stack      = history_state_stack      [-buffer_limit:]
-    history_action_stack     = history_action_stack     [-buffer_limit:]
-    present_state_stack      = present_state_stack      [-buffer_limit:]
-    future_action_stack      = future_action_stack      [-buffer_limit:]
-    future_reward_stack      = future_reward_stack      [-buffer_limit:]
-    future_state_stack       = future_state_stack       [-buffer_limit:]
-        
-    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack
+    indices = [i for i, ep in enumerate(episode_recorder) if ep in latest_episodes]
+    indices_tensor = torch.tensor(indices, dtype=torch.long, device=present_state_stack.device)
+
+    history_state_stack      = history_state_stack      [indices_tensor]
+    history_action_stack     = history_action_stack     [indices_tensor]
+    present_state_stack      = present_state_stack      [indices_tensor]
+    future_action_stack      = future_action_stack      [indices_tensor]
+    future_reward_stack      = future_reward_stack      [indices_tensor]
+    future_state_stack       = future_state_stack       [indices_tensor]
+    episode_recorder         = [episode_recorder[i] for i in indices]
+
+    return history_state_stack, history_action_stack, present_state_stack, future_action_stack, future_reward_stack, future_state_stack, episode_recorder
 
 
 
