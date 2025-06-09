@@ -61,7 +61,7 @@ def load_buffer_from_pickle(filename):
 
 
 def retrieve_history(state_list, action_list, history_size, device):
-    if (history_size != 0) & (len(action_list [-history_size:]) > 1):
+    if (history_size != 0):
         history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
         history_action    = torch.stack(action_list [-history_size:]    , dim=0).unsqueeze(0).to(device)
     else:
@@ -368,12 +368,12 @@ def update_model_(itrtn_for_learning,
         subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=False)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
-            if history_state.size(1) > 0:
-                history_len = np.random.randint(0, history_state.size(1))
-            else:
-                history_len = 0  
-            history_state    = history_state [:, -history_len:,:]
-            history_action   = history_action[:, -history_len:,:]
+            # if history_state.size(1) > 0:
+            #     history_len = np.random.randint(0, history_state.size(1))
+            # else:
+            #     history_len = 0  
+            # history_state    = history_state [:, -history_len:,:]
+            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -406,12 +406,12 @@ def update_model(itrtn_for_learning,
         subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=False)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
-            if history_state.size(1) > 0:
-                history_len = np.random.randint(0, history_state.size(1))
-            else:
-                history_len = 0  
-            history_state    = history_state [:, -history_len:,:]
-            history_action   = history_action[:, -history_len:,:]
+            # if history_state.size(1) > 0:
+            #     history_len = np.random.randint(0, history_state.size(1))
+            # else:
+            #     history_len = 0  
+            # history_state    = history_state [:, -history_len:,:]
+            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -444,12 +444,12 @@ def update_model_(epoch_for_learning,
 
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
             
-            if history_state.size(1) > 0:
-                history_len = np.random.randint(0, history_state.size(1))
-            else:
-                history_len = 0  
-            history_state    = history_state [:, -history_len:,:]
-            history_action   = history_action[:, -history_len:,:]
+            # if history_state.size(1) > 0:
+            #     history_len = np.random.randint(0, history_state.size(1))
+            # else:
+            #     history_len = 0  
+            # history_state    = history_state [:, -history_len:,:]
+            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
