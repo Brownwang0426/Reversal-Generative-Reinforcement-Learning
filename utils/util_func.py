@@ -61,7 +61,7 @@ def load_buffer_from_pickle(filename):
 
 
 def retrieve_history(state_list, action_list, history_size, device):
-    if (history_size != 0):
+    if history_size != 0:
         history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
         history_action    = torch.stack(action_list [-history_size:]    , dim=0).unsqueeze(0).to(device)
     else:
@@ -97,7 +97,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action(itrtn_for_planning,
+def update_future_action_(itrtn_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -130,7 +130,7 @@ def update_future_action(itrtn_for_planning,
 
 
 
-def update_future_action_(epoch_for_planning,
+def update_future_action(epoch_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -365,15 +365,8 @@ def update_model_(itrtn_for_learning,
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
 
         subset               = Subset(dataset, final_indices)
-        subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=False)
+        subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=True)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
-
-            # if history_state.size(1) > 0:
-            #     history_len = np.random.randint(0, history_state.size(1))
-            # else:
-            #     history_len = 0  
-            # history_state    = history_state [:, -history_len:,:]
-            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -389,7 +382,7 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -403,15 +396,8 @@ def update_model(itrtn_for_learning,
         random_indices = random.sample(range(len(dataset)), batch_size)
 
         subset         = Subset(dataset, random_indices)
-        subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=False)
+        subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=True)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
-
-            # if history_state.size(1) > 0:
-            #     history_len = np.random.randint(0, history_state.size(1))
-            # else:
-            #     history_len = 0  
-            # history_state    = history_state [:, -history_len:,:]
-            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -427,7 +413,7 @@ def update_model(itrtn_for_learning,
 
 
 
-def update_model_(epoch_for_learning,
+def update_model(epoch_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -443,13 +429,6 @@ def update_model_(epoch_for_learning,
     for _ in tqdm(range(epoch_for_learning)):
 
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-            
-            # if history_state.size(1) > 0:
-            #     history_len = np.random.randint(0, history_state.size(1))
-            # else:
-            #     history_len = 0  
-            # history_state    = history_state [:, -history_len:,:]
-            # history_action   = history_action[:, -history_len:,:]
 
             selected_optimizer.zero_grad()
 
@@ -466,13 +445,13 @@ def update_model_(epoch_for_learning,
 
 
 def update_model_list(epoch_itrtn_for_learning,
-                      data_loader,
+                      dataset,
                       model_list,
                       batch_size):
 
     for i, model in enumerate(model_list):
         model_list[i] = update_model(epoch_itrtn_for_learning,
-                                     data_loader,
+                                     dataset,
                                      model,
                                      batch_size)
 
