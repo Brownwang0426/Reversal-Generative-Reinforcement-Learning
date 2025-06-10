@@ -97,7 +97,7 @@ def initialize_desired_reward(shape, device):
 
 
 
-def update_future_action_(itrtn_for_planning,
+def update_future_action(itrtn_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -130,7 +130,7 @@ def update_future_action_(itrtn_for_planning,
 
 
 
-def update_future_action(epoch_for_planning,
+def update_future_action_(epoch_for_planning,
                          model_list,
                          history_state,
                          history_action,
@@ -342,7 +342,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -413,7 +413,7 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model(epoch_for_learning,
+def update_model_(epoch_for_learning,
                  dataset,
                  model,
                  batch_size):
