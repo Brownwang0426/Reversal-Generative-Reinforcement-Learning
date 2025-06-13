@@ -200,7 +200,6 @@ class build_model(nn.Module):
                 
         kv_caches = [dict() for _ in self.transformer_layers]
         q_caches  = [dict() for _ in self.transformer_layers]
-        h_caches  = [dict() for _ in self.transformer_layers]
 
         for i in range(future_a.size(1)):
 
@@ -217,23 +216,13 @@ class build_model(nn.Module):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 q = attention_norm(h)
                 if i == 0:
-
                     q_caches[j], kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
                     h = h + q_caches[j]
-
-                    h_caches[j] = h + fully_connected_linear(fully_connected_norm(h))
-                    h = h_caches[j]
-
                 else:
-
                     q_cache    , kv_caches[j] = attention_linear(q[:, -1:, :], q[:, -1:, :], q[:, -1:, :], self.mask[:, :, long-1:long, long-1:long], kv_cache=kv_caches[j])
                     q_caches[j] = torch.cat([q_caches[j], q_cache], dim=1)
                     h = h + q_caches[j]
-
-                    h_cache = h[:, -1:, :] + fully_connected_linear(fully_connected_norm(h[:, -1:, :]))
-                    h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
-                    h = h_caches[j]
-
+                h = h + fully_connected_linear(fully_connected_norm(h))
             h  = self.transformer_norm(h)
 
             """
