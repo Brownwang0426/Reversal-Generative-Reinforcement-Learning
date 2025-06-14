@@ -97,6 +97,9 @@ def initialize_desired_reward(shape, device):
 
 
 
+"""
+We modified the desired_reward to desired_reward[:, -1, :] in order to avoid swiss roll problem.
+"""
 def update_future_action(itrtn_for_planning,
                          model_list,
                          history_state,
@@ -120,7 +123,7 @@ def update_future_action(itrtn_for_planning,
         loss_function      = model.loss_function
         envisaged_reward, \
         envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward, desired_reward)
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -157,7 +160,7 @@ def update_future_action_(epoch_for_planning,
             loss_function      = model.loss_function
             envisaged_reward, \
             envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward, desired_reward)
+            total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
             total_loss.backward() 
 
             future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -303,14 +306,11 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
 
             if mem_ratio < max_mem_ratio:
                 results.append((bs, duration, mem_ratio))
-                # print(f"✅ bs={bs:4d} 🕒 {duration:.3f}s  💾 {mem_ratio:.1%}")
                 pass
             else:
-                # print(f"❌ bs={bs:4d} exceeded memory limit: {mem_ratio:.1%}")
                 pass
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
-                # print(f"❌ bs={bs:4d} triggerd OOM")
                 pass
             else:
                 raise e
@@ -319,7 +319,6 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
         raise RuntimeError("all batch size OOM")
 
     best_bs = min(results, key=lambda x: x[1])[0]
-    # print(f"\n✅ best batch size：{best_bs}")
     return best_bs
 
 def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
@@ -336,8 +335,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
             
             envisaged_reward, \
             envisaged_state               = model(history_state, history_action, present_state, future_action)
-            total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) # + \
-                                            # torch.sum(torch.abs(loss_function(envisaged_state , future_state ) ), dim=(1, 2))
+            total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) ), dim=(1)) 
             TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
