@@ -332,7 +332,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
             
             envisaged_reward, \
             envisaged_state               = model(history_state, history_action, present_state, future_action)
-            total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1)) 
+            total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1,2)) 
             TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
