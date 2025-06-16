@@ -54,9 +54,9 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     state_1 = (torch.eye(16)[state].to(device) - 0.5) * 2
-    if done:
+    if done or truncated:
         state_2 = torch.ones(10).to(device)
     else:
         state_2 = torch.zeros(10).to(device) - 1
@@ -69,13 +69,13 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
     return vectorized_action, action_argmax
 
-def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    if done: 
+def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
+    if done or truncated: 
         if (state == 15):         # If the agent reaches goal
             reward = torch.ones(reward_size).to(device)
         else:
             reward = torch.zeros(reward_size).to(device) - 1
-    elif state:
+    elif state is not None:
         x, y = divmod(state, 4)
         distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         max_distance = np.sqrt(3**2 + 3**2)  # 4.24

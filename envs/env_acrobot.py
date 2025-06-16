@@ -54,14 +54,14 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     state_0 = quantifying(-1, 1, 100,      -1,      1 , state[0], device)
     state_1 = quantifying(-1, 1, 100,      -1,      1 , state[1], device)
     state_2 = quantifying(-1, 1, 100,      -1,      1 , state[2], device)
     state_3 = quantifying(-1, 1, 100,      -1,      1 , state[3], device)
     state_4 = quantifying(-1, 1, 100, -12.567, 12.567 , state[4], device)
     state_5 = quantifying(-1, 1, 100, -28.274, 28.274 , state[5], device)
-    if done:
+    if done or truncated:
         state_6 = torch.ones(100).to(device)
     else:
         state_6 = torch.zeros(100).to(device) - 1
@@ -74,9 +74,14 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
     return vectorized_action, action_argmax
 
-def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    if done:
-        reward = torch.ones(reward_size).to(device) 
+def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
+    if done or truncated: 
+        if done:
+            reward = torch.ones(reward_size).to(device) 
+        else:
+            reward = torch.zeros(reward_size).to(device) - 1
+    elif state is not None:
+        reward = torch.zeros(reward_size).to(device) - 1
     else:
         reward = torch.zeros(reward_size).to(device) - 1
     return reward
