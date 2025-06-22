@@ -150,12 +150,7 @@ class build_model(nn.Module):
 
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
-
-        self.residual_layers      = \
-        nn.ModuleList([
-            nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-            for _ in range(self.num_layers + 1)
-        ])
+        self.residual_layer       = nn.Linear(self.feature_size, self.feature_size , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -228,10 +223,8 @@ class build_model(nn.Module):
                     q_caches[j], kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
                     h = h + q_caches[j]
 
-                    h_caches[j] = h + fully_connected_linear(fully_connected_norm(h)) 
+                    h_caches[j] = h + fully_connected_linear(fully_connected_norm(h))
                     h = h_caches[j]
-
-                    h = h + self.residual_layers[j](h_res)
 
                 else:
 
@@ -242,10 +235,8 @@ class build_model(nn.Module):
                     h_cache = h[:, -1:, :] + fully_connected_linear(fully_connected_norm(h[:, -1:, :]))
                     h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
                     h = h_caches[j]
-
-                    h = h + self.residual_layers[j](h_res)
-
-            h  = self.transformer_norm(h + self.residual_layers[-1](h_res))
+            
+            h  = self.transformer_norm(h + self.residual_layer(h_res))
 
             """
             We utilize the last idx in h to derive the latest reward and state.
