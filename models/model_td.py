@@ -217,7 +217,7 @@ class build_model(nn.Module):
             """
             Transformer decoder
             """
-            h_res = h
+            # h_res = h
             long  = h.size(1)
             h     = h + self.positional_encoding[:, :long, :]
             for j, layer in enumerate(self.transformer_layers):
@@ -231,7 +231,7 @@ class build_model(nn.Module):
                     h_caches[j] = h + fully_connected_linear(fully_connected_norm(h)) 
                     h = h_caches[j]
 
-                    h = h + self.residual_layers[j](h_res)
+                    # h = h + self.residual_layers[j](h_res)
 
                 else:
 
@@ -243,9 +243,9 @@ class build_model(nn.Module):
                     h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
                     h = h_caches[j]
 
-                    h = h + self.residual_layers[j](h_res)
+                    # h = h + self.residual_layers[j](h_res)
 
-            h  = self.transformer_norm(h + self.residual_layers[-1](h_res))
+            h  = self.transformer_norm(h) # + self.residual_layers[-1](h_res))
 
             """
             We utilize the last idx in h to derive the latest reward and state.
