@@ -72,7 +72,7 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     return vectorized_action, action_argmax
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)
+    reward = quantifying(-1, 1, reward_size, -1, 1, reward, device)
     return reward
 
 class randomizer(gym.Wrapper):

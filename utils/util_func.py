@@ -337,7 +337,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  dataset,
                  model,
                  batch_size):
@@ -377,7 +377,7 @@ def update_model(itrtn_for_learning,
 
 
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model,
                  batch_size):
