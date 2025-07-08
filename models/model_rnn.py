@@ -140,10 +140,6 @@ class build_model(nn.Module):
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
 
-        kv_caches = [dict() for _ in self.transformer_layers]
-        q_caches  = [dict() for _ in self.transformer_layers]
-        h_caches  = [dict() for _ in self.transformer_layers]
-
         for i in range(future_a.size(1)):
 
             history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)

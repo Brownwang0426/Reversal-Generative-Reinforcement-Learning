@@ -324,12 +324,13 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
     
     TD_error     = torch.tensor([]).to(device)
 
-    model.eval()
-    loss_function = model.loss_function_
     with torch.no_grad():
 
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-            
+                    
+            model.eval()
+
+            loss_function                 = model.loss_function_
             envisaged_reward, \
             envisaged_state               = model(history_state, history_action, present_state, future_action)
             total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) + \
@@ -343,9 +344,7 @@ def update_model(itrtn_for_learning,
                  model,
                  batch_size):
     
-    model.train()
-    selected_optimizer = model.selected_optimizer
-    loss_function      = model.loss_function
+
 
     device         = next(model.parameters()).device
     td_error_batch = find_optimal_batch_size(model, dataset, device=device)
@@ -363,9 +362,12 @@ def update_model(itrtn_for_learning,
         subset               = Subset(dataset, final_indices)
         subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=True)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
-
+            
+            model.train()
+            selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
 
+            loss_function               = model.loss_function
             envisaged_reward, \
             envisaged_state             = model(history_state, history_action, present_state, future_action)
             total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
@@ -383,10 +385,6 @@ def update_model_(itrtn_for_learning,
                  model,
                  batch_size):
         
-    model.train()
-    selected_optimizer = model.selected_optimizer
-    loss_function      = model.loss_function
-
     for _ in tqdm(range(itrtn_for_learning)):
 
         random_indices = random.sample(range(len(dataset)), batch_size)
@@ -395,8 +393,11 @@ def update_model_(itrtn_for_learning,
         subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=True)
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
+            model.train()
+            selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
 
+            loss_function               = model.loss_function
             envisaged_reward, \
             envisaged_state             = model(history_state, history_action, present_state, future_action)
             total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
@@ -418,16 +419,16 @@ def update_model_(epoch_for_learning,
                                  batch_size = batch_size, 
                                  shuffle=True)
 
-    model.train()
-    selected_optimizer = model.selected_optimizer
-    loss_function      = model.loss_function
 
     for _ in tqdm(range(epoch_for_learning)):
 
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
 
+            model.train()
+            selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
-
+    
+            loss_function               = model.loss_function
             envisaged_reward, \
             envisaged_state             = model(history_state, history_action, present_state, future_action)
             total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
