@@ -37,6 +37,29 @@ import concurrent.futures
 import hashlib
 
 
+
+
+class DeterministicDropout(nn.Module):
+    def __init__(self, p=0.5):
+        super(DeterministicDropout, self).__init__()
+        self.p = p
+        self.drop_mask = None
+        self.locked = False
+
+    def forward(self, x):
+        if not self.locked:
+            self.drop_mask = (torch.rand_like(x.sum(dim=tuple(range(x.ndim - 1)))) > self.p).float()
+        return x * self.drop_mask
+
+    def lock(self):
+        self.locked = True
+
+    def unlock(self):
+        self.locked = False
+
+
+
+
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
@@ -50,8 +73,6 @@ class custom_attn(nn.Module):
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = nn.Dropout(self.drop_rate)
-        self.resid_dropout = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
@@ -67,7 +88,6 @@ class custom_attn(nn.Module):
             attn_scores += 0
 
         attn_probs = torch.softmax(attn_scores, dim=-1) 
-        attn_probs = self.attn_dropout (attn_probs)
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
 
@@ -89,7 +109,6 @@ class custom_attn(nn.Module):
             kv_cache['v'] = V
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         output      = self.W_o(self.combine_heads(attn_output))
-        output      = self.resid_dropout(output)
         return output, kv_cache
 
 
@@ -131,6 +150,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.dropout_0            = DeterministicDropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
@@ -148,6 +168,7 @@ class build_model(nn.Module):
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
+        self.dropout_1            = DeterministicDropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
@@ -212,7 +233,8 @@ class build_model(nn.Module):
 
             history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
 
-            h  = torch.tanh(history_s_a)
+            h = torch.tanh(history_s_a)
+            h = self.dropout_0(h)
 
             """
             Transformer decoder
@@ -250,6 +272,7 @@ class build_model(nn.Module):
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
+            h = self.dropout_1(h)
             r = self.reward_linear(h[:, - 1, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1, :])   
@@ -288,6 +311,16 @@ class build_model(nn.Module):
             'xavier_normal': nn.init.xavier_normal_
         }
         initializer = initializers[initializer.lower()]
-        for layer in self.modules():
-            if isinstance(layer, nn.Linear):
-                initializer(layer.weight)
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                initializer(module.weight)
+
+    def lock(self):
+        for module in self.modules():
+            if isinstance(module, DeterministicDropout):
+                module.lock()
+
+    def unlock(self):
+        for module in self.modules():
+            if isinstance(module, DeterministicDropout):
+                module.unlock()

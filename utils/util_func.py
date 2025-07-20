@@ -103,10 +103,15 @@ def update_future_action(itrtn_for_planning,
                          history_action,
                          present_state,
                          future_action,
-                         desired_reward,
+                         desired_reward_,
                          beta):
     
+    desired_reward_ = desired_reward_[:, -1, :]
+
     for _ in range(itrtn_for_planning):
+
+        drop_mask = (torch.rand_like(desired_reward_.sum(dim=tuple(range(desired_reward_.ndim - 1)))) > 0.2).float()
+        desired_reward = desired_reward_ * drop_mask
 
         model              = random.choice(model_list)
 
@@ -114,13 +119,14 @@ def update_future_action(itrtn_for_planning,
         future_action_     = future_action_.detach().requires_grad_(True)
 
         model.train()
+        model.unlock()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
         
         loss_function      = model.loss_function
         envisaged_reward, \
         envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward)
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -151,6 +157,7 @@ def update_future_action_(epoch_for_planning,
             future_action_     = future_action_.detach().requires_grad_(True)
 
             model.train()
+            model.unlock()
             selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
             
@@ -319,23 +326,22 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
     return best_bs
 
 def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
-    
+
     data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False)
     
     TD_error     = torch.tensor([]).to(device)
 
-    with torch.no_grad():
+    for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
 
-        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-                    
-            model.eval()
+        model.train()
+        model.lock()
 
-            loss_function                 = model.loss_function_
-            envisaged_reward, \
-            envisaged_state               = model(history_state, history_action, present_state, future_action)
-            total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) + \
-                                            torch.sum(torch.abs(loss_function(envisaged_state , future_state)  ), dim=(1, 2)) 
-            TD_error                      = torch.cat((TD_error, total_loss.detach()))  
+        loss_function                 = model.loss_function_
+        envisaged_reward, \
+        envisaged_state               = model(history_state, history_action, present_state, future_action)
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) + \
+                                        torch.sum(torch.abs(loss_function(envisaged_state , future_state)  ), dim=(1, 2)) 
+        TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
 
@@ -344,15 +350,21 @@ def update_model(itrtn_for_learning,
                  model,
                  batch_size):
     
-
-
     device         = next(model.parameters()).device
     td_error_batch = find_optimal_batch_size(model, dataset, device=device)
     PER_epsilon    = 1e-10
     PER_exponent   = 2
 
     for _ in tqdm(range(itrtn_for_learning)):
-    
+
+        model.train()
+        model.unlock()
+        data_loader  = DataLoader(dataset, batch_size = 1)
+        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
+            _, _ = model(history_state, history_action, present_state, future_action)
+            break
+        model.lock()
+
         obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
@@ -364,6 +376,7 @@ def update_model(itrtn_for_learning,
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
             
             model.train()
+            model.lock()
             selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
 
@@ -418,7 +431,6 @@ def update_model_(epoch_for_learning,
     data_loader  = DataLoader   (dataset, 
                                  batch_size = batch_size, 
                                  shuffle=True)
-
 
     for _ in tqdm(range(epoch_for_learning)):
 
