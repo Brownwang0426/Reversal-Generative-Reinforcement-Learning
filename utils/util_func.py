@@ -340,6 +340,26 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
+def normalize_prob(priority_probability):
+
+    topk = torch.topk(priority_probability, k=3)
+    top_indices = topk.indices
+
+    new_prob = torch.zeros_like(priority_probability)
+
+    new_prob[top_indices[0]] = 0.5
+    new_prob[top_indices[1]] = 0.25
+    new_prob[top_indices[2]] = 0.125
+
+    all_indices = torch.arange(len(priority_probability))
+    other_indices = torch.tensor([i for i in all_indices if i not in top_indices])
+
+    if len(other_indices) > 0:
+        rest_value = 0.125 / len(other_indices)
+        new_prob[other_indices] = rest_value
+
+    return new_prob
+
 def update_model(itrtn_for_learning,
                  dataset,
                  model,
@@ -364,6 +384,7 @@ def update_model(itrtn_for_learning,
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
+        priority_probability = normalize_prob(priority_probability)
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
 
         subset               = Subset(dataset, final_indices)
