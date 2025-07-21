@@ -103,15 +103,10 @@ def update_future_action(itrtn_for_planning,
                          history_action,
                          present_state,
                          future_action,
-                         desired_reward_,
+                         desired_reward,
                          beta):
-    
-    desired_reward_ = desired_reward_[:, -1, :]
 
     for _ in range(itrtn_for_planning):
-
-        drop_mask = (torch.rand_like(desired_reward_.sum(dim=tuple(range(desired_reward_.ndim - 1)))) > 0.2).float()
-        desired_reward = desired_reward_ * drop_mask
 
         model              = random.choice(model_list)
 
@@ -126,7 +121,7 @@ def update_future_action(itrtn_for_planning,
         loss_function      = model.loss_function
         envisaged_reward, \
         envisaged_state    = model(history_state, history_action, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward)
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -407,6 +402,7 @@ def update_model_(itrtn_for_learning,
         for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
 
             model.train()
+            model.unlock()
             selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
 
@@ -437,6 +433,7 @@ def update_model_(epoch_for_learning,
         for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
 
             model.train()
+            model.unlock()
             selected_optimizer = model.selected_optimizer
             selected_optimizer.zero_grad()
     
