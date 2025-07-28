@@ -55,6 +55,7 @@ seed = None                          #⚠️
 
 load_pretrained_model = True
 
+group_size    = 3                    #◀️
 ensemble_size = 10                   #◀️
 
 state_size =  260                    #⚠️
@@ -89,6 +90,8 @@ batch_size_for_executing = 1         #⚠️
 batch_size_for_learning = 1          #⚠️       
 
 buffer_limit = 100000   
+
+
 
 
 
@@ -236,7 +239,8 @@ if load_pretrained_model == True:
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
     current_episode = training_episode + last_episode + 1
-    model_list_chunk = random.sample(model_list, 3)
+    random_index     = np.random.randint(len(model_list) - group_size + 1) 
+    model_list_chunk = model_list[random_index:random_index + group_size]
     
     # initializing summed reward
     summed_reward  = 0
