@@ -52,8 +52,8 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 2500    #⚠️
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
 
 load_pretrained_model = True
@@ -61,12 +61,12 @@ load_pretrained_model = True
 group_size    = 2                    #◀️
 ensemble_size = 6                    #◀️
 
-state_size =  260                    #⚠️
-action_size = 3                      #⚠️
+state_size = 36                      #⚠️
+action_size = 5                      #⚠️
 reward_size = 110                    #⚠️
-feature_size = 500                   #⚠️
-history_size  = 0                    #⚠️
-future_size = 25                     #⚠️
+feature_size = 250                   #⚠️
+history_size  = 20                   #⚠️
+future_size = 5                      #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -82,7 +82,7 @@ init_ = "random_uniform"
 greed_epsilon_t     = 1
 greed_epsilon_r     = 0.2    
 beta = 0.1                     
-itrtn_for_planning  = 10      
+itrtn_for_planning  = 10     
 
 episode_for_training = 100000
 
@@ -93,6 +93,12 @@ batch_size_for_executing = 1         #⚠️
 batch_size_for_learning = 1          #⚠️       
 
 buffer_limit = 100000   
+
+
+
+
+
+
 
 
 
@@ -260,7 +266,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(torch.zeros(reward_size ).to(device) - 1 ) 
 
     # initializing environment
-    env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
+    env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
     # if current_episode % episode_for_validation != 0:
     #     env = randomizer(env)
     state, info    = env.reset(seed = seed)
