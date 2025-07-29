@@ -82,13 +82,13 @@ init_ = "random_uniform"
 greed_epsilon_t     = 1
 greed_epsilon_r     = 0.2    
 beta = 0.1                     
-itrtn_for_planning  = 25        
+itrtn_for_planning  = 10      
 
 episode_for_training = 100000
 
 episode_for_validation = 10         
 
-batch_size_for_executing = 5         #⚠️
+batch_size_for_executing = 1         #⚠️
 
 batch_size_for_learning = 1          #⚠️       
 
