@@ -49,14 +49,17 @@ torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
 
+
+
+
 game_name = 'CartPole-v1'            #⚠️
 max_steps_for_each_episode = 2500    #⚠️
 seed = None                          #⚠️
 
 load_pretrained_model = True
 
-group_size    = 3                    #◀️
-ensemble_size = 10                   #◀️
+group_size    = 2                    #◀️
+ensemble_size = 6                    #◀️
 
 state_size =  260                    #⚠️
 action_size = 3                      #⚠️
@@ -71,7 +74,7 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.0
+drop_rate = 0.2
 alpha = 0.1                  
 itrtn_for_learning  = 100
 
@@ -85,7 +88,7 @@ episode_for_training = 100000
 
 episode_for_validation = 10         
 
-batch_size_for_executing = 1         #⚠️
+batch_size_for_executing = 5         #⚠️
 
 batch_size_for_learning = 1          #⚠️       
 
@@ -239,8 +242,7 @@ if load_pretrained_model == True:
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
     current_episode = training_episode + last_episode + 1
-    random_index     = np.random.randint(len(model_list) - group_size + 1) 
-    model_list_chunk = model_list[random_index:random_index + group_size]
+    model_list_chunk = random.sample(model_list, 3)
     
     # initializing summed reward
     summed_reward  = 0
