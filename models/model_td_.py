@@ -152,7 +152,7 @@ class build_model(nn.Module):
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
         self.dropout_0            = DeterministicDropout(self.drop_rate)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.sequence_size, self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
@@ -164,7 +164,7 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, 2 * self.sequence_size, 2 * self.sequence_size), float("-inf"))
+        mask                      = torch.full((1, 1, self.sequence_size, self.sequence_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
@@ -214,23 +214,20 @@ class build_model(nn.Module):
         present_s = self.state_linear (present_s.unsqueeze(1))
         future_a  = self.action_linear(future_a) 
 
-        window_list   = list()
         if history_s.size(1) > 0:
-            for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1]) 
-                window_list.append(history_a[:, i:i+1]) 
-        window_list.append(present_s)
-
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
         kv_caches = [dict() for _ in self.transformer_layers]
         q_caches  = [dict() for _ in self.transformer_layers]
         h_caches  = [dict() for _ in self.transformer_layers]
 
         for i in range(future_a.size(1)):
-            
-            window_list.append(future_a[:, i:i+1])
-            h  = torch.cat(window_list, dim=1)
 
-            h  = torch.tanh(h)
+            history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+
+            h = torch.tanh(history_s_a)
             h = self.dropout_0(h)
 
             """
@@ -251,11 +248,11 @@ class build_model(nn.Module):
 
                 else:
 
-                    q_cache    , kv_caches[j] = attention_linear(q[:, -2:, :], q[:, -2:, :], q[:, -2:, :], self.mask[:, :, (long-2):long, :long], kv_cache=kv_caches[j])
+                    q_cache    , kv_caches[j] = attention_linear(q[:, -1:, :], q[:, -1:, :], q[:, -1:, :], self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
                     q_caches[j] = torch.cat([q_caches[j], q_cache], dim=1)
                     h = h + q_caches[j]
 
-                    h_cache = h[:, -2:, :] + fully_connected_linear(fully_connected_norm(h[:, -2:, :]))
+                    h_cache = h[:, -1:, :] + fully_connected_linear(fully_connected_norm(h[:, -1:, :]))
                     h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
                     h = h_caches[j]
 
@@ -275,8 +272,6 @@ class build_model(nn.Module):
 
             present_s = s
             present_s = self.state_linear(present_s.unsqueeze(1))
-
-            window_list.append(present_s)
 
         future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
