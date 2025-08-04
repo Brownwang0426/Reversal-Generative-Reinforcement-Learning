@@ -164,8 +164,11 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, 2 * self.sequence_size, 2 * self.sequence_size), float("-inf"))
-        mask                      = torch.triu(mask , diagonal=1)
+        size = 2 * self.sequence_size
+        i = torch.arange(size).unsqueeze(1)  
+        j = torch.arange(size).unsqueeze(0) 
+        mask = torch.where(j <= i*2 + 1, torch.tensor(0.0), torch.tensor(float("-inf")))
+        mask = mask.unsqueeze(0).unsqueeze(0) 
         self.register_buffer('mask', mask)  
 
         self.dropout_1            = DeterministicDropout(self.drop_rate)
@@ -267,7 +270,7 @@ class build_model(nn.Module):
             h = self.dropout_1(h)
             r = self.reward_linear(h[:, - 1, :])  
             r = torch.tanh(r)
-            s = self.state_linear_(h[:, - 1, :])   
+            s = self.state_linear_(h[:, - 2, :])   
             s = torch.tanh(s)
 
             future_r_list.append(r)
