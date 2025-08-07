@@ -384,7 +384,7 @@ def update_model(itrtn_for_learning,
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
-        priority_probability = normalize_prob(priority_probability)
+        # priority_probability = normalize_prob(priority_probability)
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
 
         subset               = Subset(dataset, final_indices)
