@@ -58,8 +58,7 @@ seed = None                          #⚠️
 
 load_pretrained_model = True
 
-group_size    = 4                    #◀️
-ensemble_size = 12                   #◀️
+ensemble_size = 25                   #◀️
 
 state_size = 36                      #⚠️
 action_size = 5                      #⚠️
@@ -74,15 +73,15 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning  = 100
 
 init_ = "random_uniform"
 greed_epsilon_t     = 1
-greed_epsilon_r     = 0.1    
+greed_epsilon_r     = 0.01    
 beta = 0.1                     
-itrtn_for_planning  = 25        
+itrtn_for_planning  = 5        
 
 episode_for_training = 100000
 
@@ -251,12 +250,10 @@ if load_pretrained_model == True:
 
 
 
+
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
     current_episode  = training_episode + last_episode + 1
-    size_            = int(ensemble_size/group_size)
-    random_index     = np.random.randint(len(model_list) - size_ + 1) 
-    model_list_chunk = model_list[random_index:random_index + size_]
     
     # initializing summed reward
     summed_reward  = 0
@@ -300,7 +297,7 @@ for training_episode in tqdm(range(episode_for_training)):
         future_action   = initialize_future_action(init_, greed_epsilon_t, greed_epsilon_r, (1, future_size, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
         future_action   = update_future_action(itrtn_for_planning,
-                                               model_list_chunk,
+                                               model_list,
                                                history_state ,
                                                history_action,
                                                present_state,
@@ -495,10 +492,3 @@ for training_episode in tqdm(range(episode_for_training)):
     # clear up
     gc.collect()
     torch.cuda.empty_cache()
-
-
-
-
-
-
-
