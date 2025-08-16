@@ -85,8 +85,6 @@ itrtn_for_planning  = 5
 
 episode_for_training = 100000
 
-episode_for_validation = 10         
-
 batch_size_for_executing = 1         #⚠️
 
 batch_size_for_learning = 1          #⚠️       
@@ -272,8 +270,6 @@ for training_episode in tqdm(range(episode_for_training)):
 
     # initializing environment
     env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-    # if current_episode % episode_for_validation != 0:
-    #     env = randomizer(env)
     state, info    = env.reset(seed = seed)
     
     # observing state
@@ -289,6 +285,9 @@ for training_episode in tqdm(range(episode_for_training)):
         
         """
         We let agent took some history states and actions into consideration.
+        """
+        """
+        The final desired reward is factually the last time step in desired reward.
         """
         # initializing and updating action by desired reward                                  
         history_state, \

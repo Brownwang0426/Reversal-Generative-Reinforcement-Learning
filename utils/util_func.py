@@ -35,6 +35,9 @@ warnings.filterwarnings('ignore')
 import concurrent.futures
 import hashlib
 
+import torch, time, gc
+from torch.utils.data import DataLoader
+
 
 
 
@@ -278,11 +281,9 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
-    import torch, time, gc
-    from torch.utils.data import DataLoader
 
     if bs_list is None:
-        bs_list = [32, 64, 128, 256, 512, 1024]
+        bs_list = [1, 8, 16, 32, 64, 128, 256, 512, 1024]
 
     torch.cuda.set_device(device)
     total_mem = torch.cuda.get_device_properties(device).total_memory
@@ -334,31 +335,10 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         loss_function                 = model.loss_function_
         envisaged_reward, \
         envisaged_state               = model(history_state, history_action, present_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) # + \
-                                        # torch.sum(torch.abs(loss_function(envisaged_state , future_state)  ), dim=(1, 2)) 
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2))
         TD_error                      = torch.cat((TD_error, total_loss.detach()))  
 
     return TD_error
-
-def normalize_prob(priority_probability):
-
-    topk = torch.topk(priority_probability, k=3)
-    top_indices = topk.indices
-
-    new_prob = torch.zeros_like(priority_probability)
-
-    new_prob[top_indices[0]] = 0.125
-    new_prob[top_indices[1]] = 0.125 / 2
-    new_prob[top_indices[2]] = (0.125 / 2) / 2
-
-    all_indices = torch.arange(len(priority_probability))
-    other_indices = torch.tensor([i for i in all_indices if i not in top_indices])
-
-    if len(other_indices) > 0:
-        rest_value = 0.125 / len(other_indices)
-        new_prob[other_indices] = rest_value
-
-    return new_prob
 
 def update_model(itrtn_for_learning,
                  dataset,
@@ -384,7 +364,6 @@ def update_model(itrtn_for_learning,
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
-        # priority_probability = normalize_prob(priority_probability)
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
 
         subset               = Subset(dataset, final_indices)
