@@ -58,14 +58,14 @@ seed = None                          #⚠️
 
 load_pretrained_model = True
 
-ensemble_size = 25                   #◀️
+ensemble_size = 10                   #◀️
 
 state_size = 36                      #⚠️
 action_size = 5                      #⚠️
 reward_size = 110                    #⚠️
-feature_size = 150                   #⚠️
+feature_size = 200                   #⚠️
 history_size = 0                     #⚠️
-future_size = 8                      #⚠️
+future_size = 5                      #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -79,7 +79,7 @@ itrtn_for_learning  = 100
 
 init_ = "random_uniform"
 greed_epsilon_t     = 1
-greed_epsilon_r     = 0.01    
+greed_epsilon_r     = 0.1    
 beta = 0.1                     
 itrtn_for_planning  = 5        
 
@@ -142,7 +142,7 @@ else:
 
 
 model_modules = {
-    'td': 'models.model_td',
+    'td': 'models.model_td_mini',
     'rnn': 'models.model_rnn',
     'gru': 'models.model_rnn',
     'lstm': 'models.model_rnn'
