@@ -364,24 +364,29 @@ def update_model(itrtn_for_learning,
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
-        final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
+        final_indices        = torch.multinomial(priority_probability, batch_size, replacement=True)
 
-        subset               = Subset(dataset, final_indices)
-        subset_loader        = DataLoader(subset, batch_size=batch_size, shuffle=True)
-        for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
-            
-            model.train()
-            model.lock()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        batch_samples  = [dataset[i] for i in final_indices]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state )
+        history_action = torch.stack(history_action)
+        present_state  = torch.stack(present_state )
+        future_action  = torch.stack(future_action )
+        future_reward  = torch.stack(future_reward )
+        future_state   = torch.stack(future_state  )
 
-            loss_function               = model.loss_function
-            envisaged_reward, \
-            envisaged_state             = model(history_state, history_action, present_state, future_action)
-            total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-            total_loss.backward()     
+        model.train()
+        model.lock()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
 
-            selected_optimizer.step() 
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+
+        selected_optimizer.step() 
 
     return model
 
@@ -397,22 +402,27 @@ def update_model_(itrtn_for_learning,
 
         random_indices = random.sample(range(len(dataset)), batch_size)
 
-        subset         = Subset(dataset, random_indices)
-        subset_loader  = DataLoader(subset, batch_size=batch_size, shuffle=True)
-        for history_state, history_action, present_state, future_action, future_reward, future_state in subset_loader:
+        batch_samples  = [dataset[i] for i in random_indices]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state )
+        history_action = torch.stack(history_action)
+        present_state  = torch.stack(present_state )
+        future_action  = torch.stack(future_action )
+        future_reward  = torch.stack(future_reward )
+        future_state   = torch.stack(future_state  )
 
-            model.train()
-            model.unlock()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
+        model.train()
+        model.unlock()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
 
-            loss_function               = model.loss_function
-            envisaged_reward, \
-            envisaged_state             = model(history_state, history_action, present_state, future_action)
-            total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-            total_loss.backward()     
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
 
-            selected_optimizer.step() 
+        selected_optimizer.step() 
 
     return model
 

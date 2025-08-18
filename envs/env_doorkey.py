@@ -56,12 +56,12 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     null_state = torch.ones(10).to(device)
-    state_0 = quantifying(-1, 1, 10,  1 , 4, state['direction'], device)
-    state_1 = (torch.tensor(state['image'].ravel()/10).to(device) - 0.5) * 2
     if done or truncated:
-        state_2 = torch.ones(100).to(device)
+        state_0 = torch.ones(100).to(device)
     else:
-        state_2 = torch.zeros(100).to(device) - 1
+        state_0 = torch.zeros(100).to(device) - 1
+    state_1 = quantifying(-1, 1, 10,  1 , 4, state['direction'], device)
+    state_2 = (torch.tensor(state['image'].ravel()/10).to(device) - 0.5) * 2
     state   = torch.cat((null_state, state_0.float(), state_1.float(), state_2.float()), dim = 0)
     return state
 
@@ -70,18 +70,16 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, 1:]))
     vectorized_action = (torch.eye(action_size)[action_argmax + 1 ].to(device) - 0.5) * 2
     vectorized_action[0] = 1
-    return vectorized_action, action_argmax 
+    return vectorized_action, action_argmax  
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):     # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_reward = torch.ones(10).to(device)
     if done or truncated: 
         if done:
-            reward = quantifying(-1, 1, reward_size - 10, 0, 1, reward, device)      
+            reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)      
         else:
-            reward = torch.zeros(reward_size - 10).to(device) - 1
+            reward = torch.zeros(reward_size ).to(device) - 1
     else:
-        reward = quantifying(-1, 1, reward_size - 10, 0, 1, reward, device)
-    reward = torch.cat((null_reward, reward), dim = 0)
+        reward = quantifying(-1, 1, reward_size , 0, 1, reward, device)
     return reward
 
 

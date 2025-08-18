@@ -61,8 +61,8 @@ load_pretrained_model = True
 ensemble_size = 10                   #◀️
 
 state_size = 36                      #⚠️
-action_size = 5                      #⚠️
-reward_size = 110                    #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
 feature_size = 200                   #⚠️
 history_size = 0                     #⚠️
 future_size = 5                      #⚠️
@@ -143,9 +143,9 @@ else:
 
 model_modules = {
     'td': 'models.model_td_mini',
-    'rnn': 'models.model_rnn',
-    'gru': 'models.model_rnn',
-    'lstm': 'models.model_rnn'
+    'rnn': 'models.model_rnn_mini',
+    'gru': 'models.model_rnn_mini',
+    'lstm': 'models.model_rnn_mini'
 }
 if neural_type in model_modules:
     model_module = __import__(model_modules[neural_type], fromlist=['build_model'])
@@ -256,9 +256,6 @@ for training_episode in tqdm(range(episode_for_training)):
     # initializing summed reward
     summed_reward  = 0
 
-    """
-    We let agent took some history states and actions into consideration.
-    """
     # initializing short term experience replay buffer
     state_list  = []
     action_list = []
