@@ -346,18 +346,24 @@ def update_model(itrtn_for_learning,
                  batch_size):
     
     device         = next(model.parameters()).device
-    td_error_batch = find_optimal_batch_size(model, dataset, device=device)
+    td_error_batch = len(dataset) # find_optimal_batch_size(model, dataset, device=device)
     PER_epsilon    = 1e-10
     PER_exponent   = 2
 
     for _ in tqdm(range(itrtn_for_learning)):
 
+
+        batch_samples  = [dataset[0]]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state )
+        history_action = torch.stack(history_action)
+        present_state  = torch.stack(present_state )
+        future_action  = torch.stack(future_action )
+        future_reward  = torch.stack(future_reward )
+        future_state   = torch.stack(future_state  )
         model.train()
         model.unlock()
-        data_loader  = DataLoader(dataset, batch_size = 1)
-        for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-            _, _ = model(history_state, history_action, present_state, future_action)
-            break
+        _, _ = model(history_state, history_action, present_state, future_action)
         model.lock()
 
         obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
@@ -365,6 +371,7 @@ def update_model(itrtn_for_learning,
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=True)
+
 
         batch_samples  = [dataset[i] for i in final_indices]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
