@@ -141,11 +141,17 @@ else:
 
 
 
+
 model_modules = {
-    'td': 'models.model_td_mini',
-    'rnn': 'models.model_rnn_mini',
-    'gru': 'models.model_rnn_mini',
-    'lstm': 'models.model_rnn_mini'
+    'td_mini': 'models.model_td_mini',
+    'rnn_mini': 'models.model_rnn_mini',
+    'gru_mini': 'models.model_rnn_mini',
+    'lstm_mini': 'models.model_rnn_mini',
+    'td': 'models.model_td',
+    'rnn': 'models.model_rnn',
+    'gru': 'models.model_rnn',
+    'lstm': 'models.model_rnn',
+    'td_rnn': 'models.model_td_rnn'
 }
 if neural_type in model_modules:
     model_module = __import__(model_modules[neural_type], fromlist=['build_model'])
