@@ -66,7 +66,7 @@ def vectorizing_state(state, done, truncated, device):      # Reminder: change t
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2) 
-    action_argmax     = int(torch.argmax(torch.sum( pre_activated_actions[:, 0, :], dim=0) )) 
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
     vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
     return vectorized_action, action_argmax 
 

@@ -109,29 +109,25 @@ def update_future_action(itrtn_for_planning,
                          desired_reward,
                          beta):
 
-    for i in range(future_action.size(0)):
+    for _ in range(itrtn_for_planning):
 
-        _future_action = future_action[i].unsqueeze(0)
+        model              = random.choice(model_list)
 
-        for _ in range(itrtn_for_planning):
+        future_action_     = torch.tanh(future_action)
+        future_action_     = future_action_.detach().requires_grad_(True)
 
-            model              = random.choice(model_list)
+        model.train()
+        model.unlock()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+        
+        loss_function      = model.loss_function
+        envisaged_reward, \
+        envisaged_state    = model(history_state, history_action, present_state, future_action_)
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
+        total_loss.backward() 
 
-            future_action_     = torch.tanh(_future_action)
-            future_action_     = future_action_.detach().requires_grad_(True)
-
-            model.train()
-            model.unlock()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
-            
-            loss_function      = model.loss_function
-            envisaged_reward, \
-            envisaged_state    = model(history_state, history_action, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
-            total_loss.backward() 
-
-            future_action[i]     -= (future_action_.grad * (1 - future_action_ * future_action_) * beta )[0]
+        future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
 
     return future_action
 

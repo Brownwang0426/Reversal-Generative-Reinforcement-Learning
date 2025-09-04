@@ -52,6 +52,7 @@ torch.backends.cudnn.benchmark = True
 
 
 
+
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
@@ -66,7 +67,7 @@ reward_size = 100                    #⚠️
 feature_size = 200                   #⚠️
 history_size = 0                     #⚠️
 future_size = 5                      #⚠️
-neural_type = 'td'                   #⚠️
+neural_type = 'td_mini'              #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 init = "xavier_normal"
@@ -77,11 +78,13 @@ drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning  = 100
 
+validation_size = 10                 #◀️
+
 init_ = "random_normal"
 greed_epsilon_t     = 1
-greed_epsilon_r     = 0.00001    
+greed_epsilon_r     = 0.01    
 beta = 0.1                     
-itrtn_for_planning  = 5        
+itrtn_for_planning  = 10        
 
 episode_for_training = 100000
 
@@ -90,6 +93,7 @@ batch_size_for_executing = 1         #⚠️
 batch_size_for_learning = 1          #⚠️       
 
 buffer_limit = 100000   
+
 
 
 
@@ -296,7 +300,7 @@ for training_episode in tqdm(range(episode_for_training)):
         history_state, \
         history_action  = retrieve_history(state_list, action_list, history_size, device)
         present_state   = retrieve_present(state_list, device)
-        future_action   = initialize_future_action(init_, greed_epsilon_t, greed_epsilon_r, (3, future_size, action_size), device)
+        future_action   = initialize_future_action(init_, greed_epsilon_t, greed_epsilon_r, (1, future_size, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
         future_action   = update_future_action(itrtn_for_planning,
                                                model_list,
@@ -420,17 +424,19 @@ for training_episode in tqdm(range(episode_for_training)):
     We can also use prioritized experience replay to make training more efficient.
     """
     # training
-    dataset     = TensorDataset     (history_state_stack,
-                                     history_action_stack,
-                                     present_state_stack,
-                                     future_action_stack,
-                                     future_reward_stack,
-                                     future_state_stack  )
-    model_list  = update_model_list (itrtn_for_learning ,
-                                     dataset,
-                                     model_list,
-                                     batch_size_for_learning
-                                     )
+    if current_episode % validation_size == 0:
+        dataset     = TensorDataset     (history_state_stack,
+                                        history_action_stack,
+                                        present_state_stack,
+                                        future_action_stack,
+                                        future_reward_stack,
+                                        future_state_stack  )
+        model_list  = update_model_list (itrtn_for_learning ,
+                                        dataset,
+                                        model_list,
+                                        batch_size_for_learning
+                                        )
+
 
 
 
