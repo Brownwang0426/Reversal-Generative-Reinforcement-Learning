@@ -82,9 +82,9 @@ validation_size = 10                 #◀️
 
 init_ = "random_normal"
 greed_epsilon_t     = 1
-greed_epsilon_r     = 0.01    
+greed_epsilon_r     = 0.1    
 beta = 0.1                     
-itrtn_for_planning  = 10        
+itrtn_for_planning  = 25        
 
 episode_for_training = 100000
 
