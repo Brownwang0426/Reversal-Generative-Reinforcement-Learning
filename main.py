@@ -53,6 +53,7 @@ torch.backends.cudnn.benchmark = True
 
 
 
+
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
@@ -60,6 +61,8 @@ seed = None                          #⚠️
 load_pretrained_model = True
 
 ensemble_size = 10                   #◀️
+
+validation_size = 25                 #◀️
 
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -70,21 +73,22 @@ future_size = 5                      #⚠️
 neural_type = 'td_mini'              #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
+
+
+
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.0
+drop_rate = 0.
 alpha = 0.1                  
-itrtn_for_learning  = 100
-
-validation_size = 10                 #◀️
+itrtn_for_learning  = 500
 
 init_ = "random_normal"
 greed_epsilon_t     = 1
-greed_epsilon_r     = 0.1    
+greed_epsilon_r     = 0.00000    
 beta = 0.1                     
-itrtn_for_planning  = 25        
+itrtn_for_planning  = 5     
 
 episode_for_training = 100000
 
@@ -93,6 +97,10 @@ batch_size_for_executing = 1         #⚠️
 batch_size_for_learning = 1          #⚠️       
 
 buffer_limit = 100000   
+
+
+
+
 
 
 
