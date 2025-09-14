@@ -62,7 +62,7 @@ load_pretrained_model = True
 
 ensemble_size = 10                   #◀️
 
-validation_size = 25                 #◀️
+validation_size = 50                 #◀️
 
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -88,7 +88,7 @@ init_ = "random_normal"
 greed_epsilon_t     = 1
 greed_epsilon_r     = 0.00000    
 beta = 0.1                     
-itrtn_for_planning  = 5     
+itrtn_for_planning  = 10     
 
 episode_for_training = 100000
 
@@ -310,7 +310,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action(init_, greed_epsilon_t, greed_epsilon_r, (1, future_size, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
-        future_action   = update_future_action(itrtn_for_planning,
+        future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
                                                model_list,
                                                history_state ,
                                                history_action,
