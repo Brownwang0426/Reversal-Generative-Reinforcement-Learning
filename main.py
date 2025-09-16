@@ -54,25 +54,27 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 20      #⚠️
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 2500    #⚠️
 seed = None                          #⚠️
 
 load_pretrained_model = True
 
 ensemble_size = 10                   #◀️
 
-validation_size = 50                 #◀️
+validation_size = 10                 #◀️
 
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
+state_size =  260                    #⚠️
+action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 200                   #⚠️
+feature_size = 400                   #⚠️
 history_size = 0                     #⚠️
-future_size = 5                      #⚠️
+future_size = 25                     #⚠️
 neural_type = 'td_mini'              #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
+
+
 
 
 
@@ -155,6 +157,7 @@ else:
 
 
 model_modules = {
+    'td_mini_linear': 'models.model_td_mini_linear',
     'td_mini': 'models.model_td_mini',
     'rnn_mini': 'models.model_rnn_mini',
     'gru_mini': 'models.model_rnn_mini',
@@ -284,7 +287,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(torch.zeros(reward_size ).to(device) - 1 ) 
 
     # initializing environment
-    env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+    env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
     state, info    = env.reset(seed = seed)
     
     # observing state
