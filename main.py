@@ -53,7 +53,6 @@ torch.backends.cudnn.benchmark = True
 
 
 
-
 game_name = 'CartPole-v1'            #⚠️
 max_steps_for_each_episode = 2500    #⚠️
 seed = None                          #⚠️
@@ -73,10 +72,6 @@ future_size = 25                     #⚠️
 neural_type = 'td_mini'              #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
-
-
-
-
 
 init = "xavier_normal"
 opti = 'sgd'
@@ -99,24 +94,6 @@ batch_size_for_executing = 1         #⚠️
 batch_size_for_learning = 1          #⚠️       
 
 buffer_limit = 100000   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -187,9 +164,6 @@ from utils.util_func  import load_performance_from_csv,\
                              limit_buffer,\
                              save_performance_to_csv,\
                              save_buffer_to_pickle
-
-
-
 
 
 
@@ -436,7 +410,7 @@ for training_episode in tqdm(range(episode_for_training)):
     """
     # training
     if current_episode % validation_size == 0:
-        dataset     = TensorDataset     (history_state_stack,
+        dataset     = TensorDataset    (history_state_stack,
                                         history_action_stack,
                                         present_state_stack,
                                         future_action_stack,
@@ -452,62 +426,62 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
-    # limit_buffer
-    history_state_stack, \
-    history_action_stack, \
-    present_state_stack, \
-    future_action_stack, \
-    future_reward_stack, \
-    future_state_stack , \
-    history_state_hash_list  , \
-    history_action_hash_list  , \
-    present_state_hash_list  , \
-    future_action_hash_list  , \
-    future_reward_hash_list  , \
-    future_state_hash_list   = limit_buffer(history_state_stack,
-                                            history_action_stack,
-                                            present_state_stack,
-                                            future_action_stack,
-                                            future_reward_stack,
-                                            future_state_stack ,
-                                            history_state_hash_list  ,
-                                            history_action_hash_list  ,
-                                            present_state_hash_list  ,
-                                            future_action_hash_list  ,
-                                            future_reward_hash_list  ,
-                                            future_state_hash_list ,
-                                            buffer_limit  )
+        # limit_buffer
+        history_state_stack, \
+        history_action_stack, \
+        present_state_stack, \
+        future_action_stack, \
+        future_reward_stack, \
+        future_state_stack , \
+        history_state_hash_list  , \
+        history_action_hash_list  , \
+        present_state_hash_list  , \
+        future_action_hash_list  , \
+        future_reward_hash_list  , \
+        future_state_hash_list   = limit_buffer(history_state_stack,
+                                                history_action_stack,
+                                                present_state_stack,
+                                                future_action_stack,
+                                                future_reward_stack,
+                                                future_state_stack ,
+                                                history_state_hash_list  ,
+                                                history_action_hash_list  ,
+                                                present_state_hash_list  ,
+                                                future_action_hash_list  ,
+                                                future_reward_hash_list  ,
+                                                future_state_hash_list ,
+                                                buffer_limit  )
 
 
 
 
-    # saving final reward to log
-    save_performance_to_csv(performance_log, performance_directory)
+        # saving nn models
+        model_dict = {}
+        for i, model in enumerate(model_list):
+            model_dict[f'model_{i}'] = model.state_dict()
+        torch.save(model_dict, model_directory)
 
-    # saving nn models
-    model_dict = {}
-    for i, model in enumerate(model_list):
-        model_dict[f'model_{i}'] = model.state_dict()
-    torch.save(model_dict, model_directory)
+        # saving long term experience replay buffer
+        save_buffer_to_pickle(buffer_directory,
+                              history_state_stack,
+                              history_action_stack,
+                              present_state_stack,
+                              future_action_stack,
+                              future_reward_stack,
+                              future_state_stack,
+                              history_state_hash_list,
+                              history_action_hash_list,
+                              present_state_hash_list,
+                              future_action_hash_list,
+                              future_reward_hash_list,
+                              future_state_hash_list)
 
-    # saving long term experience replay buffer
-    save_buffer_to_pickle(buffer_directory,
-                          history_state_stack,
-                          history_action_stack,
-                          present_state_stack,
-                          future_action_stack,
-                          future_reward_stack,
-                          future_state_stack,
-                          history_state_hash_list,
-                          history_action_hash_list,
-                          present_state_hash_list,
-                          future_action_hash_list,
-                          future_reward_hash_list,
-                          future_state_hash_list)
-
-
+        # saving final reward to log
+        save_performance_to_csv(performance_log, performance_directory)
 
 
-    # clear up
-    gc.collect()
-    torch.cuda.empty_cache()
+
+
+        # clear up
+        gc.collect()
+        torch.cuda.empty_cache()
