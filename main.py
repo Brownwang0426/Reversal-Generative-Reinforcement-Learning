@@ -84,7 +84,7 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.
 alpha = 0.1                  
-itrtn_for_learning  = 500
+itrtn_for_learning  = 100
 
 init_ = "random_normal"
 greed_epsilon_t     = 1
