@@ -54,30 +54,37 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    state_0 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[0], device) 
-    state_1 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[1], device) 
-    state_2 = quantifying(-1, 1, 100, -10  , 10   , state[2], device) 
-    state_3 = quantifying(-1, 1, 100, -10  , 10   , state[3], device) 
-    state_4 = quantifying(-1, 1, 100, -6.28, 6.28 , state[4], device)   
-    state_5 = quantifying(-1, 1, 100, -10  , 10   , state[5], device)   
-    state_6 = quantifying(-1, 1, 100, 0    , 1    , state[6], device)    
-    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[7], device)    
-    if done:
-        state_8 = torch.ones(100).to(device)
+def vectorizing_state(state, done, truncated, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    null_state = torch.ones(10).to(device)
+    if done or truncated:
+        state_0 = torch.ones(50).to(device)
     else:
-        state_8 = torch.zeros(100).to(device) - 1
-    state   = torch.cat((state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8), dim = 0)
+        state_0 = torch.zeros(50).to(device) - 1
+    state_1 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[0], device) 
+    state_2 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[1], device) 
+    state_3 = quantifying(-1, 1, 50, -10  , 10   , state[2], device) 
+    state_4 = quantifying(-1, 1, 50, -10  , 10   , state[3], device) 
+    state_5 = quantifying(-1, 1, 50, -6.28, 6.28 , state[4], device)   
+    state_6 = quantifying(-1, 1, 50, -10  , 10   , state[5], device)   
+    state_7 = quantifying(-1, 1, 50, 0    , 1    , state[6], device)    
+    state_8 = quantifying(-1, 1, 50, 0    , 1    , state[7], device)    
+    state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    action_size       = pre_activated_actions.size(2)
-    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0]))
+    action_size       = pre_activated_actions.size(2) 
+    action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
     vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
-    return vectorized_action, action_argmax
+    return vectorized_action, action_argmax 
 
-def vectorizing_reward(state, reward, summed_reward, done, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(-1, 1, reward_size, -200, 325, summed_reward, device)       
+def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
+    if done or truncated: 
+        if done:
+            reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
+        else:
+            reward = torch.zeros(reward_size ).to(device) - 1
+    else:
+        reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
     return reward
 
 class randomizer(gym.Wrapper):

@@ -39,6 +39,27 @@ import hashlib
 
 
 
+class DeterministicDropout(nn.Module):
+    def __init__(self, p=0.5):
+        super(DeterministicDropout, self).__init__()
+        self.p = p
+        self.drop_mask = None
+        self.locked = False
+
+    def forward(self, x):
+        if not self.locked:
+            self.drop_mask = (torch.rand_like(x.sum(dim=tuple(range(x.ndim - 1)))) > self.p).float()
+        return x * self.drop_mask
+
+    def lock(self):
+        self.locked = True
+
+    def unlock(self):
+        self.locked = False
+
+
+
+
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
@@ -48,24 +69,11 @@ class custom_attn(nn.Module):
         self.head_size     = feature_size // num_heads
         self.bias          = bias
         self.drop_rate     = drop_rate
-        # self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        # self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = nn.Dropout(self.drop_rate)
-        self.resid_dropout = nn.Dropout(self.drop_rate)
+        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
 
-        self.neural_type = 'rnn'
-        neural_types = {
-            'rnn': nn.RNN,
-            'gru': nn.GRU,
-            'lstm': nn.LSTM
-        }
-        self.W_q     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_k     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_v     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        self.W_o     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=1, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=False)
-        
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
@@ -80,7 +88,6 @@ class custom_attn(nn.Module):
             attn_scores += 0
 
         attn_probs = torch.softmax(attn_scores, dim=-1) 
-        attn_probs = self.attn_dropout (attn_probs)
         output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         return output                             # (batch_size, num_heads, sequence_size, head_size)
 
@@ -88,16 +95,21 @@ class custom_attn(nn.Module):
         batch_size, num_heads, sequence_size, head_size = x.size()
         return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
 
-    def forward(self, Q, K, V, mask=None):
+    def forward(self, Q, K, V, mask=None, kv_cache=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
-        Q    = self.split_heads(self.W_q(Q)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        K    = self.split_heads(self.W_k(K)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        V    = self.split_heads(self.W_v(V)[0])  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        if kv_cache is not None:
+            if 'k' in kv_cache and 'v' in kv_cache:
+                K = torch.cat([kv_cache['k'], K], dim=2)
+                V = torch.cat([kv_cache['v'], V], dim=2)
+            kv_cache['k'] = K
+            kv_cache['v'] = V
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
-        output      = self.W_o(self.combine_heads(attn_output))[0]
-        output      = self.resid_dropout(output)
-        return output
+        output      = self.W_o(self.combine_heads(attn_output))
+        return output, kv_cache
 
 
 
@@ -138,6 +150,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.dropout_0            = DeterministicDropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
@@ -155,6 +168,7 @@ class build_model(nn.Module):
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
+        self.dropout_1            = DeterministicDropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
@@ -204,29 +218,50 @@ class build_model(nn.Module):
             history_s_a = history_s + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-        
+                
+        kv_caches = [dict() for _ in self.transformer_layers]
+        q_caches  = [dict() for _ in self.transformer_layers]
+        h_caches  = [dict() for _ in self.transformer_layers]
+
         for i in range(future_a.size(1)):
 
             history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
 
-            h  = torch.tanh(history_s_a)
+            h = torch.tanh(history_s_a)
+            h = self.dropout_0(h)
 
             """
             Transformer decoder
             """
-            long = h.size(1)
-            h    = h + self.positional_encoding[:, :long, :]
-            for layer in self.transformer_layers:
+            long  = h.size(1)
+            h     = h + self.positional_encoding[:, :long, :]
+            for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                h_  = attention_norm(h)
-                h   = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
-                h_  = fully_connected_norm(h)
-                h   = h + fully_connected_linear(h_)
+                q = attention_norm(h)
+                if i == 0:
+
+                    q_caches[j], kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
+                    h = h + q_caches[j]
+
+                    h_caches[j] = h + fully_connected_linear(fully_connected_norm(h)) 
+                    h = h_caches[j]
+
+                else:
+
+                    q_cache    , kv_caches[j] = attention_linear(q[:, -1:, :], q[:, -1:, :], q[:, -1:, :], self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
+                    q_caches[j] = torch.cat([q_caches[j], q_cache], dim=1)
+                    h = h + q_caches[j]
+
+                    h_cache = h[:, -1:, :] + fully_connected_linear(fully_connected_norm(h[:, -1:, :]))
+                    h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
+                    h = h_caches[j]
+
             h  = self.transformer_norm(h)
 
             """
             We utilize the last idx in h to derive the latest reward and state.
             """
+            h = self.dropout_1(h)
             r = self.reward_linear(h[:, - 1, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1, :])   
@@ -265,6 +300,16 @@ class build_model(nn.Module):
             'xavier_normal': nn.init.xavier_normal_
         }
         initializer = initializers[initializer.lower()]
-        for layer in self.modules():
-            if isinstance(layer, nn.Linear):
-                initializer(layer.weight)
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                initializer(module.weight)
+
+    def lock(self):
+        for module in self.modules():
+            if isinstance(module, DeterministicDropout):
+                module.lock()
+
+    def unlock(self):
+        for module in self.modules():
+            if isinstance(module, DeterministicDropout):
+                module.unlock()
