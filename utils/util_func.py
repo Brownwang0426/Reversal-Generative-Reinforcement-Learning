@@ -283,7 +283,7 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
 
     if bs_list is None:
-        bs_list = [16, 32, 64, 128, 256, 512, 1024]
+        bs_list = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
     torch.cuda.set_device(device)
     total_mem = torch.cuda.get_device_properties(device).total_memory
