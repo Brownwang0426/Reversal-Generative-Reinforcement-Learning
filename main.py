@@ -84,7 +84,7 @@ alpha = 0.1
 itrtn_for_learning  = 100
 
 beta = 0.1                     
-itrtn_for_planning  = 5     
+itrtn_for_planning  = 20     
 
 episode_for_training = 100000
 
@@ -260,7 +260,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(torch.zeros(reward_size ).to(device) - 1 ) 
 
     # initializing environment
-    if env == 'FrozenLake-v1'  :
+    if game_name == 'FrozenLake-v1'  :
         env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
     else:
         env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
