@@ -53,8 +53,9 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
 
 load_pretrained_model = True
@@ -63,15 +64,16 @@ ensemble_size = 5                    #◀️
 
 validation_size = 10                 #◀️
 
-state_size =  460                    #⚠️
+state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 600                   #⚠️
-history_size  = 0                    #⚠️
-future_size = 50                     #⚠️ 
+feature_size = 200                   #⚠️
+history_size = 0                     #⚠️
+future_size = 5                      #⚠️
 neural_type = 'td_mini'              #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
+
 
 init = "xavier_normal"
 opti = 'sgd'
@@ -81,11 +83,8 @@ drop_rate = 0.
 alpha = 0.1                  
 itrtn_for_learning  = 100
 
-init_ = "random_normal"
-greed_epsilon_t     = 1
-greed_epsilon_r     = 0.00000    
 beta = 0.1                     
-itrtn_for_planning  = 10     
+itrtn_for_planning  = 5     
 
 episode_for_training = 100000
 
@@ -93,7 +92,7 @@ batch_size_for_executing = 1         #⚠️
 
 batch_size_for_learning = 1          #⚠️       
 
-buffer_limit = 1500   
+buffer_limit = 10000   
 
 
 
@@ -261,7 +260,10 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(torch.zeros(reward_size ).to(device) - 1 ) 
 
     # initializing environment
-    env            = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
+    if env == 'FrozenLake-v1'  :
+        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+    else:
+        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
     state, info    = env.reset(seed = seed)
     
     # observing state
@@ -285,7 +287,7 @@ for training_episode in tqdm(range(episode_for_training)):
         history_state, \
         history_action  = retrieve_history(state_list, action_list, history_size, device)
         present_state   = retrieve_present(state_list, device)
-        future_action   = initialize_future_action(init_, greed_epsilon_t, greed_epsilon_r, (1, future_size, action_size), device)
+        future_action   = initialize_future_action((1, future_size, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
         future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
                                                model_list,

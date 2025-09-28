@@ -60,7 +60,7 @@ class DeterministicDropout(nn.Module):
 
 
 
-class custom_attn(nn.Module):
+class custom_attn_(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
         assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
@@ -111,6 +111,58 @@ class custom_attn(nn.Module):
         output      = self.W_o(self.combine_heads(attn_output))
         return output, kv_cache
 
+
+
+
+class custom_attn(nn.Module):
+    def __init__(self, feature_size, num_heads, bias, drop_rate):
+        super(custom_attn, self).__init__()
+        assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
+        self.feature_size  = feature_size
+        self.num_heads     = num_heads
+        self.head_size     = feature_size // num_heads
+        self.bias          = bias
+        self.drop_rate     = drop_rate
+        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.attn_dropout  = nn.Dropout(self.drop_rate)
+        self.resid_dropout = nn.Dropout(self.drop_rate)
+
+    def split_heads(self, x):
+        batch_size, sequence_size, feature_size = x.size()
+        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
+
+    def scaled_dot_product_attention(self, Q, K, V, mask):
+        
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
+        
+        if mask != None:
+            attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+        else:
+            attn_scores += 0
+
+        attn_probs = torch.softmax(attn_scores, dim=-1) 
+        attn_probs = self.attn_dropout (attn_probs)
+        output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
+        return output                             # (batch_size, num_heads, sequence_size, head_size)
+
+    def combine_heads(self, x):
+        batch_size, num_heads, sequence_size, head_size = x.size()
+        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
+
+    def forward(self, Q, K, V, mask=None):
+        # mask Shape: (batch_size, 1, sequence_size, sequence_size)
+        # Q    Shape: (batch_size,    sequence_size, feature_size )
+        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        output      = self.W_o(self.combine_heads(attn_output))
+        output      = self.resid_dropout(output)
+        return output
+    
 
 
 
@@ -201,6 +253,68 @@ class build_model(nn.Module):
 
 
     def forward(self, history_s, history_a, present_s, future_a):
+
+        future_r_list = list()
+        future_s_list = list()
+
+
+
+
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
+
+        if history_s.size(1) > 0:
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+        for i in range(future_a.size(1)):
+
+            history_s_a =  torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+
+            h = torch.tanh(history_s_a)
+            h = self.dropout_0(h)
+
+            """
+            Transformer decoder
+            """
+            long  = h.size(1)
+            h = h + self.positional_encoding[:, :long, :]
+            for layer in self.transformer_layers:
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+                h_ = attention_norm(h)
+                h  = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
+                h_ = fully_connected_norm(h)
+                h  = h + fully_connected_linear(h_)
+            h = self.transformer_norm(h)
+
+            """
+            We utilize the last idx in h to derive the latest reward and state.
+            """
+            h = self.dropout_1(h)
+            r = self.reward_linear(h[:, - 1, :])  
+            r = torch.tanh(r)
+            s = self.state_linear_(h[:, - 1, :])   
+            s = torch.tanh(s)
+
+            future_r_list.append(r)
+            future_s_list.append(s)
+
+            present_s = s
+            present_s = self.state_linear(present_s.unsqueeze(1))
+
+        future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+
+
+
+    def forward_(self, history_s, history_a, present_s, future_a):
 
         future_r_list = list()
         future_s_list = list()

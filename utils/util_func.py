@@ -81,15 +81,8 @@ def retrieve_present(state_list, device):
 
 
 
-def initialize_future_action(init, noise_t, noise_r, shape, device):
-    input = 0
-    if   init == "random_uniform":
-        for _ in range(noise_t):
-            input += (( 2 * torch.rand  (shape)                     -1 ) * noise_r).to(device) 
-    elif init == "random_normal":
-        for _ in range(noise_t):
-            input += ((     torch.normal(mean=0, std=1, size=shape)    ) * noise_r).to(device) 
-    return input
+def initialize_future_action(shape, device):
+    return torch.zeros(shape).to(device)
 
 
 
