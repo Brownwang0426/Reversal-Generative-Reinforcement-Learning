@@ -74,9 +74,9 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if state[0]>=0.5:
-            reward = quantifying(-1, 1, reward_size, -1.2, 0.6, state[0], device)
+            reward = quantifying(-1, 1, reward_size , -1.2, 0.6, state[0], device)
         else:
-            reward = torch.zeros(reward_size ).to(device) - 1
+            reward = quantifying(-1, 1, reward_size , -1.2, 0.6, state[0], device)
     else:
         reward = quantifying(-1, 1, reward_size , -1.2, 0.6, state[0], device)
     return reward

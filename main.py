@@ -54,8 +54,8 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 20      #⚠️
+game_name =  'MountainCar-v0'        #⚠️
+max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 
 load_pretrained_model = True
@@ -64,15 +64,16 @@ ensemble_size = 5                    #◀️
 
 validation_size = 10                 #◀️
 
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
+state_size =  160                    #⚠️
+action_size = 3                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 200                   #⚠️
-history_size = 0                     #⚠️
-future_size = 5                      #⚠️
-neural_type = 'td_mini'              #⚠️
-num_layers = 3                       #⚠️
+feature_size = 300                   #⚠️
+history_size  = 0                    #⚠️
+future_size = 25                     #⚠️
+neural_type = 'gru'                  #⚠️
+num_layers = 2                       #⚠️
 num_heads = 10                       #⚠️
+
 
 
 init = "xavier_normal"
@@ -84,7 +85,7 @@ alpha = 0.1
 itrtn_for_learning  = 100
 
 beta = 0.1                     
-itrtn_for_planning  = 20     
+itrtn_for_planning  = 5     
 
 episode_for_training = 100000
 
@@ -133,16 +134,10 @@ else:
 
 
 model_modules = {
-    'td_mini_linear': 'models.model_td_mini_linear',
-    'td_mini': 'models.model_td_mini',
-    'rnn_mini': 'models.model_rnn_mini',
-    'gru_mini': 'models.model_rnn_mini',
-    'lstm_mini': 'models.model_rnn_mini',
-    'td': 'models.model_td',
-    'rnn': 'models.model_rnn',
-    'gru': 'models.model_rnn',
-    'lstm': 'models.model_rnn',
-    'td_rnn': 'models.model_td_rnn'
+    'td': 'models.model_td_mini',
+    'rnn': 'models.model_rnn_mini',
+    'gru': 'models.model_rnn_mini',
+    'lstm': 'models.model_rnn_mini'
 }
 if neural_type in model_modules:
     model_module = __import__(model_modules[neural_type], fromlist=['build_model'])
