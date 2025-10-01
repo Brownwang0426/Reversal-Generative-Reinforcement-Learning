@@ -82,7 +82,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         if done:
             reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
         else:
-            reward = torch.zeros(reward_size ).to(device) - 1
+            reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)   
     else:
         reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
     return reward
