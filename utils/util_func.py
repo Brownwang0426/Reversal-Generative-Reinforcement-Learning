@@ -22,7 +22,7 @@ import copy
 import random
 import gc
 import time
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from collections import defaultdict
 
 import itertools
@@ -486,4 +486,5 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 def save_buffer_to_pickle(filename, *list):
     with open(filename, 'wb') as file:
+
         dill.dump(list, file)
