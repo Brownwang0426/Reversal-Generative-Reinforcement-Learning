@@ -261,7 +261,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
             torch.cuda.reset_peak_memory_stats(device)
             start = time.time()
             with torch.no_grad():
-                model(*batch[:4])  
+                model(*batch[:3])  
             duration = time.time() - start
             peak_mem = torch.cuda.max_memory_allocated(device)
             mem_ratio = peak_mem / total_mem
@@ -302,10 +302,10 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
     return TD_error
 
 """
-We did not use prioritized experience replay due to the lack of gpu vram.
-However, in our experience, it does help the agent to learn faster.
+We could use prioritized experience replay due to the lack of gpu vram.
+In our experience, it does help the agent to learn faster.
 """
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model):
     
@@ -359,7 +359,7 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model(itrtn_for_learning,
+def update_model_(itrtn_for_learning,
                  dataset,
                  model):
         
