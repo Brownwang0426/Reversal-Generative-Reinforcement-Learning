@@ -23,7 +23,7 @@ import copy
 import random
 import gc
 import time
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from collections import defaultdict
 
 import itertools
