@@ -244,46 +244,46 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-# def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
-# 
-#     if bs_list is None:
-#         bs_list = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-# 
-#     torch.cuda.set_device(device)
-#     total_mem = torch.cuda.get_device_properties(device).total_memory
-#     results = []
-# 
-#     for bs in bs_list:
-#         torch.cuda.empty_cache(); gc.collect()
-#         loader = DataLoader(dataset, batch_size=bs, shuffle=False)
-#         batch = next(iter(loader))
-#         try:
-#             batch = [x.to(device) for x in batch]
-#             model.eval()
-#             torch.cuda.reset_peak_memory_stats(device)
-#             start = time.time()
-#             with torch.no_grad():
-#                 model(*batch[:5])  
-#             duration = time.time() - start
-#             peak_mem = torch.cuda.max_memory_allocated(device)
-#             mem_ratio = peak_mem / total_mem
-# 
-#             if mem_ratio < max_mem_ratio:
-#                 results.append((bs, duration, mem_ratio))
-#                 pass
-#             else:
-#                 pass
-#         except RuntimeError as e:
-#             if "out of memory" in str(e).lower():
-#                 pass
-#             else:
-#                 raise e
-# 
-#     if not results:
-#         raise RuntimeError("all batch size OOM")
-# 
-#     best_bs = min(results, key=lambda x: x[1])[0]
-#     return best_bs
+def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
+
+    if bs_list is None:
+        bs_list = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
+
+    torch.cuda.set_device(device)
+    total_mem = torch.cuda.get_device_properties(device).total_memory
+    results = []
+
+    for bs in bs_list:
+        torch.cuda.empty_cache(); gc.collect()
+        loader = DataLoader(dataset, batch_size=bs, shuffle=False)
+        batch = next(iter(loader))
+        try:
+            batch = [x.to(device) for x in batch]
+            model.eval()
+            torch.cuda.reset_peak_memory_stats(device)
+            start = time.time()
+            with torch.no_grad():
+                model(*batch[:5])  
+            duration = time.time() - start
+            peak_mem = torch.cuda.max_memory_allocated(device)
+            mem_ratio = peak_mem / total_mem
+
+            if mem_ratio < max_mem_ratio:
+                results.append((bs, duration, mem_ratio))
+                pass
+            else:
+                pass
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                pass
+            else:
+                raise e
+
+    if not results:
+        raise RuntimeError("all batch size OOM")
+
+    best_bs = min(results, key=lambda x: x[1])[0]
+    return best_bs
 
 def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
@@ -304,12 +304,12 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-def update_model(itrtn_for_learning,
-                 dataset,
-                 model):
+def update_model_per(itrtn_for_learning,
+                     dataset,
+                     model):
     
     device         = next(model.parameters()).device
-    td_error_batch = len(dataset) # find_optimal_batch_size(model, dataset, device=device)
+    td_error_batch = find_optimal_batch_size(model, dataset, device=device)
     PER_epsilon    = 1e-10
     PER_exponent   = 2
 
@@ -361,7 +361,7 @@ def update_model(itrtn_for_learning,
 
 
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model):
         
@@ -398,13 +398,18 @@ def update_model_(itrtn_for_learning,
 
 def update_model_list(itrtn_for_learning,
                       dataset,
-                      model_list):
-
-    for i, model in enumerate(model_list):
-        model_list[i] = update_model(itrtn_for_learning,
-                                     dataset,
-                                     model)
-
+                      model_list,
+                      per):
+    if per:
+        for i, model in enumerate(model_list):
+            model_list[i] = update_model_per(itrtn_for_learning,
+                                             dataset,
+                                             model)
+    else:
+        for i, model in enumerate(model_list):
+            model_list[i] = update_model(itrtn_for_learning,
+                                        dataset,
+                                        model)        
     return model_list
 
 

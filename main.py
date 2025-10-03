@@ -55,6 +55,7 @@ torch.backends.cudnn.benchmark = True
 
 
 
+
 game_name = 'CartPole-v1'            #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
@@ -69,8 +70,8 @@ history_size = 0                     #⚠️
 future_size = 100                    #⚠️
 future_size_ = 10                    #⚠️             
 neural_type = 'td'                   #⚠️
-num_layers = 2                       #⚠️
-num_heads = 1                        #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
@@ -82,7 +83,7 @@ beta = 0.1
 itrtn_for_planning = 5     
 episode_for_training = 100000 
 buffer_limit = 100000   
-
+per = False
 
 
 
@@ -266,6 +267,9 @@ for training_episode in tqdm(range(episode_for_training)):
         """
         The final desired reward is factually the last time step in desired reward.
         """
+        """
+        We use a smaller future_size_ in the planning phase here to save computing time.
+        """
         # initializing and updating action by desired reward                                  
         history_state, \
         history_action  = retrieve_history(state_list, action_list, history_size, device)
@@ -396,7 +400,8 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_state_stack  )
         model_list  = update_model_list(itrtn_for_learning ,
                                         dataset,
-                                        model_list
+                                        model_list,
+                                        per
                                         )
 
 
