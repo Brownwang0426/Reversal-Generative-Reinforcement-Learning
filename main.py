@@ -56,19 +56,19 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 500     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
 validation_size = 10                 #◀️
-state_size =  260                    #⚠️
-action_size = 2                      #⚠️
+state_size =  460                    #⚠️
+action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 400                   #⚠️
-history_size = 0                     #⚠️
-future_size = 100                    #⚠️
-future_size_ = 10                    #⚠️             
+feature_size = 600                   #⚠️
+history_size  = 150                  #⚠️
+future_size = 150                    #⚠️ 
+future_size_ = 20                    #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️

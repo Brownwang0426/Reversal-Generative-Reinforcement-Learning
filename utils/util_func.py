@@ -385,7 +385,7 @@ def update_model(itrtn_for_learning,
 
         loss_function               = model.loss_function
         envisaged_reward, \
-        envisaged_state             = model(history_state, history_action, present_state, future_action)
+        envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
 
