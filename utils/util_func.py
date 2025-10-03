@@ -123,42 +123,6 @@ def update_future_action(itrtn_for_planning,
 
 
 
-def update_future_action_(epoch_for_planning,
-                         model_list,
-                         history_state,
-                         present_state,
-                         future_action,
-                         desired_reward,
-                         beta):
-
-    model_list_   = copy.deepcopy(model_list)
-
-    for _ in range(epoch_for_planning):
-
-        random.shuffle(model_list_)
-
-        for model in model_list_:
-
-            future_action_     = torch.tanh(future_action)
-            future_action_     = future_action_.detach().requires_grad_(True)
-
-            model.train()
-            model.unlock()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
-            
-            loss_function      = model.loss_function
-            envisaged_reward   = model(history_state, present_state, future_action_)
-            total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
-            total_loss.backward() 
-
-            future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
-
-    return future_action
-
-
-
-
 def sequentialize(state_list, action_list, reward_list, history_size, future_size):
 
     device              = state_list[0].device
@@ -301,13 +265,9 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-"""
-We could use prioritized experience replay due to the lack of gpu vram.
-In our experience, it does help the agent to learn faster.
-"""
-def update_model(itrtn_for_learning,
-                 dataset,
-                 model):
+def update_model_per(itrtn_for_learning,
+                     dataset,
+                     model):
     
     device         = next(model.parameters()).device
     td_error_batch = find_optimal_batch_size(model, dataset, device=device)
@@ -334,7 +294,6 @@ def update_model(itrtn_for_learning,
         priority_probability = exponent_priority / torch.sum(exponent_priority)
         final_indices        = torch.multinomial(priority_probability, 1, replacement=True)
 
-
         batch_samples  = [dataset[i] for i in final_indices]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
         history_state  = torch.stack(history_state )
@@ -359,7 +318,7 @@ def update_model(itrtn_for_learning,
 
 
 
-def update_model_(itrtn_for_learning,
+def update_model(itrtn_for_learning,
                  dataset,
                  model):
         
@@ -391,44 +350,20 @@ def update_model_(itrtn_for_learning,
 
 
 
-def update_model_(epoch_for_learning,
-                 dataset,
-                 model):
-
-    data_loader  = DataLoader   (dataset, 
-                                 1, 
-                                 shuffle=True)
-
-    for _ in tqdm(range(epoch_for_learning)):
-
-        for history_state, present_state, future_action, future_reward in data_loader:
-
-            model.train()
-            model.unlock()
-            selected_optimizer = model.selected_optimizer
-            selected_optimizer.zero_grad()
-    
-            loss_function               = model.loss_function
-            envisaged_reward            = model(history_state, present_state, future_action)
-            total_loss                  = loss_function(envisaged_reward, future_reward) 
-            total_loss.backward()
-
-            selected_optimizer.step()
-
-    return model
-
-
-
-
 def update_model_list(itrtn_for_learning,
                       dataset,
-                      model_list):
-
-    for i, model in enumerate(model_list):
-        model_list[i] = update_model(itrtn_for_learning,
-                                     dataset,
-                                     model)
-
+                      model_list,
+                      per):
+    if per:
+        for i, model in enumerate(model_list):
+            model_list[i] = update_model_per(itrtn_for_learning,
+                                             dataset,
+                                             model)
+    else:
+        for i, model in enumerate(model_list):
+            model_list[i] = update_model(itrtn_for_learning,
+                                         dataset,
+                                         model)
     return model_list
 
 

@@ -57,24 +57,19 @@ torch.backends.cudnn.benchmark = True
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
-
 load_pretrained_model = True
-
 ensemble_size = 5                    #◀️
-
-validation_size = 50                 #◀️
-
+validation_size = 10                 #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 100                   #⚠️
 history_size = 0                     #⚠️
-future_size = 10                     #⚠️
+future_size = 100                    #⚠️
+future_size_ = 20                    #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
-
-
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
@@ -82,14 +77,11 @@ bias = False
 drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning  = 1000
-
 beta = 0.1                     
-itrtn_for_planning  = 15     
-
+itrtn_for_planning  = 10     
 episode_for_training = 100000   
-
 buffer_limit = 100000   
-
+per = False
 
 
 
@@ -263,14 +255,17 @@ for training_episode in tqdm(range(episode_for_training)):
         """
         The final desired reward is factually the last time step in desired reward.
         """
+        """
+        We use a smaller future_size_ in the planning phase here to save computing time.
+        """
         # initializing and updating action by desired reward                                  
         history_state   = retrieve_history(state_list, action_list, history_size, device)
         present_state   = retrieve_present(state_list, device)
-        future_action   = initialize_future_action((1, future_size, action_size), device)
-        desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
+        future_action   = initialize_future_action ((1, future_size_, action_size), device)
+        desired_reward  = initialize_desired_reward((1, future_size_, reward_size), device)
         future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
                                                model_list,
-                                               history_state ,
+                                               history_state,
                                                present_state,
                                                future_action,
                                                desired_reward,
@@ -364,8 +359,11 @@ for training_episode in tqdm(range(episode_for_training)):
                                                                            future_reward_list)
 
 
-    
 
+    
+    """
+    We can also use prioritized experience replay to make training more efficient.
+    """
     # training
     if current_episode % validation_size == 0:
         dataset     = TensorDataset    (history_state_stack,
@@ -374,7 +372,8 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_reward_stack)
         model_list  = update_model_list(itrtn_for_learning ,
                                         dataset,
-                                        model_list
+                                        model_list,
+                                        per
                                         )
 
 

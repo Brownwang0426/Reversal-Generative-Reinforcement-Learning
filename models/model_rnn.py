@@ -163,7 +163,7 @@ class build_model(nn.Module):
         We utilize the last idx in h to derive the latest reward and state.
         """
         h = self.dropout_1(h)
-        r = self.reward_linear(h[:, -self.future_size: , :])  
+        r = self.reward_linear(h[:, -future_a.size(1): , :])  
         future_r = torch.tanh(r)
 
         return future_r

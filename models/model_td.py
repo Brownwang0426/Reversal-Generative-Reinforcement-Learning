@@ -217,11 +217,12 @@ class build_model(nn.Module):
         """
         Transformer decoder
         """
-        h = h + self.positional_encoding
+        long = h.size(1)
+        h = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_ = attention_norm(h)
-            h  = h + attention_linear(h_, h_, h_, self.mask)
+            h  = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
             h_ = fully_connected_norm(h)
             h  = h + fully_connected_linear(h_)
         h = self.transformer_norm(h)
@@ -230,7 +231,7 @@ class build_model(nn.Module):
         We utilize the last idx in h to derive the latest reward and state.
         """
         h = self.dropout_1(h)
-        r = self.reward_linear(h[:, -self.future_size: , :])  
+        r = self.reward_linear(h[:, -future_a.size(1): , :])  
         future_r = torch.tanh(r)
 
         return future_r
