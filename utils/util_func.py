@@ -118,7 +118,7 @@ def update_future_action(itrtn_for_planning,
         
         loss_function      = model.loss_function
         envisaged_reward, \
-        envisaged_state    = model.forward(history_state, history_action, present_state, future_action_)
+        envisaged_state    = model(history_state, history_action, present_state, future_action_)
         total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
         total_loss.backward() 
 
