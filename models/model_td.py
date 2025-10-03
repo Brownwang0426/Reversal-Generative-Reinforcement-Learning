@@ -23,7 +23,7 @@ import copy
 import random
 import gc
 import time
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from collections import defaultdict
 
 import itertools
@@ -60,7 +60,7 @@ class DeterministicDropout(nn.Module):
 
 
 
-class custom_attn(nn.Module):
+class custom_attn_(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
         assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
@@ -114,6 +114,66 @@ class custom_attn(nn.Module):
 
 
 
+class custom_attn(nn.Module):
+    def __init__(self, feature_size, num_heads, bias, drop_rate):
+        super(custom_attn, self).__init__()
+        assert feature_size % num_heads == 0, "feature_size must be divisible by num_heads"
+        self.feature_size  = feature_size
+        self.num_heads     = num_heads
+        self.head_size     = feature_size // num_heads
+        self.bias          = bias
+        self.drop_rate     = drop_rate
+        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.attn_dropout  = nn.Dropout(self.drop_rate)
+        self.resid_dropout = nn.Dropout(self.drop_rate)
+
+    def split_heads(self, x):
+        batch_size, sequence_size, feature_size = x.size()
+        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
+
+    def scaled_dot_product_attention(self, Q, K, V, mask):
+        
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
+        
+        if mask != None:
+            attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+        else:
+            attn_scores += 0
+
+        attn_probs = torch.softmax(attn_scores, dim=-1) 
+        attn_probs = self.attn_dropout (attn_probs)
+        output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
+        return output                             # (batch_size, num_heads, sequence_size, head_size)
+
+    def combine_heads(self, x):
+        batch_size, num_heads, sequence_size, head_size = x.size()
+        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
+
+    def forward(self, Q, K, V, mask=None, kv_cache=None):
+        # mask Shape: (batch_size, 1, sequence_size, sequence_size)
+        # Q    Shape: (batch_size,    sequence_size, feature_size )
+        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        # kv cache handling (concatenate on sequence dimension if provided)
+        if kv_cache is not None:
+            if 'k' in kv_cache and 'v' in kv_cache:
+                # ensure shapes match: (b,h,old_s,d)
+                K = torch.cat([kv_cache['k'], K], dim=2)
+                V = torch.cat([kv_cache['v'], V], dim=2)
+            kv_cache['k'] = K
+            kv_cache['v'] = V
+        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        output      = self.W_o(self.combine_heads(attn_output))
+        output      = self.resid_dropout(output)
+        return output, kv_cache
+    
+
+
+
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -152,7 +212,7 @@ class build_model(nn.Module):
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
         self.dropout_0            = DeterministicDropout(self.drop_rate)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(2 * self.sequence_size, self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.sequence_size, self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
@@ -164,11 +224,8 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        size = 2 * self.sequence_size
-        i = torch.arange(size).unsqueeze(1)  
-        j = torch.arange(size).unsqueeze(0) 
-        mask = torch.where(j <= i*2 + 1, torch.tensor(0.0), torch.tensor(float("-inf")))
-        mask = mask.unsqueeze(0).unsqueeze(0) 
+        mask                      = torch.full((1, 1, self.sequence_size, self.sequence_size), float("-inf"))
+        mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
         self.dropout_1            = DeterministicDropout(self.drop_rate)
@@ -217,73 +274,136 @@ class build_model(nn.Module):
         present_s = self.state_linear (present_s.unsqueeze(1))
         future_a  = self.action_linear(future_a) 
 
-        window_list   = list()
         if history_s.size(1) > 0:
-            for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1]) 
-                window_list.append(history_a[:, i:i+1]) 
-        window_list.append(present_s)
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
 
+
+    
+        h = torch.cat([history_s_a, (present_s + future_a[:, :1])], dim=1)
+        h = torch.tanh(h)
+        h = self.dropout_0(h)
+
+        """
+        Transformer decoder
+        """
         kv_caches = [dict() for _ in self.transformer_layers]
-        q_caches  = [dict() for _ in self.transformer_layers]
-        h_caches  = [dict() for _ in self.transformer_layers]
+        long = h.size(1)
+        h = h + self.positional_encoding[:, :long, :]
+        for j, layer in enumerate(self.transformer_layers):
+            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+            q = attention_norm(h)
+            q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
+            h = h + q
+            h = h + fully_connected_linear(fully_connected_norm(h)) 
+        h = self.transformer_norm(h)
+        """
+        Transformer decoder
+        """
+    
+        h = self.dropout_1(h)
+        r = self.reward_linear(h[:, - 1:, :])  
+        r = torch.tanh(r)
+        s = self.state_linear_(h[:, - 1:, :])   
+        s = torch.tanh(s)
 
-        for i in range(future_a.size(1)):
-            
-            window_list.append(future_a[:, i:i+1])
-            h  = torch.cat(window_list, dim=1)
+        future_r_list.append(r)
+        future_s_list.append(s)
 
-            h  = torch.tanh(h)
+        present_s = s
+        present_s = self.state_linear(present_s)
+
+        for i in range(future_a.size(1) - 1):
+
+            h = present_s + future_a[:, i+1:i+2]
+            h = torch.tanh(h)
             h = self.dropout_0(h)
 
             """
             Transformer decoder
             """
-            long  = h.size(1)
-            h     = h + self.positional_encoding[:, :long, :]
+            long = history_s_a.size(1) + 1 + i + 1
+            h = h + self.positional_encoding[:, long-1:long, :]
             for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 q = attention_norm(h)
-                if i == 0:
-
-                    q_caches[j], kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
-                    h = h + q_caches[j]
-
-                    h_caches[j] = h + fully_connected_linear(fully_connected_norm(h)) 
-                    h = h_caches[j]
-
-                else:
-
-                    q_cache    , kv_caches[j] = attention_linear(q[:, -2:, :], q[:, -2:, :], q[:, -2:, :], self.mask[:, :, (long-2):long, :long], kv_cache=kv_caches[j])
-                    q_caches[j] = torch.cat([q_caches[j], q_cache], dim=1)
-                    h = h + q_caches[j]
-
-                    h_cache = h[:, -2:, :] + fully_connected_linear(fully_connected_norm(h[:, -2:, :]))
-                    h_caches[j] = torch.cat([h_caches[j], h_cache], dim=1)
-                    h = h_caches[j]
-
-            h  = self.transformer_norm(h)
-
+                q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
+                h = h + q
+                h = h + fully_connected_linear(fully_connected_norm(h))
+            h = self.transformer_norm(h)
             """
-            We utilize the last idx in h to derive the latest reward and state.
+            Transformer decoder
             """
+
             h = self.dropout_1(h)
-            r = self.reward_linear(h[:, - 1, :])  
+            r = self.reward_linear(h)  
             r = torch.tanh(r)
-            s = self.state_linear_(h[:, - 2, :])   
+            s = self.state_linear_(h)   
             s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
 
             present_s = s
-            present_s = self.state_linear(present_s.unsqueeze(1))
+            present_s = self.state_linear(present_s)
 
-            window_list.append(present_s)
-
-        future_r = torch.stack(future_r_list, dim=0).transpose(0, 1) # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = torch.stack(future_s_list, dim=0).transpose(0, 1) # future_s becomes [batch_size, sequence_size, state_size ]
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
     
+        return future_r, future_s
+
+
+
+
+    def forward_(self, history_s, history_a, present_s, future_s, future_a):
+
+
+
+
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_s_ = self.state_linear (future_s)[:, :-1, :]
+        future_a  = self.action_linear(future_a) 
+
+        if history_s.size(1) > 0:
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+
+
+
+        future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
+        h = torch.cat([history_s_a, future_s_a], dim=1)
+        h = torch.tanh(h)
+        h = self.dropout_0(h)
+
+        """
+        Transformer decoder
+        """
+        long = h.size(1)
+        h = h + self.positional_encoding[:, :long, :]
+        for layer in self.transformer_layers:
+            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+            h_ = attention_norm(h)
+            h  = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+            h_ = fully_connected_norm(h)
+            h  = h + fully_connected_linear(h_)
+        h = self.transformer_norm(h)
+        """
+        Transformer decoder
+        """
+
+        h = self.dropout_1(h)
+        r = self.reward_linear(h)  
+        future_r = torch.tanh(r)
+        s = self.state_linear_(h)   
+        future_s = torch.tanh(s)
+
         return future_r, future_s
 
 
