@@ -259,11 +259,12 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
         batch = next(iter(loader))
         try:
             batch = [x.to(device) for x in batch]
+            hs, ha, ps, fa, fr, fs = batch
             model.eval()
             torch.cuda.reset_peak_memory_stats(device)
             start = time.time()
             with torch.no_grad():
-                model(*batch[:5])  
+                model.forward_(hs, ha, ps, fs, fa)  
             duration = time.time() - start
             peak_mem = torch.cuda.max_memory_allocated(device)
             mem_ratio = peak_mem / total_mem

@@ -56,19 +56,21 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 500     #⚠️
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 5                    #◀️
+ensemble_size = 15                   #◀️
 validation_size = 10                 #◀️
-state_size =  460                    #⚠️
-action_size = 4                      #⚠️
+state_size =  260                    #⚠️
+action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 600                   #⚠️
-history_size  = 150                  #⚠️
-future_size = 150                    #⚠️ 
-future_size_ = 20                    #⚠️ 
+feature_size = 400                   #⚠️
+history_size = 0                     #⚠️
+future_size = 50                     #⚠️
+future_size_ = 15                    #⚠️             
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -78,12 +80,12 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.
 alpha = 0.1                  
-itrtn_for_learning  = 1000
+itrtn_for_learning  = 100
 beta = 0.1                     
 itrtn_for_planning = 5     
 episode_for_training = 100000 
 buffer_limit = 100000   
-per = False
+per = True
 
 
 
@@ -276,7 +278,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action ((1, future_size_, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size_, reward_size), device)
-        future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
+        future_action   = update_future_action(itrtn_for_planning,
                                                model_list,
                                                history_state ,
                                                history_action,
