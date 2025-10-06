@@ -58,19 +58,20 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 20      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 15                   #◀️
+ensemble_size = 5                    #◀️
 validation_size = 10                 #◀️
-state_size =  260                    #⚠️
-action_size = 2                      #⚠️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 400                   #⚠️
-history_size = 0                     #⚠️
-future_size = 50                     #⚠️
-future_size_ = 15                    #⚠️             
+feature_size = 250                   #⚠️
+history_size = 10                    #⚠️
+future_size = 15                     #⚠️
+future_size_ = 6                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -82,7 +83,7 @@ drop_rate = 0.
 alpha = 0.1                  
 itrtn_for_learning  = 100
 beta = 0.1                     
-itrtn_for_planning = 5     
+itrtn_for_planning = 5    
 episode_for_training = 100000 
 buffer_limit = 100000   
 per = True
@@ -278,7 +279,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action ((1, future_size_, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size_, reward_size), device)
-        future_action   = update_future_action(itrtn_for_planning,
+        future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
                                                model_list,
                                                history_state ,
                                                history_action,
