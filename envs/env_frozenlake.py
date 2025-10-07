@@ -90,6 +90,25 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         reward[0: idx] = 1
     return reward
 
+def quantized_highest_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+    start_value = 0 
+    end_value = 1   
+    N = 50 
+    recent_K = batch_size * 2
+    rewards = []
+    if performance_log:
+        for item in performance_log[-recent_K:]:
+            if isinstance(item, (tuple, list)) and len(item) == 2:
+                _, r = item
+            else:
+                r = item
+            rewards.append(r)
+    avg_reward = sum(rewards) / len(rewards) if rewards else 0.0
+    scaled = (avg_reward - start_value) / (end_value - start_value)
+    scaled = max(0.0, min(1.0, scaled))  # clamp 0~1
+    iteration_unit = int(N * scaled) 
+    return iteration_unit
+
 class randomizer(gym.Wrapper):
     def __init__(self, env, max_attempts=100):
         super().__init__(env)

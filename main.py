@@ -54,19 +54,18 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 20      #⚠️
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 500     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
-validation_size = 10                 #◀️
-state_size = 36                      #⚠️
+validation_size = 50                 #◀️
+state_size =  460                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 100                   #⚠️
-history_size = 0                     #⚠️
-future_size = 100                    #⚠️
-future_size_ = 20                    #⚠️
+feature_size = 500                   #⚠️
+history_size  = 150                  #⚠️
+future_size = 150                    #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -76,12 +75,12 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1                  
-itrtn_for_learning  = 1000
+itrtn_for_learning  = 150
 beta = 0.1                     
-itrtn_for_planning  = 10     
+itrtn_for_planning  = 1     
 episode_for_training = 100000   
 buffer_limit = 100000   
-per = False
+per = True
 
 
 
@@ -109,11 +108,12 @@ game_modules = {
     'MiniGrid-DoorKey-5x5-v0': 'envs.env_doorkey'
 }
 if game_name in game_modules:
-    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'randomizer'])
-    vectorizing_state  = game_module.vectorizing_state
-    vectorizing_action = game_module.vectorizing_action
-    vectorizing_reward = game_module.vectorizing_reward
-    randomizer         = game_module.randomizer
+    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'quantized_highest_reward', 'randomizer'])
+    vectorizing_state        = game_module.vectorizing_state
+    vectorizing_action       = game_module.vectorizing_action
+    vectorizing_reward       = game_module.vectorizing_reward
+    quantized_highest_reward = game_module.quantized_highest_reward
+    randomizer               = game_module.randomizer
 else:
     raise RuntimeError('Missing env functions')
 
@@ -210,6 +210,12 @@ if load_pretrained_model == True:
     except:
         print('Failed loading pre-trained models. Now using new models.')
 
+# retreive highest reward
+if len(performance_log) > 0:
+    highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
+else:
+    highest_reward = 0
+
 
 
 
@@ -255,15 +261,12 @@ for training_episode in tqdm(range(episode_for_training)):
         """
         The final desired reward is factually the last time step in desired reward.
         """
-        """
-        We use a smaller future_size_ in the planning phase here to save computing time.
-        """
         # initializing and updating action by desired reward                                  
         history_state   = retrieve_history(state_list, action_list, history_size, device)
         present_state   = retrieve_present(state_list, device)
-        future_action   = initialize_future_action ((1, future_size_, action_size), device)
-        desired_reward  = initialize_desired_reward((1, future_size_, reward_size), device)
-        future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
+        future_action   = initialize_future_action ((1, future_size, action_size), device)
+        desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
+        future_action   = update_future_action(itrtn_for_planning + highest_reward ,
                                                model_list,
                                                history_state,
                                                present_state,
@@ -360,10 +363,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
-    
-    """
-    We can also use prioritized experience replay to make training more efficient.
-    """
+
     # training
     if current_episode % validation_size == 0:
         dataset     = TensorDataset    (history_state_stack,
@@ -423,9 +423,11 @@ for training_episode in tqdm(range(episode_for_training)):
         # saving final reward to log
         save_performance_to_csv(performance_log, performance_directory)
 
-
-
+        # retreive highest reward
+        highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
 
         # clear up
         gc.collect()
         torch.cuda.empty_cache()
+
+

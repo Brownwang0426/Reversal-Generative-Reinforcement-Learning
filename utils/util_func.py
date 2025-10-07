@@ -207,42 +207,63 @@ def update_long_term_experience_replay_buffer(
 
 
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
+    """
+    Try different batch sizes and return the largest one that fits in GPU memory.
+    Automatically falls back to CPU if CUDA is unavailable.
+    """
 
     if bs_list is None:
         bs_list = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
-    torch.cuda.set_device(device)
-    total_mem = torch.cuda.get_device_properties(device).total_memory
+    # --- Device selection and fallback ---
+    if not torch.cuda.is_available() or not str(device).startswith('cuda'):
+        print(f"[INFO] CUDA not available. Falling back to CPU.")
+        device = 'cpu'
+        use_cuda = False
+    else:
+        use_cuda = True
+        torch.cuda.set_device(device)
+        total_mem = torch.cuda.get_device_properties(device).total_memory
+
     results = []
 
     for bs in bs_list:
-        torch.cuda.empty_cache(); gc.collect()
+        gc.collect()
+        if use_cuda:
+            torch.cuda.empty_cache()
+
         loader = DataLoader(dataset, batch_size=bs, shuffle=False)
         batch = next(iter(loader))
+
         try:
             batch = [x.to(device) for x in batch]
             model.eval()
-            torch.cuda.reset_peak_memory_stats(device)
+            if use_cuda:
+                torch.cuda.reset_peak_memory_stats(device)
+
             start = time.time()
             with torch.no_grad():
-                model(*batch[:3])  
+                model(*batch[:3])  # assume first 3 are model inputs
             duration = time.time() - start
-            peak_mem = torch.cuda.max_memory_allocated(device)
-            mem_ratio = peak_mem / total_mem
 
-            if mem_ratio < max_mem_ratio:
-                results.append((bs, duration, mem_ratio))
-                pass
+            if use_cuda:
+                peak_mem = torch.cuda.max_memory_allocated(device)
+                mem_ratio = peak_mem / total_mem
+                if mem_ratio < max_mem_ratio:
+                    results.append((bs, duration, mem_ratio))
             else:
-                pass
+                # On CPU: we can’t measure GPU mem, so accept all
+                results.append((bs, duration, 0.0))
+
         except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                pass
+            if use_cuda and "out of memory" in str(e).lower():
+                torch.cuda.empty_cache()
+                continue
             else:
                 raise e
 
     if not results:
-        raise RuntimeError("all batch size OOM")
+        raise RuntimeError("All batch sizes failed (OOM or other errors).")
 
     best_bs = min(results, key=lambda x: x[1])[0]
     return best_bs
@@ -275,7 +296,6 @@ def update_model_per(itrtn_for_learning,
     PER_exponent   = 2
 
     for _ in tqdm(range(itrtn_for_learning)):
-
 
         batch_samples  = [dataset[0]]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
@@ -421,5 +441,4 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 def save_buffer_to_pickle(filename, *list):
     with open(filename, 'wb') as file:
-
         dill.dump(list, file)
