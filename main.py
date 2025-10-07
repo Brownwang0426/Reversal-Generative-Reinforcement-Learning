@@ -68,9 +68,9 @@ validation_size = 10                 #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 250                   #⚠️
+feature_size = 200                   #⚠️
 history_size = 10                    #⚠️
-future_size = 15                     #⚠️
+future_size = 6                      #⚠️
 future_size_ = 6                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
@@ -83,7 +83,7 @@ drop_rate = 0.
 alpha = 0.1                  
 itrtn_for_learning  = 100
 beta = 0.1                     
-itrtn_for_planning = 5    
+itrtn_for_planning = 1    
 episode_for_training = 100000 
 buffer_limit = 100000   
 per = True
@@ -150,6 +150,19 @@ from utils.util_func import load_performance_from_csv,\
                             limit_buffer,\
                             save_performance_to_csv,\
                             save_buffer_to_pickle
+
+def quantized_highest_reward(reward_list, start_value, end_value, N, m):
+    if len(reward_list) == 0:
+        return 0 
+    highest_reward = max(reward_list)
+    bins = np.linspace(start_value, end_value, N + 1)
+    n = np.digitize(highest_reward, bins, right=False) - 1
+    n = max(0, min(n, N - 1))  
+    return m * (n + 1)
+
+
+
+
 
 
 
@@ -225,6 +238,11 @@ if load_pretrained_model == True:
     except:
         print('Failed loading pre-trained models. Now using new models.')
 
+# retreive highest reward
+if len(performance_log) > 0:
+    highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], 0, 1, 10, 1)
+else:
+    highest_reward = 0
 
 
 
@@ -279,7 +297,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action ((1, future_size_, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size_, reward_size), device)
-        future_action   = update_future_action(np.random.randint(itrtn_for_planning) + 1,
+        future_action   = update_future_action(itrtn_for_planning + int(highest_reward) , 
                                                model_list,
                                                history_state ,
                                                history_action,
@@ -466,8 +484,8 @@ for training_episode in tqdm(range(episode_for_training)):
         # saving final reward to log
         save_performance_to_csv(performance_log, performance_directory)
 
-
-
+        # retreive highest reward
+        highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], 0, 1, 10, 1)
 
         # clear up
         gc.collect()
