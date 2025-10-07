@@ -268,6 +268,79 @@ class build_model(nn.Module):
 
 
 
+    def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    
+        future_r_list = list()
+        future_s_list = list()
+    
+    
+    
+    
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
+    
+        if history_s.size(1) > 0:
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+    
+        kv_caches = [dict() for _ in self.transformer_layers]
+    
+        for i in range(future_a.size(1)):
+    
+            if i == 0:
+                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+            else:
+                h = present_s + future_a[:, i:i+1]
+            h = torch.tanh(h)
+            h = self.dropout_0(h)
+    
+            """
+            Transformer decoder
+            """
+            long = history_s_a.size(1) + 1 + i
+            if i == 0:
+                h = h + self.positional_encoding[:, :long, :]
+            else:
+                h = h + self.positional_encoding[:, long-1:long, :]
+            for j, layer in enumerate(self.transformer_layers):
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+                q = attention_norm(h)
+                if i == 0:
+                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
+                else:
+                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
+                h = h + q
+                h = h + fully_connected_linear(fully_connected_norm(h))
+            h = self.transformer_norm(h)
+            """
+            Transformer decoder
+            """
+    
+            h = self.dropout_1(h)
+            r = self.reward_linear(h[:, - 1:, :])   
+            r = torch.tanh(r)
+            s = self.state_linear_(h[:, - 1:, :])    
+            s = torch.tanh(s)
+    
+            future_r_list.append(r)
+            future_s_list.append(s)
+    
+            present_s = s
+            present_s = self.state_linear(present_s)
+    
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+    
+
+
     def forward_(self, history_s, history_a, present_s, future_s, future_a):
 
 
@@ -359,80 +432,6 @@ class build_model(nn.Module):
 
 
 
-
-
-
-
-
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
-    
-        future_r_list = list()
-        future_s_list = list()
-    
-    
-    
-    
-        if history_s.size(1) > 0:
-            history_s = self.state_linear (history_s)  
-            history_a = self.action_linear(history_a) 
-        present_s = self.state_linear (present_s.unsqueeze(1))
-        future_a  = self.action_linear(future_a) 
-    
-        if history_s.size(1) > 0:
-            history_s_a = history_s + history_a
-        else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-                
-    
-        kv_caches = [dict() for _ in self.transformer_layers]
-    
-        for i in range(future_a.size(1)):
-    
-            if i == 0:
-                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
-            else:
-                h = present_s + future_a[:, i:i+1]
-            h = torch.tanh(h)
-            h = self.dropout_0(h)
-    
-            """
-            Transformer decoder
-            """
-            long = history_s_a.size(1) + 1 + i
-            if i == 0:
-                h = h + self.positional_encoding[:, :long, :]
-            else:
-                h = h + self.positional_encoding[:, long-1:long, :]
-            for j, layer in enumerate(self.transformer_layers):
-                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                q = attention_norm(h)
-                if i == 0:
-                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
-                else:
-                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
-                h = h + q
-                h = h + fully_connected_linear(fully_connected_norm(h))
-            h = self.transformer_norm(h)
-            """
-            Transformer decoder
-            """
-    
-            h = self.dropout_1(h)
-            r = self.reward_linear(h[:, - 1:, :])   
-            r = torch.tanh(r)
-            s = self.state_linear_(h[:, - 1:, :])    
-            s = torch.tanh(s)
-    
-            future_r_list.append(r)
-            future_s_list.append(s)
-    
-            present_s = s
-            present_s = self.state_linear(present_s)
-    
-        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
-    
-        return future_r, future_s
 
 
 
