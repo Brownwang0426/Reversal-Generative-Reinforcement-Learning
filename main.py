@@ -80,13 +80,13 @@ opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.
-alpha = 0.1                  
-itrtn_for_learning  = 100
-beta = 0.1                     
-itrtn_for_planning = 1    
-episode_for_training = 100000 
-buffer_limit = 100000   
-per = True
+alpha = 0.1
+itrtn_for_learning  = 1000
+beta = 0.1
+itrtn_for_planning = 1
+episode_for_training = 100000
+buffer_limit = 100000
+per = False
 
 
 
@@ -151,16 +151,24 @@ from utils.util_func import load_performance_from_csv,\
                             save_performance_to_csv,\
                             save_buffer_to_pickle
 
-def quantized_highest_reward(reward_list, start_value, end_value, N, m):
-    if len(reward_list) == 0:
-        return 0 
-    highest_reward = max(reward_list)
-    bins = np.linspace(start_value, end_value, N + 1)
-    n = np.digitize(highest_reward, bins, right=False) - 1
-    n = max(0, min(n, N - 1))  
-    return m * (n + 1)
-
-
+def quantized_highest_reward(performance_log, start_value=0, end_value=1, N=10, m=1, recent_K=10):
+    """
+    Compute iteration unit based on the average of the last K episodes' rewards.
+    Compatible with performance_log as list of floats or list of (episode, reward) tuples.
+    """
+    rewards = []
+    if performance_log:
+        for item in performance_log[-recent_K:]:
+            if isinstance(item, (tuple, list)) and len(item) == 2:
+                _, r = item
+            else:
+                r = item
+            rewards.append(r)
+    avg_reward = sum(rewards) / len(rewards) if rewards else 0.0
+    scaled = (avg_reward - start_value) / (end_value - start_value)
+    scaled = max(0.0, min(1.0, scaled))  # clamp 0~1
+    iteration_unit = int(N * scaled) * m
+    return iteration_unit
 
 
 
@@ -240,7 +248,7 @@ if load_pretrained_model == True:
 
 # retreive highest reward
 if len(performance_log) > 0:
-    highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], 0, 1, 10, 1)
+    highest_reward = quantized_highest_reward([entry[1] for entry in performance_log])
 else:
     highest_reward = 0
 
@@ -485,7 +493,7 @@ for training_episode in tqdm(range(episode_for_training)):
         save_performance_to_csv(performance_log, performance_directory)
 
         # retreive highest reward
-        highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], 0, 1, 10, 1)
+        highest_reward = quantized_highest_reward([entry[1] for entry in performance_log])
 
         # clear up
         gc.collect()
