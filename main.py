@@ -77,9 +77,8 @@ drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning  = 1500
 beta = 0.1                     
-itrtn_for_planning  = 1     
 episode_for_training = 100000   
-buffer_limit = 40000   
+buffer_limit = 35000   
 per = False
 render_for_human = False
 
@@ -211,6 +210,7 @@ if len(performance_log) > 0:
     itrtn_for_planning = quantized_reward([entry[1] for entry in performance_log], validation_size)
 else:
     itrtn_for_planning = 0
+
 
 
 
