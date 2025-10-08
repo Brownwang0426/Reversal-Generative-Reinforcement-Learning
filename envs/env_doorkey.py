@@ -71,7 +71,17 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
     return vectorized_action, action_argmax 
 
-def quantized_highest_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):     # Reminder: change this for your specific task ⚠️⚠️⚠️
+    if done or truncated: 
+        if done:
+            reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)      
+        else:
+            reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)    
+    else:
+        reward = quantifying(-1, 1, reward_size , 0, 1, reward, device)
+    return reward
+
+def quantized_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = 0
     end_value = 1 
     N = 50 
@@ -89,19 +99,6 @@ def quantized_highest_reward(performance_log, batch_size): # Reminder: change th
     scaled = max(0.0, min(1.0, scaled))  # clamp 0~1
     iteration_unit = int(N * scaled) 
     return iteration_unit
-
-def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):     # Reminder: change this for your specific task ⚠️⚠️⚠️
-    if done or truncated: 
-        if done:
-            reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)      
-        else:
-            reward = quantifying(-1, 1, reward_size, 0, 1, reward, device)    
-    else:
-        reward = quantifying(-1, 1, reward_size , 0, 1, reward, device)
-    return reward
-
-
-
 
 from minigrid.core.world_object import Door, Key
 

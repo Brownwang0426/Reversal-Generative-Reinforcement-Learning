@@ -85,7 +85,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         reward = torch.zeros(reward_size ).to(device) - 1
     return reward
 
-def quantized_highest_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def quantized_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = -500
     end_value = -90   
     N = 50 

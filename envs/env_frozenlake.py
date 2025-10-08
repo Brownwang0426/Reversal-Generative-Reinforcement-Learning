@@ -90,7 +90,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         reward[0: idx] = 1
     return reward
 
-def quantized_highest_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def quantized_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = 0 
     end_value = 1   
     N = 50 

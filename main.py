@@ -54,17 +54,18 @@ torch.backends.cudnn.benchmark = True
 
 
 
+
 game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 500     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
-validation_size = 50                 #◀️
+validation_size = 10                 #◀️
 state_size =  460                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size  = 150                  #⚠️
+history_size = 150                   #⚠️
 future_size = 150                    #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
@@ -75,11 +76,12 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1                  
-itrtn_for_learning  = 150
+itrtn_for_learning  = 1500
 beta = 0.1                     
+itrtn_for_planning  = 1     
 episode_for_training = 100000   
-buffer_limit = 100000   
-per = True
+buffer_limit = 50000   
+per = False
 
 
 
@@ -107,12 +109,12 @@ game_modules = {
     'MiniGrid-DoorKey-5x5-v0': 'envs.env_doorkey'
 }
 if game_name in game_modules:
-    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'quantized_highest_reward', 'randomizer'])
-    vectorizing_state        = game_module.vectorizing_state
-    vectorizing_action       = game_module.vectorizing_action
-    vectorizing_reward       = game_module.vectorizing_reward
-    quantized_highest_reward = game_module.quantized_highest_reward
-    randomizer               = game_module.randomizer
+    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'quantized_reward', 'randomizer'])
+    vectorizing_state   = game_module.vectorizing_state
+    vectorizing_action  = game_module.vectorizing_action
+    vectorizing_reward  = game_module.vectorizing_reward
+    quantized_reward    = game_module.quantized_reward
+    randomizer          = game_module.randomizer
 else:
     raise RuntimeError('Missing env functions')
 
@@ -211,7 +213,7 @@ if load_pretrained_model == True:
 
 # retreive highest reward
 if len(performance_log) > 0:
-    itrtn_for_planning = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
+    itrtn_for_planning = quantized_reward([entry[1] for entry in performance_log], validation_size)
 else:
     itrtn_for_planning = 0
 
@@ -423,7 +425,7 @@ for training_episode in tqdm(range(episode_for_training)):
         save_performance_to_csv(performance_log, performance_directory)
 
         # retreive highest reward
-        itrtn_for_planning = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
+        itrtn_for_planning = quantized_reward([entry[1] for entry in performance_log], validation_size)
 
         # clear up
         gc.collect()
