@@ -44,7 +44,6 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
     print('using cpu...')
-
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
@@ -80,22 +79,18 @@ itrtn_for_learning  = 1500
 beta = 0.1                     
 itrtn_for_planning  = 1     
 episode_for_training = 100000   
-buffer_limit = 50000   
+buffer_limit = 40000   
 per = False
+render_for_human = False
 
 
 
-
-
-episode_for_testing = 100
-render_for_human = True
 
 suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{itrtn_for_learning:05d}"
 directory              = f'./result/{game_name}/'
 performance_directory  = f'./result/{game_name}/performace-{suffix}.csv'
 model_directory        = f'./result/{game_name}/model-{suffix}.pth'
 buffer_directory       = f'./result/{game_name}/buffer-{suffix}.dill'
-
 if not os.path.exists(directory):
     os.makedirs(directory)
 
@@ -222,10 +217,11 @@ else:
 
 
 
+
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
     current_episode  = training_episode + last_episode + 1
-    
+
     # initializing summed reward
     summed_reward  = 0
 
@@ -236,15 +232,17 @@ for training_episode in tqdm(range(episode_for_training)):
     for _ in range(history_size):
         state_list .append(torch.zeros(state_size  ).to(device) - 1 )
         action_list.append(torch.zeros(action_size ).to(device) - 1 )
-        reward_list.append(torch.zeros(reward_size ).to(device) - 1 ) 
+        reward_list.append(torch.zeros(reward_size ).to(device) - 1 )
 
     # initializing environment
     if game_name == 'FrozenLake-v1'  :
-        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4", render_mode = "human" if render_for_human else None)
     else:
-        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode)
+        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, render_mode = "human" if render_for_human else None)
     state, info    = env.reset(seed = seed)
-    
+    if render_for_human == True:
+        env.render()
+
     # observing state
     state          = vectorizing_state(state, False, False, device)
     state_list.append(state)
@@ -253,16 +251,16 @@ for training_episode in tqdm(range(episode_for_training)):
     post_done_truncated_counter = 0
     post_done_truncated_steps = future_size
     done_truncated_flag = False
-    total_step = 0 
+    total_step = 0
     while not done_truncated_flag:
-        
+
         """
         We let agent took some history states into consideration.
         """
         """
         The final desired reward is factually the last time step in desired reward.
         """
-        # initializing and updating action by desired reward                                  
+        # initializing and updating action by desired reward
         history_state   = retrieve_history(state_list, action_list, history_size, device)
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action ((1, future_size, action_size), device)
@@ -281,6 +279,8 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # executing action
         state, reward, done, truncated, info = env.step(action_)
+        if render_for_human == True:
+            env.render()
 
         # summing reward
         if post_done_truncated_counter > 0:
@@ -296,10 +296,10 @@ for training_episode in tqdm(range(episode_for_training)):
         state_list.append(state)
 
         """
-        We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes. 
+        We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes.
         Though it is contrary to common practice in RL, this is for better handling the sequentialization of the short-term experience replay buffer with fixed window length.
         And it is also for agent to plan ahead even after the episode is done.
-        We give a done flag to state to indicate that the environment is done so that the agent won't be confused. 
+        We give a done flag to state to indicate that the environment is done so that the agent won't be confused.
         The done flag shall affect the state in a considerable way to remind the agent that the environment is done.
         """
         # if done then continue for a short period. Then store experience to short term experience replay buffer
@@ -307,11 +307,11 @@ for training_episode in tqdm(range(episode_for_training)):
             post_done_truncated_counter += 1
             if post_done_truncated_counter >= post_done_truncated_steps:
                 done_truncated_flag = True
-                break            
+                break
         else:
             total_step += 1
             print(f'\rStep: {total_step}\r', end='', flush=True)
-                
+
     # closing env
     env.close()
 
@@ -341,7 +341,7 @@ for training_episode in tqdm(range(episode_for_training)):
     """
     We dropped duplicated experiences in the buffer.
     """
-    # storing sequentialized short term experience to long term experience replay buffer 
+    # storing sequentialized short term experience to long term experience replay buffer
     history_state_stack, \
     present_state_stack, \
     future_action_stack, \
