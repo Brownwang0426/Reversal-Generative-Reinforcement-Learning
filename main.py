@@ -88,7 +88,7 @@ per = True
 episode_for_testing = 100
 render_for_human = True
 
-suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{itrtn_for_learning:05d}-plan_{itrtn_for_planning:05d}"
+suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{itrtn_for_learning:05d}"
 directory              = f'./result/{game_name}/'
 performance_directory  = f'./result/{game_name}/performace-{suffix}.csv'
 model_directory        = f'./result/{game_name}/model-{suffix}.pth'
