@@ -77,7 +77,6 @@ drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning  = 150
 beta = 0.1                     
-itrtn_for_planning  = 1     
 episode_for_training = 100000   
 buffer_limit = 100000   
 per = True
@@ -212,9 +211,9 @@ if load_pretrained_model == True:
 
 # retreive highest reward
 if len(performance_log) > 0:
-    highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
+    itrtn_for_planning = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
 else:
-    highest_reward = 0
+    itrtn_for_planning = 0
 
 
 
@@ -266,7 +265,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device)
         future_action   = initialize_future_action ((1, future_size, action_size), device)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
-        future_action   = update_future_action(itrtn_for_planning + highest_reward ,
+        future_action   = update_future_action(1 + itrtn_for_planning ,
                                                model_list,
                                                history_state,
                                                present_state,
@@ -424,7 +423,7 @@ for training_episode in tqdm(range(episode_for_training)):
         save_performance_to_csv(performance_log, performance_directory)
 
         # retreive highest reward
-        highest_reward = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
+        itrtn_for_planning = quantized_highest_reward([entry[1] for entry in performance_log], validation_size)
 
         # clear up
         gc.collect()
