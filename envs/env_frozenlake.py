@@ -47,7 +47,7 @@ Crucial function regarding how you manipulate or shape your state, action and re
 """
 
 def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
-    tensor   = torch.zeros(tesnor_size).to(device) + start_value
+    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
     interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
@@ -55,38 +55,38 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(10).to(device)
+    null_state = torch.ones(10).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(10).to(device)
+        state_0 = torch.ones(10).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(10).to(device) - 1
-    state_1 = (torch.eye(16)[state].to(device) - 0.5) * 2
+        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
+    state_1 = (torch.eye(16)[state].to(device, non_blocking=True) - 0.5) * 2
     state   = torch.cat((null_state, state_0, state_1), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2) 
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
-    vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
+    vectorized_action = (torch.eye(action_size)[action_argmax].to(device, non_blocking=True) - 0.5) * 2
     return vectorized_action, action_argmax 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if (state == 15):         # If the agent reaches goal
-            reward = torch.ones(reward_size ).to(device)
+            reward = torch.ones(reward_size ).to(device, non_blocking=True)
         else:
             x, y = divmod(state, 4)
             distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
             max_distance = np.sqrt(3**2 + 3**2)  # 4.24
             idx = int(100 * (1 - (distance / max_distance)))
-            reward = torch.zeros(reward_size ).to(device) - 1
+            reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
             reward[0: idx] = 1
     else:
         x, y = divmod(state, 4)
         distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         max_distance = np.sqrt(3**2 + 3**2)  # 4.24
         idx = int(100 * (1 - (distance / max_distance)))
-        reward = torch.zeros(reward_size ).to(device) - 1
+        reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
         reward[0: idx] = 1
     return reward
 

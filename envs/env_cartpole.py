@@ -46,7 +46,7 @@ Crucial function regarding how you manipulate or shape your state, action and re
 """
 
 def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
-    tensor   = torch.zeros(tesnor_size).to(device) + start_value
+    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
     interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
@@ -54,11 +54,11 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(10).to(device)
+    null_state = torch.ones(10).to(device, non_blocking=True)
     if done:
-        state_0 = torch.ones(50).to(device)
+        state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(50).to(device) - 1
+        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
     state_1 = quantifying(-1, 1, 50, -4.8  , 4.8   , state[0], device)
     state_2 = quantifying(-1, 1, 50, -3.75 , 3.75  , state[1], device)
     state_3 = quantifying(-1, 1, 50, -0.418, 0.418 , state[2], device)
@@ -69,7 +69,7 @@ def vectorizing_state(state, done, truncated, device):      # Reminder: change t
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2) 
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
-    vectorized_action = (torch.eye(action_size)[action_argmax].to(device) - 0.5) * 2
+    vectorized_action = (torch.eye(action_size)[action_argmax].to(device, non_blocking=True) - 0.5) * 2
     return vectorized_action, action_argmax 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️

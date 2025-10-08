@@ -47,7 +47,7 @@ Crucial function regarding how you manipulate or shape your state, action and re
 """
 
 def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
-    tensor   = torch.zeros(tesnor_size).to(device) + start_value
+    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
     interval = (max_value - min_value) / tesnor_size
     index    = int( (value - min_value) // interval + 1)
     if index >= 0:
@@ -55,11 +55,11 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(10).to(device)
+    null_state = torch.ones(10).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(50).to(device)
+        state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(50).to(device) - 1
+        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
     state_1 = quantifying(-1, 1, 50,      -1,      1 , state[0], device)
     state_2 = quantifying(-1, 1, 50,      -1,      1 , state[1], device)
     state_3 = quantifying(-1, 1, 50,      -1,      1 , state[2], device)
@@ -78,11 +78,11 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:
-            reward = torch.ones(reward_size).to(device) 
+            reward = torch.ones(reward_size).to(device, non_blocking=True) 
         else:
-            reward = torch.zeros(reward_size).to(device) - 1
+            reward = torch.zeros(reward_size).to(device, non_blocking=True) - 1
     else:
-        reward = torch.zeros(reward_size ).to(device) - 1
+        reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
     return reward
 
 def quantized_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️

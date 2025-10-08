@@ -65,28 +65,28 @@ def load_buffer_from_pickle(filename):
 
 def retrieve_history(state_list, action_list, history_size, device):
     if history_size != 0:
-        history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device)
+        history_state     = torch.stack(state_list  [-history_size-1:-1], dim=0).unsqueeze(0).to(device, non_blocking=True)
     else:
-        history_state     = torch.empty(0, 0, 0).to(device)
+        history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
     return history_state
 
 
 
 
 def retrieve_present(state_list, device):
-    return state_list[-1].unsqueeze(0).to(device)
+    return state_list[-1].unsqueeze(0).to(device, non_blocking=True)
 
 
 
 
 def initialize_future_action(shape, device):
-    return torch.zeros(shape).to(device)
+    return torch.zeros(shape).to(device, non_blocking=True)
 
 
 
 
 def initialize_desired_reward(shape, device):
-    return  torch.ones(shape).to(device)
+    return  torch.ones(shape).to(device, non_blocking=True)
 
 
 
@@ -98,6 +98,14 @@ def update_future_action(itrtn_for_planning,
                          future_action,
                          desired_reward,
                          beta):
+
+    device = next(model_list[0].parameters()).device
+    original_device = history_state.device
+
+    history_state  = history_state.to(device, non_blocking=True)
+    present_state  = present_state.to(device, non_blocking=True)
+    future_action  = future_action.to(device, non_blocking=True)
+    desired_reward = desired_reward.to(device, non_blocking=True)
 
     for _ in range(itrtn_for_planning):
 
@@ -118,6 +126,8 @@ def update_future_action(itrtn_for_planning,
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
 
+    future_action = future_action.to(original_device, non_blocking=True)
+
     return future_action
 
 
@@ -126,7 +136,7 @@ def update_future_action(itrtn_for_planning,
 def sequentialize(state_list, action_list, reward_list, history_size, future_size):
 
     device              = state_list[0].device
-    torch_empty         = torch.empty(0, 0, 0).to(device)
+    torch_empty         = torch.empty(0, 0, 0).to(device, non_blocking=True)
 
     history_state_list  = []
     present_state_list  = []
@@ -232,7 +242,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
         if use_cuda:
             torch.cuda.empty_cache()
 
-        loader = DataLoader(dataset, batch_size=bs, shuffle=False)
+        loader = DataLoader(dataset, batch_size=bs, shuffle=False, pin_memory=True, num_workers=4)
         batch = next(iter(loader))
 
         try:
@@ -270,11 +280,16 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
 
 def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
-    data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False)
+    data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False, pin_memory=True, num_workers=4)
     
     TD_error     = torch.tensor([]).to(device)
 
     for history_state, present_state, future_action, future_reward in data_loader:
+
+        history_state  = history_state.to(device)
+        present_state  = present_state.to(device)
+        future_action  = future_action.to(device)
+        future_reward  = future_reward.to(device)
 
         model.train()
         model.lock()
@@ -299,10 +314,10 @@ def update_model_per(itrtn_for_learning,
 
         batch_samples  = [dataset[0]]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state )
-        present_state  = torch.stack(present_state )
-        future_action  = torch.stack(future_action )
-        future_reward  = torch.stack(future_reward )
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
         model.train()
         model.unlock()
         _ = model(history_state, present_state, future_action)
@@ -316,10 +331,10 @@ def update_model_per(itrtn_for_learning,
 
         batch_samples  = [dataset[i] for i in final_indices]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state )
-        present_state  = torch.stack(present_state )
-        future_action  = torch.stack(future_action )
-        future_reward  = torch.stack(future_reward )
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
 
         model.train()
         model.lock()
@@ -341,17 +356,19 @@ def update_model_per(itrtn_for_learning,
 def update_model(itrtn_for_learning,
                  dataset,
                  model):
-        
+    
+    device = next(model.parameters()).device
+
     for _ in tqdm(range(itrtn_for_learning)):
 
         random_indices = random.sample(range(len(dataset)), 1)
 
         batch_samples  = [dataset[i] for i in random_indices]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state )
-        present_state  = torch.stack(present_state )
-        future_action  = torch.stack(future_action )
-        future_reward  = torch.stack(future_reward )
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
 
         model.train()
         model.unlock()

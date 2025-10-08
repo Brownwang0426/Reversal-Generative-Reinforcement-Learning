@@ -40,9 +40,11 @@ if torch.cuda.is_available():
         print(f"Device {i}: {torch.cuda.get_device_name(i)}")
     device_index = 0
     device = torch.device(f"cuda:{device_index}")
+    device_ = torch.device("cpu")
     print('using cuda...')
 else:
     device = torch.device("cpu")
+    device_ = torch.device("cpu")
     print('using cpu...')
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
@@ -58,7 +60,7 @@ game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 500     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 5                    #◀️
+ensemble_size = 10                   #◀️
 validation_size = 10                 #◀️
 state_size =  460                    #⚠️
 action_size = 4                      #⚠️
@@ -78,7 +80,7 @@ alpha = 0.1
 itrtn_for_learning  = 1500
 beta = 0.1                     
 episode_for_training = 100000   
-buffer_limit = 35000   
+buffer_limit = 50000   
 per = False
 render_for_human = False
 
@@ -172,10 +174,10 @@ for _ in range(ensemble_size):
     model_list.append(model)
 
 # creating space for storing tensors as experience replay buffer
-history_state_stack    = torch.empty(0).to(device)
-present_state_stack    = torch.empty(0).to(device)
-future_action_stack    = torch.empty(0).to(device)
-future_reward_stack    = torch.empty(0).to(device)
+history_state_stack    = torch.empty(0).to(device_, non_blocking=True)
+present_state_stack    = torch.empty(0).to(device_, non_blocking=True)
+future_action_stack    = torch.empty(0).to(device_, non_blocking=True)
+future_reward_stack    = torch.empty(0).to(device_, non_blocking=True)
 history_state_hash_set = set()
 present_state_hash_set = set()
 future_action_hash_set = set()
@@ -195,10 +197,10 @@ if load_pretrained_model == True:
         present_state_hash_set, \
         future_action_hash_set, \
         future_reward_hash_set = load_buffer_from_pickle(buffer_directory)
-        history_state_stack    = history_state_stack.to (device) 
-        present_state_stack    = present_state_stack.to (device) 
-        future_action_stack    = future_action_stack.to (device) 
-        future_reward_stack    = future_reward_stack.to (device) 
+        history_state_stack    = history_state_stack.to (device_) 
+        present_state_stack    = present_state_stack.to (device_) 
+        future_action_stack    = future_action_stack.to (device_) 
+        future_reward_stack    = future_reward_stack.to (device_) 
         performance_log        = load_performance_from_csv(performance_directory)
         last_episode           = performance_log[-1][0] if len(performance_log) > 0 else 0
         print('Loaded pre-trained models.')
@@ -230,9 +232,9 @@ for training_episode in tqdm(range(episode_for_training)):
     action_list = []
     reward_list = []
     for _ in range(history_size):
-        state_list .append(torch.zeros(state_size  ).to(device) - 1 )
-        action_list.append(torch.zeros(action_size ).to(device) - 1 )
-        reward_list.append(torch.zeros(reward_size ).to(device) - 1 )
+        state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
+        action_list.append(torch.zeros(action_size ).to(device_, non_blocking=True) - 1 )
+        reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
 
     # initializing environment
     if game_name == 'FrozenLake-v1'  :
@@ -244,7 +246,7 @@ for training_episode in tqdm(range(episode_for_training)):
         env.render()
 
     # observing state
-    state          = vectorizing_state(state, False, False, device)
+    state          = vectorizing_state(state, False, False, device_)
     state_list.append(state)
 
     # starting each step
@@ -261,10 +263,10 @@ for training_episode in tqdm(range(episode_for_training)):
         The final desired reward is factually the last time step in desired reward.
         """
         # initializing and updating action by desired reward
-        history_state   = retrieve_history(state_list, action_list, history_size, device)
-        present_state   = retrieve_present(state_list, device)
-        future_action   = initialize_future_action ((1, future_size, action_size), device)
-        desired_reward  = initialize_desired_reward((1, future_size, reward_size), device)
+        history_state   = retrieve_history(state_list, action_list, history_size, device_)
+        present_state   = retrieve_present(state_list, device_)
+        future_action   = initialize_future_action ((1, future_size, action_size), device_)
+        desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
         future_action   = update_future_action(1 + itrtn_for_planning ,
                                                model_list,
                                                history_state,
@@ -274,7 +276,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                                beta)
 
         # observing action
-        action, action_  = vectorizing_action(future_action, device)
+        action, action_  = vectorizing_action(future_action, device_)
         action_list.append(action)
 
         # executing action
@@ -288,11 +290,11 @@ for training_episode in tqdm(range(episode_for_training)):
         summed_reward += reward
 
         # observing actual reward
-        reward = vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device)
+        reward = vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device_)
         reward_list.append(reward)
 
         # observing state
-        state = vectorizing_state(state, done, truncated, device)
+        state = vectorizing_state(state, done, truncated, device_)
         state_list.append(state)
 
         """
