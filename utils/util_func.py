@@ -242,7 +242,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
         if use_cuda:
             torch.cuda.empty_cache()
 
-        loader = DataLoader(dataset, batch_size=bs, shuffle=False, pin_memory=True, num_workers=4)
+        loader = DataLoader(dataset, batch_size=bs, shuffle=False, pin_memory=True, num_workers=0)
         batch = next(iter(loader))
 
         try:
@@ -280,7 +280,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
 
 def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
-    data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False, pin_memory=True, num_workers=4)
+    data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
     
     TD_error     = torch.tensor([]).to(device)
 
