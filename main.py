@@ -61,7 +61,7 @@ max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-validation_size = 10                 #◀️
+validation_size = 10                 #⚠️
 state_size =  460                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -281,7 +281,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # executing action
         state, reward, done, truncated, info = env.step(action_)
-        if render_for_human == True:
+        if (render_for_human == True) and (post_done_truncated_counter == 0):
             env.render()
 
         # summing reward
