@@ -100,12 +100,12 @@ def update_future_action(itrtn_for_planning,
                          beta):
 
     device = next(model_list[0].parameters()).device
-    original_device = history_state.device
+    device_ = history_state.device
 
-    history_state  = history_state.to(device, non_blocking=True)
-    present_state  = present_state.to(device, non_blocking=True)
-    future_action  = future_action.to(device, non_blocking=True)
-    desired_reward = desired_reward.to(device, non_blocking=True)
+    history_state  = history_state.to(device)
+    present_state  = present_state.to(device)
+    future_action  = future_action.to(device)
+    desired_reward = desired_reward.to(device)
 
     for _ in range(itrtn_for_planning):
 
@@ -126,7 +126,7 @@ def update_future_action(itrtn_for_planning,
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
 
-    future_action = future_action.to(original_device, non_blocking=True)
+    future_action = future_action.to(device_, non_blocking=True)
 
     return future_action
 
