@@ -90,11 +90,11 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         reward[0: idx] = 1
     return reward
 
-def quantized_reward(performance_log, batch_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = 0 
     end_value = 1   
-    N = 50 
-    recent_K = batch_size * 2
+    N = itrtn_for_planning
+    recent_K = window_size
     rewards = []
     if performance_log:
         for item in performance_log[-recent_K:]:

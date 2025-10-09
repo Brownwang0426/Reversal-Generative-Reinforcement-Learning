@@ -77,8 +77,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1                  
-itrtn_for_learning  = 1500
-beta = 0.1                     
+itrtn_for_learning = 1500
+beta = 0.1     
+max_itrtn_for_planning = 50         
+window_size = 50
 episode_for_training = 100000   
 buffer_limit = 50000   
 per = False
@@ -96,6 +98,8 @@ if not os.path.exists(directory):
     os.makedirs(directory)
 
 
+
+
 game_modules = {
     'FrozenLake-v1': 'envs.env_frozenlake',
     'CartPole-v1': 'envs.env_cartpole',
@@ -105,11 +109,11 @@ game_modules = {
     'MiniGrid-DoorKey-5x5-v0': 'envs.env_doorkey'
 }
 if game_name in game_modules:
-    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'quantized_reward', 'randomizer'])
+    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'averaging_reward', 'randomizer'])
     vectorizing_state   = game_module.vectorizing_state
     vectorizing_action  = game_module.vectorizing_action
     vectorizing_reward  = game_module.vectorizing_reward
-    quantized_reward    = game_module.quantized_reward
+    averaging_reward    = game_module.averaging_reward
     randomizer          = game_module.randomizer
 else:
     raise RuntimeError('Missing env functions')
@@ -209,7 +213,7 @@ if load_pretrained_model == True:
 
 # retreive highest reward
 if len(performance_log) > 0:
-    itrtn_for_planning = quantized_reward([entry[1] for entry in performance_log], validation_size)
+    itrtn_for_planning = averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, window_size)
 else:
     itrtn_for_planning = 0
 
@@ -427,7 +431,7 @@ for training_episode in tqdm(range(episode_for_training)):
         save_performance_to_csv(performance_log, performance_directory)
 
         # retreive highest reward
-        itrtn_for_planning = quantized_reward([entry[1] for entry in performance_log], validation_size)
+        itrtn_for_planning = averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, window_size)
 
         # clear up
         gc.collect()
