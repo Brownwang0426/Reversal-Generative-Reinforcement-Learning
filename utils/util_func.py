@@ -223,7 +223,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
     """
 
     if bs_list is None:
-        bs_list = [128, 256, 512, 1024, 2048, 4096, 8192]
+        bs_list = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
 
     # --- Device selection and fallback ---
     if not torch.cuda.is_available() or not str(device).startswith('cuda'):
