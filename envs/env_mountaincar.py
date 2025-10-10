@@ -57,11 +57,11 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     null_state = torch.ones(10).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(50).to(device, non_blocking=True)
+        state_0 = torch.ones(10).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 50, -0.6, 0.6, state[0], device)
-    state_2 = quantifying(-1, 1, 50, -0.1, 0.1, state[1], device)
+        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
+    state_1 = quantifying(-1, 1, 100, -0.6, 0.6, state[0], device)
+    state_2 = quantifying(-1, 1, 100, -0.1, 0.1, state[1], device)
     state   = torch.cat((null_state, state_0, state_1, state_2), dim = 0)
     return state
 
@@ -82,7 +82,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
     return reward
 
 def averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
-    start_value = -500
+    start_value = -250
     end_value = -90   
     N = itrtn_for_planning
     recent_K = window_size
