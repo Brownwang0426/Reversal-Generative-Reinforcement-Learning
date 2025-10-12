@@ -73,8 +73,8 @@ class custom_attn(nn.Module):
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = nn.Dropout(self.drop_rate)
-        self.resid_dropout = nn.Dropout(self.drop_rate)
+        self.attn_dropout  = DeterministicDropout(self.drop_rate)
+        self.resid_dropout = DeterministicDropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()

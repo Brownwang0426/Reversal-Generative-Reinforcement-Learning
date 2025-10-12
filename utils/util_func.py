@@ -217,63 +217,43 @@ def update_long_term_experience_replay_buffer(
 
 
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
-    """
-    Try different batch sizes and return the largest one that fits in GPU memory.
-    Automatically falls back to CPU if CUDA is unavailable.
-    """
 
     if bs_list is None:
-        bs_list = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+        bs_list = [8, 16, 32, 64, 128, 256, 512, 1024]
 
-    # --- Device selection and fallback ---
-    if not torch.cuda.is_available() or not str(device).startswith('cuda'):
-        print(f"[INFO] CUDA not available. Falling back to CPU.")
-        device = 'cpu'
-        use_cuda = False
-    else:
-        use_cuda = True
-        torch.cuda.set_device(device)
-        total_mem = torch.cuda.get_device_properties(device).total_memory
-
+    torch.cuda.set_device(device)
+    total_mem = torch.cuda.get_device_properties(device).total_memory
     results = []
 
     for bs in bs_list:
-        gc.collect()
-        if use_cuda:
-            torch.cuda.empty_cache()
-
-        loader = DataLoader(dataset, batch_size=bs, shuffle=False, pin_memory=True, num_workers=0)
+        torch.cuda.empty_cache(); gc.collect()
+        loader = DataLoader(dataset, batch_size=bs, shuffle=False)
         batch = next(iter(loader))
-
         try:
             batch = [x.to(device) for x in batch]
+            hs, ps, fa, fr = batch
             model.eval()
-            if use_cuda:
-                torch.cuda.reset_peak_memory_stats(device)
-
+            torch.cuda.reset_peak_memory_stats(device)
             start = time.time()
             with torch.no_grad():
-                model(*batch[:3])  # assume first 3 are model inputs
+                model.forward(hs, ps, fa)  
             duration = time.time() - start
+            peak_mem = torch.cuda.max_memory_allocated(device)
+            mem_ratio = peak_mem / total_mem
 
-            if use_cuda:
-                peak_mem = torch.cuda.max_memory_allocated(device)
-                mem_ratio = peak_mem / total_mem
-                if mem_ratio < max_mem_ratio:
-                    results.append((bs, duration, mem_ratio))
+            if mem_ratio < max_mem_ratio:
+                results.append((bs, duration, mem_ratio))
+                pass
             else:
-                # On CPU: we can’t measure GPU mem, so accept all
-                results.append((bs, duration, 0.0))
-
+                pass
         except RuntimeError as e:
-            if use_cuda and "out of memory" in str(e).lower():
-                torch.cuda.empty_cache()
-                continue
+            if "out of memory" in str(e).lower():
+                pass
             else:
                 raise e
 
     if not results:
-        raise RuntimeError("All batch sizes failed (OOM or other errors).")
+        raise RuntimeError("all batch size OOM")
 
     best_bs = min(results, key=lambda x: x[1])[0]
     return best_bs
@@ -303,33 +283,35 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
 def update_model_per(itrtn_for_learning,
                      dataset,
-                     model):
+                     model,
+                     optimal_batch_size):
     
     device         = next(model.parameters()).device
-    td_error_batch = find_optimal_batch_size(model, dataset, device=device)
+    td_error_batch = optimal_batch_size
     PER_epsilon    = 1e-10
     PER_exponent   = 2
 
+    batch_samples  = [dataset[0]]
+    history_state, present_state, future_action, future_reward = zip(*batch_samples)
+    history_state  = torch.stack(history_state ).to(device)
+    present_state  = torch.stack(present_state ).to(device)
+    future_action  = torch.stack(future_action ).to(device)
+    future_reward  = torch.stack(future_reward ).to(device)
+    model.train()
+    model.unlock()
+    _ = model(history_state, present_state, future_action)
+    model.lock()
+
+    obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
+
     for _ in tqdm(range(itrtn_for_learning)):
 
-        batch_samples  = [dataset[0]]
-        history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state ).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-        model.train()
-        model.unlock()
-        _ = model(history_state, present_state, future_action)
-        model.lock()
-
-        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
         priority             = obsolute_TD_error + PER_epsilon
         exponent_priority    = priority ** PER_exponent
         priority_probability = exponent_priority / torch.sum(exponent_priority)
-        final_indices        = torch.multinomial(priority_probability, 1, replacement=True)
+        final_indices        = torch.multinomial(priority_probability, 1, replacement=False)
 
-        batch_samples  = [dataset[i] for i in final_indices]
+        batch_samples  = [dataset[i] for i in final_indices.cpu().tolist()]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
         history_state  = torch.stack(history_state ).to(device)
         present_state  = torch.stack(present_state ).to(device)
@@ -340,13 +322,18 @@ def update_model_per(itrtn_for_learning,
         model.lock()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
-
         loss_function               = model.loss_function
         envisaged_reward            = model(history_state, present_state, future_action)
         total_loss                  = loss_function(envisaged_reward, future_reward) 
         total_loss.backward()     
-
         selected_optimizer.step() 
+
+        model.train()
+        model.lock()
+        loss_function               = model.loss_function_
+        envisaged_reward            = model(history_state, present_state, future_action)
+        total_loss                  = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2))
+        obsolute_TD_error[final_indices] =  total_loss.detach()
 
     return model
 
@@ -392,10 +379,13 @@ def update_model_list(itrtn_for_learning,
                       model_list,
                       per):
     if per:
+        device = next(model_list[0].parameters()).device
+        optimal_batch_size = find_optimal_batch_size(model_list[0], dataset, device=device)
         for i, model in enumerate(model_list):
             model_list[i] = update_model_per(itrtn_for_learning,
                                              dataset,
-                                             model)
+                                             model,
+                                             optimal_batch_size)
     else:
         for i, model in enumerate(model_list):
             model_list[i] = update_model(itrtn_for_learning,
@@ -459,3 +449,57 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 def save_buffer_to_pickle(filename, *list):
     with open(filename, 'wb') as file:
         dill.dump(list, file)
+
+
+
+
+def _update_model_per_(itrtn_for_learning,
+                       dataset,
+                       model,
+                       optimal_batch_size):
+    
+    device         = next(model.parameters()).device
+    td_error_batch = optimal_batch_size
+    PER_epsilon    = 1e-10
+    PER_exponent   = 2
+
+    for _ in tqdm(range(itrtn_for_learning)):
+
+        batch_samples  = [dataset[0]]
+        history_state, present_state, future_action, future_reward = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        model.train()
+        model.unlock()
+        _ = model(history_state, present_state, future_action)
+        model.lock()
+
+        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
+        priority             = obsolute_TD_error + PER_epsilon
+        exponent_priority    = priority ** PER_exponent
+        priority_probability = exponent_priority / torch.sum(exponent_priority)
+        final_indices        = torch.multinomial(priority_probability, 1, replacement=False)
+
+        batch_samples  = [dataset[i] for i in final_indices]
+        history_state, present_state, future_action, future_reward = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+
+        model.train()
+        model.lock()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward            = model(history_state, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) 
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
+

@@ -106,7 +106,7 @@ class build_model(nn.Module):
             'lstm': nn.LSTM
         }
         self.bidirectional        = False
-        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
+        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=0, bidirectional=self.bidirectional)
 
         self.dropout_1            = DeterministicDropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)

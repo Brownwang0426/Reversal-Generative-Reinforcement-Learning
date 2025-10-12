@@ -56,18 +56,16 @@ torch.backends.cudnn.benchmark = True
 
 
 
-
-
 game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 150     #⚠️
+max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
 validation_size = 10                 #⚠️
-state_size =  820                    #⚠️
+state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 820                   #⚠️
+feature_size = 500                   #⚠️
 history_size = 150                   #⚠️
 future_size = 150                    #⚠️ 
 neural_type = 'td'                   #⚠️
@@ -81,13 +79,13 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1                  
-itrtn_for_learning = 1500
+itrtn_for_learning = 1000
 beta = 0.1     
 max_itrtn_for_planning = 50         
-window_size = 20
+window_size = 10
 episode_for_training = 100000   
 buffer_limit = 50000   
-per = False
+per = True
 render_for_human = False
 
 
@@ -221,9 +219,6 @@ if len(performance_log) > 0:
     itrtn_for_planning = averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, window_size)
 else:
     itrtn_for_planning = 0
-
-
-
 
 
 

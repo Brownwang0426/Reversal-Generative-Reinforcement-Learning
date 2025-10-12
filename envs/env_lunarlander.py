@@ -55,19 +55,19 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(10).to(device, non_blocking=True)
+    null_state = torch.ones(50).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(10).to(device, non_blocking=True)
+        state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[0], device) 
-    state_2 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[1], device) 
-    state_3 = quantifying(-1, 1, 100, -10  , 10   , state[2], device) 
-    state_4 = quantifying(-1, 1, 100, -10  , 10   , state[3], device) 
-    state_5 = quantifying(-1, 1, 100, -6.28, 6.28 , state[4], device)   
-    state_6 = quantifying(-1, 1, 100, -10  , 10   , state[5], device)   
-    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[6], device)    
-    state_8 = quantifying(-1, 1, 100, 0    , 1    , state[7], device)    
+        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
+    state_1 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[0], device) 
+    state_2 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[1], device) 
+    state_3 = quantifying(-1, 1, 50, -10  , 10   , state[2], device) 
+    state_4 = quantifying(-1, 1, 50, -10  , 10   , state[3], device) 
+    state_5 = quantifying(-1, 1, 50, -6.28, 6.28 , state[4], device)   
+    state_6 = quantifying(-1, 1, 50, -10  , 10   , state[5], device)   
+    state_7 = quantifying(-1, 1, 50, 0    , 1    , state[6], device)    
+    state_8 = quantifying(-1, 1, 50, 0    , 1    , state[7], device)    
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8), dim = 0)
     return state
 
