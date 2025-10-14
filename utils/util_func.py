@@ -289,7 +289,7 @@ def update_model_per(itrtn_for_learning,
     device         = next(model.parameters()).device
     td_error_batch = optimal_batch_size
     PER_epsilon    = 1e-10
-    PER_exponent   = 2
+    PER_exponent   = 0.5
 
     batch_samples  = [dataset[0]]
     history_state, present_state, future_action, future_reward = zip(*batch_samples)
@@ -461,7 +461,7 @@ def _update_model_per_(itrtn_for_learning,
     device         = next(model.parameters()).device
     td_error_batch = optimal_batch_size
     PER_epsilon    = 1e-10
-    PER_exponent   = 2
+    PER_exponent   = 0.5
 
     for _ in tqdm(range(itrtn_for_learning)):
 

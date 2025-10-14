@@ -110,6 +110,9 @@ class build_model(nn.Module):
 
         self.dropout_1            = DeterministicDropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
+        
+        self.state_bias           = nn.Parameter(torch.zeros(self.feature_size) - 1.5)
+        self.action_bias          = nn.Parameter(torch.zeros(self.feature_size) + 1.5)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -145,13 +148,17 @@ class build_model(nn.Module):
             history_s = self.state_linear (history_s)  
             present_s = self.state_linear (present_s.unsqueeze(1))
             future_a  = self.action_linear(future_a) 
+            history_s = torch.tanh(history_s) + self.state_bias
+            present_s = torch.tanh(present_s) + self.state_bias
+            future_a  = torch.tanh(future_a ) + self.action_bias
             h = torch.cat([history_s, present_s, future_a], dim=1)
         else:
             present_s = self.state_linear (present_s.unsqueeze(1))
             future_a  = self.action_linear(future_a) 
+            present_s = torch.tanh(present_s) + self.state_bias
+            future_a  = torch.tanh(future_a ) + self.action_bias
             h = torch.cat([present_s, future_a], dim=1)
 
-        h = torch.tanh(h)
         h = self.dropout_0(h)
         
         """
