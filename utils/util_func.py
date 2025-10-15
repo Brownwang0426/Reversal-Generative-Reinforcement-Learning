@@ -219,7 +219,7 @@ def update_long_term_experience_replay_buffer(
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
 
     if bs_list is None:
-        bs_list = [8, 16, 32, 64, 128, 256, 512, 1024]
+        bs_list = [32, 64, 128, 256, 512, 1024]
 
     torch.cuda.set_device(device)
     total_mem = torch.cuda.get_device_properties(device).total_memory
@@ -262,7 +262,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
     
-    TD_error     = torch.tensor([]).to(device)
+    TD_error_list = []
 
     for history_state, present_state, future_action, future_reward in data_loader:
 
@@ -277,7 +277,9 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         loss_function                 = model.loss_function_
         envisaged_reward              = model(history_state, present_state, future_action)
         total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2))
-        TD_error                      = torch.cat((TD_error, total_loss.detach()))  
+        TD_error_list.append(total_loss.detach())  
+
+    TD_error = torch.cat(TD_error_list, dim=0).to(device)
 
     return TD_error
 
