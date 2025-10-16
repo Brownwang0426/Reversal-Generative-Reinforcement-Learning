@@ -95,13 +95,13 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1                  
-itrtn_for_learning = 1000
+itrtn_for_learning = 1500
 beta = 0.1     
 max_itrtn_for_planning = 50         
 window_size = 50
 episode_for_training = 100000   
 buffer_limit = 50000   
-per = True
+per = False
 render_for_human = False
 
 
@@ -387,9 +387,6 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
-    """
-    We use prioritized experience replay buffer to make learning more efficient.
-    """
     # training
     if current_episode % validation_size == 0:
         dataset     = TensorDataset    (history_state_stack,
