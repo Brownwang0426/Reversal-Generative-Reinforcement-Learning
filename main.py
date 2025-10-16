@@ -97,13 +97,12 @@ drop_rate = 0.0
 alpha = 0.1                  
 itrtn_for_learning = 1500
 beta = 0.1     
-max_itrtn_for_planning = 50         
-window_size = 50
+max_itrtn_for_planning = 100       
+window_size = 100000
 episode_for_training = 100000   
 buffer_limit = 50000   
 per = False
 render_for_human = False
-
 
 
 
