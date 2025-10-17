@@ -94,17 +94,17 @@ opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
-alpha = 0.1      
-base_for_learning = 1000            
+alpha = 0.1
+base_for_learning = 1000
 max_itrtn_for_learning = 10000
 
-beta = 0.1     
-base_for_planning = 1      
-max_itrtn_for_planning = 100   
+beta = 0.01
+base_for_planning = 1
+max_itrtn_for_planning = 100
 
 episode_for_averaging = 100
-episode_for_training = 100000   
-buffer_limit = 50000   
+episode_for_training = 100000
+buffer_limit = 50000
 render_for_human = False
 
 
