@@ -62,10 +62,10 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
 validation_size = 10                 #⚠️
-state_size =  500                    #⚠️
+state_size =  900                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
+feature_size = 900                   #⚠️
 history_size = 150                   #⚠️
 future_size = 150                    #⚠️ 
 neural_type = 'td'                   #⚠️
@@ -94,20 +94,24 @@ opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
-alpha = 0.1                  
-itrtn_for_learning = 1500
+alpha = 0.1      
+base_for_learning = 1000            
+max_itrtn_for_learning = 10000
+
 beta = 0.1     
-max_itrtn_for_planning = 100       
-window_size = 100000
+base_for_planning = 1      
+max_itrtn_for_planning = 100   
+
+episode_for_averaging = 100
 episode_for_training = 100000   
 buffer_limit = 50000   
-per = False
 render_for_human = False
 
 
 
 
-suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{itrtn_for_learning:05d}"
+
+suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{max_itrtn_for_learning:05d}-plan_{max_itrtn_for_planning:05d}"
 directory              = f'./result/{game_name}/'
 performance_directory  = f'./result/{game_name}/performace-{suffix}.csv'
 model_directory        = f'./result/{game_name}/model-{suffix}.pth'
@@ -127,17 +131,14 @@ game_modules = {
     'MiniGrid-DoorKey-5x5-v0': 'envs.env_doorkey'
 }
 if game_name in game_modules:
-    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'averaging_reward', 'randomizer'])
+    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'itrtn_by_averaging_reward', 'randomizer'])
     vectorizing_state   = game_module.vectorizing_state
     vectorizing_action  = game_module.vectorizing_action
     vectorizing_reward  = game_module.vectorizing_reward
-    averaging_reward    = game_module.averaging_reward
+    itrtn_by_averaging_reward = game_module.itrtn_by_averaging_reward
     randomizer          = game_module.randomizer
 else:
     raise RuntimeError('Missing env functions')
-
-
-
 
 model_modules = {
     'td': 'models.model_td',
@@ -229,15 +230,21 @@ if load_pretrained_model == True:
     except:
         print('Failed loading pre-trained models. Now using new models.')
 
+
+
+
+
+
+
+
 # retreive highest reward
 if len(performance_log) > 0:
-    itrtn_for_planning = averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, window_size)
+    itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
+    itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
 else:
+    itrtn_for_learning = 0
     itrtn_for_planning = 0
-
-
-
-
+    
 
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
@@ -286,7 +293,7 @@ for training_episode in tqdm(range(episode_for_training)):
         present_state   = retrieve_present(state_list, device_)
         future_action   = initialize_future_action ((1, future_size, action_size), device_)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
-        future_action   = update_future_action(1 + itrtn_for_planning ,
+        future_action   = update_future_action(base_for_planning + itrtn_for_planning ,
                                                model_list,
                                                history_state,
                                                present_state,
@@ -360,7 +367,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
     """
-    We dropped duplicated experiences in the buffer.
+    We dropped duplicated experiences in the buffer and to maintain diveristy.
     """
     # storing sequentialized short term experience to long term experience replay buffer
     history_state_stack, \
@@ -392,17 +399,16 @@ for training_episode in tqdm(range(episode_for_training)):
                                         present_state_stack,
                                         future_action_stack,
                                         future_reward_stack)
-        model_list  = update_model_list(itrtn_for_learning ,
+        model_list  = update_model_list(base_for_learning + itrtn_for_learning ,
                                         dataset,
-                                        model_list,
-                                        per
+                                        model_list
                                         )
 
 
 
 
         """
-        We limit buffer to save vram.
+        We limit buffer by random drop to save vram.
         """
         # limit_buffer
         history_state_stack, \
@@ -425,6 +431,9 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
+        # saving final reward to log
+        save_performance_to_csv(performance_log, performance_directory)
+
         # saving nn models
         model_dict = {}
         for i, model in enumerate(model_list):
@@ -442,12 +451,13 @@ for training_episode in tqdm(range(episode_for_training)):
                               future_action_hash_set,
                               future_reward_hash_set)
 
-        # saving final reward to log
-        save_performance_to_csv(performance_log, performance_directory)
+
+
 
         # retreive highest reward
-        itrtn_for_planning = averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, window_size)
-
+        itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
+        itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
+        
         # clear up
         gc.collect()
         torch.cuda.empty_cache()

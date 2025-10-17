@@ -39,27 +39,6 @@ import hashlib
 
 
 
-class DeterministicDropout(nn.Module):
-    def __init__(self, p=0.5):
-        super(DeterministicDropout, self).__init__()
-        self.p = p
-        self.drop_mask = None
-        self.locked = False
-
-    def forward(self, x):
-        if not self.locked:
-            self.drop_mask = (torch.rand_like(x.sum(dim=tuple(range(x.ndim - 1)))) > self.p).float()
-        return x * self.drop_mask
-
-    def lock(self):
-        self.locked = True
-
-    def unlock(self):
-        self.locked = False
-
-
-
-
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
         super(custom_attn, self).__init__()
@@ -73,8 +52,8 @@ class custom_attn(nn.Module):
         self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.attn_dropout  = DeterministicDropout(self.drop_rate)
-        self.resid_dropout = DeterministicDropout(self.drop_rate)
+        self.attn_dropout  = nn.Dropout(self.drop_rate)
+        self.resid_dropout = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
@@ -150,7 +129,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
-        self.dropout_0            = DeterministicDropout(self.drop_rate)
+        self.dropout_0            = nn.Dropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
@@ -168,7 +147,7 @@ class build_model(nn.Module):
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
-        self.dropout_1            = DeterministicDropout(self.drop_rate)
+        self.dropout_1            = nn.Dropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
 
         self.state_bias           = nn.Parameter(torch.zeros(self.feature_size) - 1.5)
@@ -269,12 +248,3 @@ class build_model(nn.Module):
             if isinstance(module, nn.Linear):
                 initializer(module.weight)
 
-    def lock(self):
-        for module in self.modules():
-            if isinstance(module, DeterministicDropout):
-                module.lock()
-
-    def unlock(self):
-        for module in self.modules():
-            if isinstance(module, DeterministicDropout):
-                module.unlock()

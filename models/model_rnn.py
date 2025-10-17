@@ -39,27 +39,6 @@ import hashlib
 
 
 
-class DeterministicDropout(nn.Module):
-    def __init__(self, p=0.5):
-        super(DeterministicDropout, self).__init__()
-        self.p = p
-        self.drop_mask = None
-        self.locked = False
-
-    def forward(self, x):
-        if not self.locked:
-            self.drop_mask = (torch.rand_like(x.sum(dim=tuple(range(x.ndim - 1)))) > self.p).float()
-        return x * self.drop_mask
-
-    def lock(self):
-        self.locked = True
-
-    def unlock(self):
-        self.locked = False
-
-
-
-
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -98,7 +77,7 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
-        self.dropout_0            = DeterministicDropout(self.drop_rate)
+        self.dropout_0            = nn.Dropout(p=self.drop_rate)
 
         neural_types = {
             'rnn': nn.RNN,
@@ -106,9 +85,9 @@ class build_model(nn.Module):
             'lstm': nn.LSTM
         }
         self.bidirectional        = False
-        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=0, bidirectional=self.bidirectional)
+        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
-        self.dropout_1            = DeterministicDropout(self.drop_rate)
+        self.dropout_1            = nn.Dropout(p=self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         
         self.state_bias           = nn.Parameter(torch.zeros(self.feature_size) - 1.5)
@@ -191,17 +170,6 @@ class build_model(nn.Module):
         for module in self.modules():
             if isinstance(module, nn.Linear):
                 initializer(module.weight)
-
-    def lock(self):
-        for module in self.modules():
-            if isinstance(module, DeterministicDropout):
-                module.lock()
-
-    def unlock(self):
-        for module in self.modules():
-            if isinstance(module, DeterministicDropout):
-                module.unlock()
-
 
 
 

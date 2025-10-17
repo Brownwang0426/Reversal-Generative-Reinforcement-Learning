@@ -115,7 +115,6 @@ def update_future_action(itrtn_for_planning,
         future_action_     = future_action_.detach().requires_grad_(True)
 
         model.train()
-        model.unlock()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
         
@@ -215,6 +214,156 @@ def update_long_term_experience_replay_buffer(
 
 
 
+
+def update_model(itrtn_for_learning,
+                 dataset,
+                 model):
+    
+    device = next(model.parameters()).device
+
+    for _ in tqdm(range(itrtn_for_learning)):
+
+        random_indices = random.sample(range(len(dataset)), 1)
+
+        batch_samples  = [dataset[i] for i in random_indices]
+        history_state, present_state, future_action, future_reward = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward            = model(history_state, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) 
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
+
+def update_model_list(itrtn_for_learning,
+                      dataset,
+                      model_list):
+    for i, model in enumerate(model_list):
+        model_list[i] = update_model(itrtn_for_learning,
+                                     dataset,
+                                     model)
+    return model_list
+
+
+
+
+def limit_buffer(history_state_stack, 
+                 present_state_stack, 
+                 future_action_stack,
+                 future_reward_stack,
+                 history_state_hash_set, 
+                 present_state_hash_set, 
+                 future_action_hash_set, 
+                 future_reward_hash_set, 
+                 buffer_limit):
+
+    n = len(present_state_stack)
+    probability = torch.ones(n) / n
+    indices_to_keep = torch.multinomial(probability, min(buffer_limit, n), replacement=False).tolist()
+
+    # slice tensor buffers
+    history_state_stack = history_state_stack[indices_to_keep]
+    present_state_stack = present_state_stack[indices_to_keep]
+    future_action_stack = future_action_stack[indices_to_keep]
+    future_reward_stack = future_reward_stack[indices_to_keep]
+
+    h_hash_set = set()
+    p_hash_set = set()
+    a_hash_set = set()
+    r_hash_set = set()
+    for i in range(len(history_state_stack)):
+        h_hash_set.add(fast_hash_tensor(history_state_stack[i]))
+        p_hash_set.add(fast_hash_tensor(present_state_stack[i]))
+        a_hash_set.add(fast_hash_tensor(future_action_stack[i]))
+        r_hash_set.add(fast_hash_tensor(future_reward_stack[i]))
+
+    history_state_hash_set = history_state_hash_set & h_hash_set
+    present_state_hash_set = present_state_hash_set & p_hash_set
+    future_action_hash_set = future_action_hash_set & a_hash_set
+    future_reward_hash_set = future_reward_hash_set & r_hash_set
+
+    return (history_state_stack, present_state_stack, future_action_stack, future_reward_stack,
+            history_state_hash_set, present_state_hash_set, future_action_hash_set, future_reward_hash_set)
+
+
+
+
+def save_performance_to_csv(performance_log, filename='performance_log.csv'):
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Episode', 'Summed_Reward'])
+        writer.writerows(performance_log)
+
+
+
+
+def save_buffer_to_pickle(filename, *list):
+    with open(filename, 'wb') as file:
+        dill.dump(list, file)
+
+
+
+
+# experimental --------------------------------------------------------------------
+
+def _update_model_per_(itrtn_for_learning,
+                       dataset,
+                       model,
+                       optimal_batch_size):
+    
+    device         = next(model.parameters()).device
+    td_error_batch = optimal_batch_size
+    PER_epsilon    = 1e-10
+    PER_exponent   = 0.5
+
+    for _ in tqdm(range(itrtn_for_learning)):
+
+        batch_samples  = [dataset[0]]
+        history_state, present_state, future_action, future_reward = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        model.train()
+        _ = model(history_state, present_state, future_action)
+        model.lock()
+
+        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
+        priority             = obsolute_TD_error + PER_epsilon
+        exponent_priority    = priority ** PER_exponent
+        priority_probability = exponent_priority / torch.sum(exponent_priority)
+        final_indices        = torch.multinomial(priority_probability, 1, replacement=False)
+
+        batch_samples  = [dataset[i] for i in final_indices]
+        history_state, present_state, future_action, future_reward = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+
+        model.train()
+        model.lock()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward            = model(history_state, present_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) 
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
 
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
 
@@ -339,47 +488,10 @@ def update_model_per(itrtn_for_learning,
 
     return model
 
-
-
-
-def update_model(itrtn_for_learning,
-                 dataset,
-                 model):
-    
-    device = next(model.parameters()).device
-
-    for _ in tqdm(range(itrtn_for_learning)):
-
-        random_indices = random.sample(range(len(dataset)), 1)
-
-        batch_samples  = [dataset[i] for i in random_indices]
-        history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state ).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-
-        model.train()
-        model.unlock()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        envisaged_reward            = model(history_state, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) 
-        total_loss.backward()     
-
-        selected_optimizer.step() 
-
-    return model
-
-
-
-
-def update_model_list(itrtn_for_learning,
+def _update_model_list_(itrtn_for_learning,
                       dataset,
                       model_list,
-                      per):
+                      per=False):
     if per:
         device = next(model_list[0].parameters()).device
         optimal_batch_size = find_optimal_batch_size(model_list[0], dataset, device=device)
@@ -394,114 +506,3 @@ def update_model_list(itrtn_for_learning,
                                          dataset,
                                          model)
     return model_list
-
-
-
-
-def limit_buffer(history_state_stack, 
-                 present_state_stack, 
-                 future_action_stack,
-                 future_reward_stack,
-                 history_state_hash_set, 
-                 present_state_hash_set, 
-                 future_action_hash_set, 
-                 future_reward_hash_set, 
-                 buffer_limit):
-
-    n = len(present_state_stack)
-    probability = torch.ones(n) / n
-    indices_to_keep = torch.multinomial(probability, min(buffer_limit, n), replacement=False).tolist()
-
-    # slice tensor buffers
-    history_state_stack = history_state_stack[indices_to_keep]
-    present_state_stack = present_state_stack[indices_to_keep]
-    future_action_stack = future_action_stack[indices_to_keep]
-    future_reward_stack = future_reward_stack[indices_to_keep]
-
-    h_hash_set = set()
-    p_hash_set = set()
-    a_hash_set = set()
-    r_hash_set = set()
-    for i in range(len(history_state_stack)):
-        h_hash_set.add(fast_hash_tensor(history_state_stack[i]))
-        p_hash_set.add(fast_hash_tensor(present_state_stack[i]))
-        a_hash_set.add(fast_hash_tensor(future_action_stack[i]))
-        r_hash_set.add(fast_hash_tensor(future_reward_stack[i]))
-
-    history_state_hash_set = history_state_hash_set & h_hash_set
-    present_state_hash_set = present_state_hash_set & p_hash_set
-    future_action_hash_set = future_action_hash_set & a_hash_set
-    future_reward_hash_set = future_reward_hash_set & r_hash_set
-
-    return (history_state_stack, present_state_stack, future_action_stack, future_reward_stack,
-            history_state_hash_set, present_state_hash_set, future_action_hash_set, future_reward_hash_set)
-
-
-
-
-def save_performance_to_csv(performance_log, filename='performance_log.csv'):
-    with open(filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Episode', 'Summed_Reward'])
-        writer.writerows(performance_log)
-
-
-
-
-def save_buffer_to_pickle(filename, *list):
-    with open(filename, 'wb') as file:
-        dill.dump(list, file)
-
-
-
-
-def _update_model_per_(itrtn_for_learning,
-                       dataset,
-                       model,
-                       optimal_batch_size):
-    
-    device         = next(model.parameters()).device
-    td_error_batch = optimal_batch_size
-    PER_epsilon    = 1e-10
-    PER_exponent   = 0.5
-
-    for _ in tqdm(range(itrtn_for_learning)):
-
-        batch_samples  = [dataset[0]]
-        history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state ).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-        model.train()
-        model.unlock()
-        _ = model(history_state, present_state, future_action)
-        model.lock()
-
-        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
-        priority             = obsolute_TD_error + PER_epsilon
-        exponent_priority    = priority ** PER_exponent
-        priority_probability = exponent_priority / torch.sum(exponent_priority)
-        final_indices        = torch.multinomial(priority_probability, 1, replacement=False)
-
-        batch_samples  = [dataset[i] for i in final_indices]
-        history_state, present_state, future_action, future_reward = zip(*batch_samples)
-        history_state  = torch.stack(history_state ).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-
-        model.train()
-        model.lock()
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
-
-        loss_function               = model.loss_function
-        envisaged_reward            = model(history_state, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) 
-        total_loss.backward()     
-
-        selected_optimizer.step() 
-
-    return model
-

@@ -60,14 +60,14 @@ def vectorizing_state(state, done, truncated, device):  # Reminder: change this 
         state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
         state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[0], device) 
-    state_2 = quantifying(-1, 1, 50, -2.5 , 2.5  , state[1], device) 
-    state_3 = quantifying(-1, 1, 50, -10  , 10   , state[2], device) 
-    state_4 = quantifying(-1, 1, 50, -10  , 10   , state[3], device) 
-    state_5 = quantifying(-1, 1, 50, -6.28, 6.28 , state[4], device)   
-    state_6 = quantifying(-1, 1, 50, -10  , 10   , state[5], device)   
-    state_7 = quantifying(-1, 1, 50, 0    , 1    , state[6], device)    
-    state_8 = quantifying(-1, 1, 50, 0    , 1    , state[7], device)    
+    state_1 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[0], device) 
+    state_2 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[1], device) 
+    state_3 = quantifying(-1, 1, 100, -10  , 10   , state[2], device) 
+    state_4 = quantifying(-1, 1, 100, -10  , 10   , state[3], device) 
+    state_5 = quantifying(-1, 1, 100, -6.28, 6.28 , state[4], device)   
+    state_6 = quantifying(-1, 1, 100, -10  , 10   , state[5], device)   
+    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[6], device)    
+    state_8 = quantifying(-1, 1, 100, 0    , 1    , state[7], device)    
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8), dim = 0)
     return state
 
@@ -80,16 +80,16 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:
-            reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
+            reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)       
         else:
-            reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)   
+            reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)   
     else:
-        reward = quantifying(-1, 1, reward_size , -200, 325, summed_reward, device)       
+        reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)       
     return reward
 
-def averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = -200
-    end_value = 325   
+    end_value = 400   
     N = itrtn_for_planning
     recent_K = window_size
     rewards = []

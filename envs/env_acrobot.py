@@ -85,7 +85,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
     return reward
 
-def averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = -500
     end_value = -90   
     N = itrtn_for_planning 

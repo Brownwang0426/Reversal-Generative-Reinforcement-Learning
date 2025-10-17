@@ -76,7 +76,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
     reward = quantifying(-1, 1, reward_size, 0, 1000, summed_reward, device)
     return reward
 
-def averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
+def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = 0
     end_value = 1000   
     N = itrtn_for_planning
