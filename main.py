@@ -239,12 +239,9 @@ if load_pretrained_model == True:
 
 # retreive highest reward
 if len(performance_log) > 0:
-    itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
     itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
 else:
-    itrtn_for_learning = 0
     itrtn_for_planning = 0
-    
 
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
@@ -395,6 +392,18 @@ for training_episode in tqdm(range(episode_for_training)):
 
     # training
     if current_episode % validation_size == 0:
+
+
+
+
+        # retreive highest reward
+        itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
+        itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
+
+
+
+
+        # training
         dataset     = TensorDataset    (history_state_stack,
                                         present_state_stack,
                                         future_action_stack,
@@ -455,9 +464,11 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
         itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
-        
+
+
+
+
         # clear up
         gc.collect()
         torch.cuda.empty_cache()
