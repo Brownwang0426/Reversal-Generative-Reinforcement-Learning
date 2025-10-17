@@ -398,7 +398,6 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # retreive highest reward
         itrtn_for_learning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning, episode_for_averaging)
-        itrtn_for_planning = itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning, episode_for_averaging)
 
 
 
