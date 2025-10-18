@@ -61,7 +61,6 @@ max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-validation_size = 10                 #⚠️
 state_size =  900                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -78,7 +77,6 @@ num_heads = 10                       #⚠️
 # seed = None                          #⚠️
 # load_pretrained_model = True
 # ensemble_size = 10                   #◀️
-# validation_size = 10                 #⚠️
 # state_size = 36                      #⚠️
 # action_size = 4                      #⚠️
 # reward_size = 100                    #⚠️
@@ -102,8 +100,9 @@ beta = 0.01
 base_for_planning = 1
 max_itrtn_for_planning = 100
 
-episode_for_averaging = 100
 episode_for_training = 100000
+episode_for_validation = 10  
+episode_for_averaging = 100
 buffer_limit = 50000
 render_for_human = False
 
@@ -391,7 +390,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
     # training
-    if current_episode % validation_size == 0:
+    if current_episode % episode_for_validation == 0:
 
 
 
