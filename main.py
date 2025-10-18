@@ -92,11 +92,11 @@ opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
-alpha = 0.1
+alpha = 0.01
 base_for_learning = 1000
 max_itrtn_for_learning = 10000
 
-beta = 0.01
+beta = 0.001
 base_for_planning = 1
 max_itrtn_for_planning = 100
 
