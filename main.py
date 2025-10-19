@@ -96,7 +96,7 @@ alpha = 0.01
 base_for_learning = 1000
 max_itrtn_for_learning = 10000
 
-beta = 0.1
+beta = 0.00001
 base_for_planning = 1
 max_itrtn_for_planning = 100
 
