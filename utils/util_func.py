@@ -217,13 +217,14 @@ def update_long_term_experience_replay_buffer(
 
 def update_model(itrtn_for_learning,
                  dataset,
-                 model):
+                 model,
+                 batch_size):
     
     device = next(model.parameters()).device
 
     for _ in tqdm(range(itrtn_for_learning)):
 
-        random_indices = random.sample(range(len(dataset)), 1)
+        random_indices = random.sample(range(len(dataset)), batch_size)
 
         batch_samples  = [dataset[i] for i in random_indices]
         history_state, present_state, future_action, future_reward = zip(*batch_samples)
@@ -247,11 +248,13 @@ def update_model(itrtn_for_learning,
 
 def update_model_list(itrtn_for_learning,
                       dataset,
-                      model_list):
+                      model_list,
+                      batch_size):
     for i, model in enumerate(model_list):
         model_list[i] = update_model(itrtn_for_learning,
                                      dataset,
-                                     model)
+                                     model,
+                                     batch_size)
     return model_list
 
 
