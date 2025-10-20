@@ -101,8 +101,8 @@ def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size):
                 r = item
             rewards.append(r)
     avg_reward = sum(rewards) / len(rewards) if rewards else 0.0
-    scaled = (avg_reward - start_value) / (end_value - start_value)
-    scaled = max(0.0, min(1.0, scaled))  # clamp 0~1
+    scaled = (np.clip(avg_reward, start_value, end_value) - start_value) / (end_value - start_value)
+    scaled = np.clip(scaled, 0.0, 1.0)
     iteration_unit = int(N * scaled) 
     return iteration_unit
 
