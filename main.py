@@ -93,9 +93,9 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 1500
-max_itrtn_for_learning = 5000
-min_batch_size_for_learning = 1
+min_itrtn_for_learning = 1000
+max_itrtn_for_learning = 10000
+min_batch_size_for_learning = 5
 max_batch_size_for_learning = 50
 
 beta = 0.000001
@@ -104,8 +104,8 @@ max_itrtn_for_planning = 150
 
 episode_for_training = 100000
 episode_for_validation = 10  
-episode_for_averaging = 100
-buffer_limit = 50000
+episode_for_averaging = 50
+buffer_limit = 75000
 render_for_human = False
 
 
