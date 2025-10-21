@@ -21,7 +21,7 @@ For more detials, please refer to RGRL's technical [paper](https://github.com/Br
 ## Getting Started
 To get started with RGRL, follow these steps:
 
-1. **Open the train.ipynb in colab or local environment**
+1. **Open the main.ipynb in colab or local environment**
 2. **Set up configs in the Control Board section according to the instructions thereof**
 3. **Select T4 GPU or above, Ctrl + F10, restart and Ctrl + F10**
 4. **Take a rest and wait for the result**
