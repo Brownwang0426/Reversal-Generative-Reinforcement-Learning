@@ -72,18 +72,6 @@ num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
 
-# seed = None                          #⚠️
-# load_pretrained_model = True
-# ensemble_size = 10                   #◀️
-# state_size = 36                      #⚠️
-# action_size = 4                      #⚠️
-# reward_size = 100                    #⚠️
-# feature_size = 100                   #⚠️
-# history_size = 25                    #⚠️
-# future_size = 25                     #⚠️
-# neural_type = 'td'                   #⚠️
-# num_layers = 3                       #⚠️
-# num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 100     #⚠️
 seed = None                          #⚠️
