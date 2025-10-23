@@ -72,8 +72,6 @@ num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
 
-# game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-# max_steps_for_each_episode = 100     #⚠️
 # seed = None                          #⚠️
 # load_pretrained_model = True
 # ensemble_size = 10                   #◀️
@@ -86,6 +84,20 @@ num_heads = 10                       #⚠️
 # neural_type = 'td'                   #⚠️
 # num_layers = 3                       #⚠️
 # num_heads = 10                       #⚠️
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 100     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 100                   #⚠️
+history_size = 0                     #⚠️
+future_size = 10                     #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
@@ -93,19 +105,19 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 1000
-max_itrtn_for_learning = 10000
-min_batch_size_for_learning = 5
-max_batch_size_for_learning = 50
+min_itrtn_for_learning = 0.5
+max_itrtn_for_learning = 100
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
 
-beta = 0.000001
+beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 150
+max_itrtn_for_planning = 100
 
 episode_for_training = 100000
 episode_for_validation = 10  
-episode_for_averaging = 50
-buffer_limit = 75000
+episode_for_averaging = 5 * episode_for_validation
+buffer_limit = 50000
 render_for_human = False
 
 
@@ -242,7 +254,7 @@ if load_pretrained_model == True:
 if len(performance_log) > 0:
     itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
 else:
-    itrtn_for_planning = 0
+    itrtn_for_planning = min_itrtn_for_planning
 
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
@@ -409,7 +421,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         present_state_stack,
                                         future_action_stack,
                                         future_reward_stack)
-        model_list  = update_model_list(itrtn_for_learning,
+        model_list  = update_model_list(int(len(dataset) * itrtn_for_learning),
                                         dataset,
                                         model_list,
                                         batch_size_for_learning
