@@ -56,6 +56,22 @@ torch.backends.cudnn.benchmark = True
 
 
 
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 100     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 100                   #⚠️
+history_size = 0                     #⚠️
+future_size = 10                     #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+
 game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
@@ -72,20 +88,8 @@ num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 100     #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 100                   #⚠️
-history_size = 0                     #⚠️
-future_size = 10                     #⚠️
-neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
-num_heads = 10                       #⚠️
+
+
 
 init = "xavier_normal"
 opti = 'sgd'
@@ -93,10 +97,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 0.5
-max_itrtn_for_learning = 100
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
+min_itrtn_for_learning = 150
+max_itrtn_for_learning = 1500
+min_PER_exponent_for_learning = 0
+max_PER_exponent_for_learning = 2
 
 beta = 0.1
 min_itrtn_for_planning = 1
@@ -399,7 +403,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # retreive highest reward
         itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
-        batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
+        PER_exponent_for_learning = min_PER_exponent_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_PER_exponent_for_learning - min_PER_exponent_for_learning, episode_for_averaging)
 
 
 
@@ -409,10 +413,10 @@ for training_episode in tqdm(range(episode_for_training)):
                                         present_state_stack,
                                         future_action_stack,
                                         future_reward_stack)
-        model_list  = update_model_list(int(len(dataset) * itrtn_for_learning),
+        model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
-                                        batch_size_for_learning
+                                        PER_exponent_for_learning
                                         )
 
 
