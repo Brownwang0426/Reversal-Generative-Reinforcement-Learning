@@ -311,7 +311,7 @@ def update_model_per(itrtn_for_learning,
         selected_optimizer.zero_grad()
         loss_function               = model.loss_function
         envisaged_reward            = model(history_state, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward)
+        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :])
         total_loss.backward()     
         selected_optimizer.step() 
 
