@@ -120,7 +120,7 @@ def update_future_action(itrtn_for_planning,
         
         loss_function      = model.loss_function
         envisaged_reward   = model(history_state, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, :, :], desired_reward[:, :, :])
+        total_loss         = loss_function(envisaged_reward[:, -1:, :], desired_reward[:, -1:, :])
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -218,7 +218,7 @@ def update_long_term_experience_replay_buffer(
 def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
 
     if bs_list is None:
-        bs_list = [32, 64, 128, 256, 512, 1024]
+        bs_list = [128, 256, 512, 1024]
 
     torch.cuda.set_device(device)
     total_mem = torch.cuda.get_device_properties(device).total_memory
@@ -273,7 +273,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         model.train()
         loss_function                 = model.loss_function_
         envisaged_reward              = model(history_state, present_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1, 2))
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2))
         TD_error_list.append(total_loss.detach())  
 
     TD_error = torch.cat(TD_error_list, dim=0).to(device)
@@ -291,7 +291,7 @@ def update_model_per(itrtn_for_learning,
     PER_epsilon    = 1e-10
     PER_exponent   = PER_exponent
 
-    for _ in tqdm(range(itrtn_for_learning)):
+    for _ in range(itrtn_for_learning):
 
         obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
         priority             = obsolute_TD_error + PER_epsilon
@@ -324,7 +324,7 @@ def update_model_list(itrtn_for_learning,
 
     device = next(model_list[0].parameters()).device
     td_error_batch = find_optimal_batch_size(model_list[0], dataset, device=device)
-    for i, model in enumerate(model_list):
+    for i, model in enumerate(tqdm(model_list, desc="Training models")):
         model_list[i] = update_model_per(itrtn_for_learning,
                                          dataset,
                                          model,

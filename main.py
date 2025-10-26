@@ -56,20 +56,75 @@ torch.backends.cudnn.benchmark = True
 
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+game_name = "MiniGrid-DoorKey-5x5-v0"#⚠️
 max_steps_for_each_episode = 100     #⚠️
-seed = None                          #⚠️
+seed = 1                             #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
+state_size =  267                    #⚠️
+action_size = 6                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 100                   #⚠️
-history_size = 0                     #⚠️
-future_size = 10                     #⚠️
+feature_size = 300                   #⚠️
+history_size  = 25                   #⚠️
+future_size = 25                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
+
+
+
+
+game_name =  'MountainCar-v0'        #⚠️
+max_steps_for_each_episode = 200     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  110                    #⚠️
+action_size = 3                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 110                   #⚠️
+history_size  = 100                  #⚠️
+future_size = 100                    #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+
+
+
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  110                    #⚠️
+action_size = 2                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 110                   #⚠️
+history_size = 250                   #⚠️
+future_size = 50                     #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+
+game_name = 'Acrobot-v1'             #⚠️
+max_steps_for_each_episode = 500     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  160                    #⚠️
+action_size = 3                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 160                   #⚠️
+history_size  = 100                  #⚠️
+future_size = 150                    #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
 
 
 game_name = "LunarLander-v3"         #⚠️
@@ -77,15 +132,34 @@ max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  500                    #⚠️
+state_size =  210                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size = 150                   #⚠️
-future_size = 150                    #⚠️ 
+feature_size = 210                   #⚠️
+history_size = 100                   #⚠️
+future_size = 100                    #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
+
+
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 25      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = False
+ensemble_size = 10                   #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 100                   #⚠️
+history_size = 25                    #⚠️
+future_size = 25                     #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
 
 
 
@@ -97,9 +171,9 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 150
-max_itrtn_for_learning = 1500
-min_PER_exponent_for_learning = 0
+min_itrtn_for_learning = 1000
+max_itrtn_for_learning = 5000
+min_PER_exponent_for_learning = 0.
 max_PER_exponent_for_learning = 2
 
 beta = 0.1
@@ -109,7 +183,7 @@ max_itrtn_for_planning = 100
 episode_for_training = 100000
 episode_for_validation = 10  
 episode_for_averaging = 5 * episode_for_validation
-buffer_limit = 50000
+buffer_limit = 100000
 render_for_human = False
 
 
