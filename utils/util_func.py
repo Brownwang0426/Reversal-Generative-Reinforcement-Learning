@@ -359,7 +359,7 @@ def update_model_per(itrtn_for_learning,
 
     return model
 
-def update_model_list(itrtn_for_learning,
+def update_model_list_(itrtn_for_learning,
                       dataset,
                       model_list,
                       PER_exponent):
@@ -372,6 +372,54 @@ def update_model_list(itrtn_for_learning,
                                          model,
                                          td_error_batch,
                                          PER_exponent)
+    return model_list
+
+
+
+
+def update_model(itrtn_for_learning,
+                 dataset,
+                 model,
+                 batch_size):
+    
+    device = next(model.parameters()).device
+
+    for _ in tqdm(range(itrtn_for_learning)):
+
+        random_indices = random.sample(range(len(dataset)), batch_size)
+
+        batch_samples  = [dataset[i] for i in random_indices]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        history_action = torch.stack(history_action).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        future_state   = torch.stack(future_state  ).to(device)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model(history_state, history_action, present_state, future_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+
+        selected_optimizer.step() 
+
+    return model
+
+def update_model_list(itrtn_for_learning,
+                      dataset,
+                      model_list,
+                      batch_size):
+    for i, model in enumerate(model_list):
+        model_list[i] = update_model(itrtn_for_learning,
+                                     dataset,
+                                     model,
+                                     batch_size)
     return model_list
 
 

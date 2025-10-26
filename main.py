@@ -75,7 +75,7 @@ num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
-load_pretrained_model = False
+load_pretrained_model = True
 ensemble_size = 5                    #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -93,10 +93,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 100
-max_itrtn_for_learning = 150
-min_PER_exponent_for_learning = 0.001
-max_PER_exponent_for_learning = 2
+min_itrtn_for_learning = 0.5
+max_itrtn_for_learning = 5
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
 
 beta = 0.1
 min_itrtn_for_planning = 1
@@ -421,7 +421,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # retreive highest reward
         itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
-        PER_exponent_for_learning = min_PER_exponent_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_PER_exponent_for_learning - min_PER_exponent_for_learning, episode_for_averaging)
+        batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
 
 
 
@@ -433,10 +433,10 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_action_stack,
                                         future_reward_stack,
                                         future_state_stack  )
-        model_list  = update_model_list(itrtn_for_learning ,
+        model_list  = update_model_list(int(len(dataset) * itrtn_for_learning),
                                         dataset,
                                         model_list,
-                                        PER_exponent_for_learning
+                                        batch_size_for_learning
                                         )
 
 
