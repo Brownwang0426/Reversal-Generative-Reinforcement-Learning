@@ -75,19 +75,21 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
         if (state == 15):         # If the agent reaches goal
             reward = torch.ones(reward_size ).to(device, non_blocking=True)
         else:
-            x, y = divmod(state, 4)
-            distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
-            max_distance = np.sqrt(3**2 + 3**2)  # 4.24
-            idx = int(100 * (1 - (distance / max_distance)))
             reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
-            reward[0: idx] = 1
+            # x, y = divmod(state, 4)
+            # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
+            # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
+            # idx = int(100 * (1 - (distance / max_distance)))
+            # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
+            # reward[0: idx] = 1
     else:
-        x, y = divmod(state, 4)
-        distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
-        max_distance = np.sqrt(3**2 + 3**2)  # 4.24
-        idx = int(100 * (1 - (distance / max_distance)))
         reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
-        reward[0: idx] = 1
+        # x, y = divmod(state, 4)
+        # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
+        # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
+        # idx = int(100 * (1 - (distance / max_distance)))
+        # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
+        # reward[0: idx] = 1
     return reward
 
 def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
