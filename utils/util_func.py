@@ -120,7 +120,7 @@ def update_future_action(itrtn_for_planning,
         
         loss_function      = model.loss_function
         envisaged_reward   = model(history_state, present_state, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, -1:, :], desired_reward[:, -1:, :])
+        total_loss         = loss_function(envisaged_reward[:, -1, :], desired_reward[:, -1, :])
         total_loss.backward() 
 
         future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
@@ -273,7 +273,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         model.train()
         loss_function                 = model.loss_function_
         envisaged_reward              = model(history_state, present_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2))
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) ), dim=(1))
         TD_error_list.append(total_loss.detach())  
 
     TD_error = torch.cat(TD_error_list, dim=0).to(device)
