@@ -54,15 +54,15 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(5).to(device, non_blocking=True)
+    null_state = torch.ones(10).to(device, non_blocking=True)
     if done:
-        state_0 = torch.ones(5).to(device, non_blocking=True)
+        state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(5).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 25, -4.8  , 4.8   , state[0], device)
-    state_2 = quantifying(-1, 1, 25, -3.75 , 3.75  , state[1], device)
-    state_3 = quantifying(-1, 1, 25, -0.418, 0.418 , state[2], device)
-    state_4 = quantifying(-1, 1, 25, -3.75 , 3.75  , state[3], device)
+        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
+    state_1 = quantifying(-1, 1, 50, -4.8  , 4.8   , state[0], device)
+    state_2 = quantifying(-1, 1, 50, -3.75 , 3.75  , state[1], device)
+    state_3 = quantifying(-1, 1, 50, -0.418, 0.418 , state[2], device)
+    state_4 = quantifying(-1, 1, 50, -3.75 , 3.75  , state[3], device)
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4), dim = 0)
     return state
 

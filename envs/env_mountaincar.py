@@ -55,13 +55,13 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
     return tensor
 
 def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(5).to(device, non_blocking=True)
+    null_state = torch.ones(10).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(5).to(device, non_blocking=True)
+        state_0 = torch.ones(10).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(5).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 50, -0.6, 0.6, state[0], device)
-    state_2 = quantifying(-1, 1, 50, -0.1, 0.1, state[1], device)
+        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
+    state_1 = quantifying(-1, 1, 100, -0.6, 0.6, state[0], device)
+    state_2 = quantifying(-1, 1, 100, -0.1, 0.1, state[1], device)
     state   = torch.cat((null_state, state_0, state_1, state_2), dim = 0)
     return state
 

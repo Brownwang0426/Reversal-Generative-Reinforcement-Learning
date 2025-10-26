@@ -89,9 +89,7 @@ class build_model(nn.Module):
 
         self.dropout_1            = nn.Dropout(p=self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
-        
-        self.state_bias           = nn.Parameter(torch.zeros(self.feature_size) - 1.5)
-        self.action_bias          = nn.Parameter(torch.zeros(self.feature_size) + 1.5)
+        self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -121,38 +119,163 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, present_s, future_a):
+
+    def forward(self, history_s, history_a, present_s, future_s, future_a):
+
+        future_r_list = list()
+        future_s_list = list()
+
+
+
 
         if history_s.size(1) > 0:
             history_s = self.state_linear (history_s)  
-            present_s = self.state_linear (present_s.unsqueeze(1))
-            future_a  = self.action_linear(future_a) 
-            history_s = torch.tanh(history_s) + self.state_bias
-            present_s = torch.tanh(present_s) + self.state_bias
-            future_a  = torch.tanh(future_a ) + self.action_bias
-            h = torch.cat([history_s, present_s, future_a], dim=1)
-        else:
-            present_s = self.state_linear (present_s.unsqueeze(1))
-            future_a  = self.action_linear(future_a) 
-            present_s = torch.tanh(present_s) + self.state_bias
-            future_a  = torch.tanh(future_a ) + self.action_bias
-            h = torch.cat([present_s, future_a], dim=1)
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
 
-        h = self.dropout_0(h)
+        window_list   = list()
+        if history_s.size(1) > 0:
+            for i in range(history_s.size(1)):
+                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
         
+
+
+        
+        for i in range(future_a.size(1)):
+
+            window_list.append(present_s + future_a[:, i:i+1])
+            h = torch.cat(window_list, dim=1)
+            h = torch.tanh(h)
+            h = self.dropout_0(h)
+
+            """
+            RNN, GRU, LSTM
+            """
+            h, _ = self.recurrent_layers(h)
+            """
+            RNN, GRU, LSTM
+            """
+
+            h = self.dropout_1(h)
+            r = self.reward_linear(h[:, - 1:, :])  
+            r = torch.tanh(r)
+            s = self.state_linear_(h[:, - 1:, :])   
+            s = torch.tanh(s)
+
+            future_r_list.append(r)
+            future_s_list.append(s)
+
+            present_s = s
+            present_s = self.state_linear(present_s)
+
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+
+
+
+    def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    
+        future_r_list = list()
+        future_s_list = list()
+    
+    
+    
+    
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_a  = self.action_linear(future_a) 
+    
+        if history_s.size(1) > 0:
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+    
+        hidden_cache = None
+    
+        for i in range(future_a.size(1)):
+    
+            if i == 0:
+                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+            else:
+                h = present_s + future_a[:, i:i+1]
+            h = torch.tanh(h)
+            h = self.dropout_0(h)
+    
+            """
+            Transformer decoder
+            """
+            h, hidden_cache = self.recurrent_layers(h, hidden_cache)
+            """
+            Transformer decoder
+            """
+    
+            h = self.dropout_1(h)
+            r = self.reward_linear(h[:, - 1:, :])   
+            r = torch.tanh(r)
+            s = self.state_linear_(h[:, - 1:, :])    
+            s = torch.tanh(s)
+    
+            future_r_list.append(r)
+            future_s_list.append(s)
+    
+            present_s = s
+            present_s = self.state_linear(present_s)
+    
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+
+
+    
+    def forward_(self, history_s, history_a, present_s, future_s, future_a):
+
+
+
+
+        if history_s.size(1) > 0:
+            history_s = self.state_linear (history_s)  
+            history_a = self.action_linear(history_a) 
+        present_s = self.state_linear (present_s.unsqueeze(1))
+        future_s_ = self.state_linear (future_s)[:, :-1, :]
+        future_a  = self.action_linear(future_a) 
+
+        if history_s.size(1) > 0:
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+
+
+
+        future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
+        h = torch.cat([history_s_a, future_s_a], dim=1)
+        h = torch.tanh(h)
+        h = self.dropout_0(h)
+
         """
-        Transformer decoder
+        RNN, GRU, LSTM
         """
         h, _ = self.recurrent_layers(h)
+        """
+        RNN, GRU, LSTM
+        """
 
-        """
-        We utilize the last idx in h to derive the latest reward and state.
-        """
         h = self.dropout_1(h)
-        r = self.reward_linear(h[:, -future_a.size(1): , :])  
-        future_r = torch.tanh(r)
+        r = self.reward_linear(h)  
+        future_r = torch.tanh(r)[:, -future_a.size(1):, :]
+        s = self.state_linear_(h)   
+        future_s = torch.tanh(s)[:, -future_a.size(1):, :]
 
-        return future_r
+        return future_r, future_s
     
 
 
