@@ -60,7 +60,7 @@ game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                   #◀️
 state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -75,7 +75,7 @@ num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
-load_pretrained_model = True
+load_pretrained_model = False
 ensemble_size = 5                    #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -93,17 +93,16 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 0.5
-max_itrtn_for_learning = 5
+itrtn_for_learning = 100
 min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
+max_batch_size_for_learning = 50
 
 beta = 0.1
 min_itrtn_for_planning = 1
 max_itrtn_for_planning = 10
 
 episode_for_training = 100000
-episode_for_validation = 10  
+episode_for_validation = 50  
 episode_for_averaging = 1 * episode_for_validation
 buffer_limit = 50000
 render_for_human = False
@@ -112,7 +111,7 @@ render_for_human = False
 
 
 
-suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{max_itrtn_for_learning:05d}-plan_{max_itrtn_for_planning:05d}"
+suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}"
 directory              = f'./result/{game_name}/'
 performance_directory  = f'./result/{game_name}/performace-{suffix}.csv'
 model_directory        = f'./result/{game_name}/model-{suffix}.pth'
@@ -420,7 +419,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
+        # itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
         batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
 
 
@@ -433,7 +432,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_action_stack,
                                         future_reward_stack,
                                         future_state_stack  )
-        model_list  = update_model_list(int(len(dataset) * itrtn_for_learning),
+        model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
                                         batch_size_for_learning
