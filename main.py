@@ -76,11 +76,11 @@ game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_s
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = False
-ensemble_size = 5                    #◀️
+ensemble_size = 10                   #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 100                   #⚠️
+feature_size = 150                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 neural_type = 'td'                   #⚠️
@@ -93,9 +93,12 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-itrtn_for_learning = 100
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 50
+min_itrtn_for_learning = 100
+max_itrtn_for_learning = 100
+min_param_for_learning = 1
+max_param_for_learning = 100
+
+PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1
@@ -369,8 +372,8 @@ for training_episode in tqdm(range(episode_for_training)):
     future_state_list    = sequentialize(state_list  ,
                                          action_list ,
                                          reward_list ,
-                                         history_size,
-                                         future_size)
+                                         0,
+                                         history_size+future_size)
 
 
 
@@ -419,8 +422,8 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        # itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
-        batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
+        itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
+        param_for_learning = min_param_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_learning - min_param_for_learning, episode_for_averaging)
 
 
 
@@ -435,7 +438,8 @@ for training_episode in tqdm(range(episode_for_training)):
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
-                                        batch_size_for_learning
+                                        param_for_learning,
+                                        PER
                                         )
 
 
