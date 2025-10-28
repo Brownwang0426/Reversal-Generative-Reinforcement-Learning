@@ -330,7 +330,7 @@ def update_model_per(itrtn_for_learning,
     PER_epsilon    = 1e-10
     PER_exponent   = PER_exponent
 
-    for _ in tqdm(range(itrtn_for_learning)):
+    for _ in range(itrtn_for_learning):
 
         obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
         priority             = obsolute_TD_error + PER_epsilon
@@ -369,7 +369,7 @@ def update_model(itrtn_for_learning,
     
     device = next(model.parameters()).device
 
-    for _ in tqdm(range(itrtn_for_learning)):
+    for _ in range(itrtn_for_learning):
 
         random_indices = random.sample(range(len(dataset)), min(batch_size, len(dataset)))
 
@@ -405,7 +405,7 @@ def update_model_list(itrtn_for_learning,
                       param,
                       PER):
     if not PER:
-        for i, model in enumerate(model_list):
+        for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model(itrtn_for_learning,
                                         dataset,
                                         model,
@@ -413,7 +413,7 @@ def update_model_list(itrtn_for_learning,
     else:
         device = next(model_list[0].parameters()).device
         td_error_batch = find_optimal_batch_size(model_list[0], dataset, device=device)
-        for i, model in enumerate(model_list):
+        for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model_per(itrtn_for_learning,
                                             dataset,
                                             model,
