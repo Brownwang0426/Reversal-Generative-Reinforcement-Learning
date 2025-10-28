@@ -90,6 +90,9 @@ class build_model(nn.Module):
         self.dropout_1            = nn.Dropout(p=self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
+        
+        self.state_norm           = nn.LayerNorm(self.feature_size)
+        self.action_norm          = nn.LayerNorm(self.feature_size)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -119,6 +122,21 @@ class build_model(nn.Module):
 
 
 
+    def custom_tanh(self, x):
+
+        # mish tanh
+        x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
+
+        # soft sign
+        # x = (x / (1 + torch.abs(x)))
+
+        # scaled arctangent
+        # x = x / torch.sqrt(1 + x**2)
+
+        return x
+    
+
+
 
     def forward(self, history_s, history_a, present_s, future_s, future_a):
 
@@ -129,10 +147,10 @@ class build_model(nn.Module):
 
 
         if history_s.size(1) > 0:
-            history_s = self.state_linear (history_s)  
-            history_a = self.action_linear(history_a) 
-        present_s = self.state_linear (present_s.unsqueeze(1))
-        future_a  = self.action_linear(future_a) 
+            history_s = self.state_norm (self.state_linear (history_s) )
+            history_a = self.action_norm(self.action_linear(history_a) )
+        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_a  = self.action_norm(self.action_linear(future_a              ))
 
         window_list   = list()
         if history_s.size(1) > 0:
@@ -146,7 +164,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = torch.tanh(h)
+            h = F.gelu(h)
             h = self.dropout_0(h)
 
             """
@@ -161,13 +179,13 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])   
-            s = torch.tanh(s)
+            s = self.custom_tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
 
             present_s = s
-            present_s = self.state_linear(present_s)
+            present_s = self.state_norm(self.state_linear(present_s)) 
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
@@ -186,10 +204,10 @@ class build_model(nn.Module):
     
     
         if history_s.size(1) > 0:
-            history_s = self.state_linear (history_s)  
-            history_a = self.action_linear(history_a) 
-        present_s = self.state_linear (present_s.unsqueeze(1))
-        future_a  = self.action_linear(future_a) 
+            history_s = self.state_norm (self.state_linear (history_s) )
+            history_a = self.action_norm(self.action_linear(history_a) )
+        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_a  = self.action_norm(self.action_linear(future_a              ))
     
         if history_s.size(1) > 0:
             history_s_a = history_s + history_a
@@ -205,7 +223,7 @@ class build_model(nn.Module):
                 h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
             else:
                 h = present_s + future_a[:, i:i+1]
-            h = torch.tanh(h)
+            h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
@@ -220,13 +238,13 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])   
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])    
-            s = torch.tanh(s)
+            s = self.custom_tanh(s)
     
             future_r_list.append(r)
             future_s_list.append(s)
     
             present_s = s
-            present_s = self.state_linear(present_s)
+            present_s = self.state_norm(self.state_linear(present_s)) 
     
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
@@ -242,11 +260,11 @@ class build_model(nn.Module):
 
 
         if history_s.size(1) > 0:
-            history_s = self.state_linear (history_s)  
-            history_a = self.action_linear(history_a) 
-        present_s = self.state_linear (present_s.unsqueeze(1))
-        future_s_ = self.state_linear (future_s)[:, :-1, :]
-        future_a  = self.action_linear(future_a) 
+            history_s = self.state_norm (self.state_linear (history_s) )
+            history_a = self.action_norm(self.action_linear(history_a) )
+        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_s_ = self.state_norm (self.state_linear (future_s)[:, :-1, :])
+        future_a  = self.action_norm(self.action_linear(future_a) )
 
         if history_s.size(1) > 0:
             history_s_a = history_s + history_a
@@ -258,7 +276,7 @@ class build_model(nn.Module):
 
         future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
         h = torch.cat([history_s_a, future_s_a], dim=1)
-        h = torch.tanh(h)
+        h = F.gelu(h)
         h = self.dropout_0(h)
 
         """
@@ -273,7 +291,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)  
         future_r = torch.tanh(r)[:, -future_a.size(1):, :]
         s = self.state_linear_(h)   
-        future_s = torch.tanh(s)[:, -future_a.size(1):, :]
+        future_s = self.custom_tanh(s)[:, -future_a.size(1):, :]
 
         return future_r, future_s
     
