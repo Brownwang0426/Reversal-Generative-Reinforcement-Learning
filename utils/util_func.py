@@ -312,7 +312,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         loss_function                 = model.loss_function_
         envisaged_reward, \
         envisaged_state               = model._forward(history_state, history_action, present_state, future_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) + torch.sum(torch.abs(loss_function(envisaged_state, future_state) ), dim=(1, 2))
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) ), dim=(1)) + torch.sum(torch.abs(loss_function(envisaged_state, future_state) ), dim=(1, 2))
         TD_error_list.append(total_loss.detach())  
 
     TD_error = torch.cat(TD_error_list, dim=0).to(device)
@@ -353,7 +353,7 @@ def update_model_per(itrtn_for_learning,
         loss_function               = model.loss_function
         envisaged_reward, \
         envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
         selected_optimizer.step() 
 
@@ -389,7 +389,7 @@ def update_model(itrtn_for_learning,
         loss_function               = model.loss_function
         envisaged_reward, \
         envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
 
         selected_optimizer.step() 
