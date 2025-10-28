@@ -93,8 +93,8 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 10
-max_itrtn_for_learning = 500
+min_itrtn_for_learning = 100
+max_itrtn_for_learning = 1500
 min_param_for_learning = 1
 max_param_for_learning = 1
 
@@ -422,7 +422,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        itrtn_for_learning = max_itrtn_for_learning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
+        itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
         param_for_learning = min_param_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_learning - min_param_for_learning, episode_for_averaging)
 
 
