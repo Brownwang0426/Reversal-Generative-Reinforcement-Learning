@@ -191,16 +191,16 @@ class build_model(nn.Module):
         if type == 'scaled_mish':
             # scaled mish tanh
             x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
-        if type == 'mish':
+        elif type == 'mish':
             # mish tanh
             x = x * torch.tanh(F.softplus(x))
-        if type == 'soft_sign':
+        elif type == 'soft_sign':
             # soft sign
             x = (x / (1 + torch.abs(x)))
-        if type == 'scaled_arctangent':
-            # scaled arctangent
-            x = x / torch.sqrt(1 + x**2)
-        if type == 'gelu':
+        elif type == 'soft_arctan':
+            # soft_arctan
+            x = 0.95 * torch.tanh(torch.atan(x))
+        elif type == 'gelu':
             # gelu
             x = F.gelu(x)
         return x
