@@ -186,18 +186,23 @@ class build_model(nn.Module):
 
 
 
-
-    def custom_tanh(self, x):
-
-        # mish tanh
-        x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
-
-        # soft sign
-        # x = (x / (1 + torch.abs(x)))
-
-        # scaled arctangent
-        # x = x / torch.sqrt(1 + x**2)
-
+    
+    def custom_activation(self, x, type = 'scaled_mish'):
+        if type == 'scaled_mish':
+            # scaled mish tanh
+            x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
+        if type == 'mish':
+            # mish tanh
+            x = x * torch.tanh(F.softplus(x))
+        if type == 'soft_sign':
+            # soft sign
+            x = (x / (1 + torch.abs(x)))
+        if type == 'scaled_arctangent':
+            # scaled arctangent
+            x = x / torch.sqrt(1 + x**2)
+        if type == 'gelu':
+            # gelu
+            x = F.gelu(x)
         return x
 
 
@@ -229,7 +234,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = F.gelu(h)
+            h = self.custom_activation(h, 'gelu')
             h = self.dropout_0(h)
 
             """
@@ -252,7 +257,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])   
-            s = self.custom_tanh(s)
+            s = self.custom_activation(s, 'scaled_mish')
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -296,7 +301,7 @@ class build_model(nn.Module):
                 h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
             else:
                 h = present_s + future_a[:, i:i+1]
-            h = F.gelu(h)
+            h = self.custom_activation(h, 'gelu')
             h = self.dropout_0(h)
     
             """
@@ -325,7 +330,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])   
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])    
-            s = self.custom_tanh(s)
+            s = self.custom_activation(s, 'scaled_mish')
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -363,7 +368,7 @@ class build_model(nn.Module):
 
         future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
         h = torch.cat([history_s_a, future_s_a], dim=1)
-        h = F.gelu(h)
+        h = self.custom_activation(h, 'gelu')
         h = self.dropout_0(h)
 
         """
@@ -386,7 +391,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)  
         future_r = torch.tanh(r)[:, -future_a.size(1):, :]
         s = self.state_linear_(h)   
-        future_s = self.custom_tanh(s)[:, -future_a.size(1):, :]
+        future_s = self.custom_activation(s, 'scaled_mish')[:, -future_a.size(1):, :]
 
         return future_r, future_s
 
