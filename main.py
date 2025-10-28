@@ -73,7 +73,7 @@ num_heads = 10                       #⚠️
 
 
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
+max_steps_for_each_episode = 100     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = False
 ensemble_size = 10                   #◀️
@@ -94,19 +94,19 @@ bias = False
 drop_rate = 0.0
 alpha = 0.1
 min_itrtn_for_learning = 100
-max_itrtn_for_learning = 100
+max_itrtn_for_learning = 500
 min_param_for_learning = 1
-max_param_for_learning = 10
+max_param_for_learning = 1
 
 PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 5
+max_itrtn_for_planning = 50
 
 episode_for_training = 100000
 episode_for_validation = 10  
-episode_for_averaging = 1 * episode_for_validation
+episode_for_averaging = 100000
 buffer_limit = 50000
 render_for_human = False
 

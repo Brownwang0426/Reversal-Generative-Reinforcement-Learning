@@ -271,7 +271,7 @@ def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_m
             torch.cuda.reset_peak_memory_stats(device)
             start = time.time()
             with torch.no_grad():
-                _ = model._forward(hs, ha, ps, fs, fa)  
+                _ = model.forward_(hs, ha, ps, fs, fa)  
             duration = time.time() - start
             peak_mem = torch.cuda.max_memory_allocated(device)
             mem_ratio = peak_mem / total_mem
@@ -311,8 +311,8 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
         model.train()
         loss_function                 = model.loss_function_
         envisaged_reward, \
-        envisaged_state               = model._forward(history_state, history_action, present_state, future_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) ), dim=(1)) + torch.sum(torch.abs(loss_function(envisaged_state, future_state) ), dim=(1, 2))
+        envisaged_state               = model.forward_(history_state, history_action, present_state, future_state, future_action)
+        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward, future_reward) ), dim=(1, 2)) + torch.sum(torch.abs(loss_function(envisaged_state, future_state) ), dim=(1, 2))
         TD_error_list.append(total_loss.detach())  
 
     TD_error = torch.cat(TD_error_list, dim=0).to(device)
@@ -350,11 +350,14 @@ def update_model_per(itrtn_for_learning,
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
+
         loss_function               = model.loss_function
         envisaged_reward, \
         envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
-        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) + loss_function(envisaged_state, future_state )
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
+        
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         selected_optimizer.step() 
 
     return model
@@ -389,9 +392,10 @@ def update_model(itrtn_for_learning,
         loss_function               = model.loss_function
         envisaged_reward, \
         envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
-        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) + loss_function(envisaged_state, future_state )
-        total_loss.backward()     
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()   
 
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         selected_optimizer.step() 
 
     return model
