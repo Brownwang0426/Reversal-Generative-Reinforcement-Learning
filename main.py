@@ -100,13 +100,13 @@ max_param_for_learning = 1
 
 PER = False
 
-beta = 0.01
+beta = 0.001
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 15
+max_itrtn_for_planning = 100
 
 episode_for_training = 100000
 episode_for_validation = 1
-episode_for_averaging = 15
+episode_for_averaging = 100
 buffer_limit = 50000
 render_for_human = False
 
