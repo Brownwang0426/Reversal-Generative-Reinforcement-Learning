@@ -75,7 +75,7 @@ num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
-load_pretrained_model = True
+load_pretrained_model = False
 ensemble_size = 10                   #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -93,20 +93,20 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 5
-max_itrtn_for_learning = 5
+min_itrtn_for_learning = 10
+max_itrtn_for_learning = 10
 min_param_for_learning = 1
 max_param_for_learning = 1
 
 PER = False
 
-beta = 0.1
-min_itrtn_for_planning = 5
-max_itrtn_for_planning = 10
+beta = 0.01
+min_itrtn_for_planning = 1
+max_itrtn_for_planning = 15
 
 episode_for_training = 100000
 episode_for_validation = 1
-episode_for_averaging = 10
+episode_for_averaging = 15
 buffer_limit = 50000
 render_for_human = False
 
@@ -372,8 +372,8 @@ for training_episode in tqdm(range(episode_for_training)):
     future_state_list    = sequentialize(state_list  ,
                                          action_list ,
                                          reward_list ,
-                                         0,
-                                         history_size+future_size)
+                                         history_size,
+                                         future_size)
 
 
 

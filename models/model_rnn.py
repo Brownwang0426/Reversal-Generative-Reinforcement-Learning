@@ -186,7 +186,6 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])   
-            s = self.custom_activation(s, 'soft_sign')
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -245,7 +244,6 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])   
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])    
-            s = self.custom_activation(s, 'soft_sign')
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -296,9 +294,10 @@ class build_model(nn.Module):
 
         h = self.dropout_1(h)
         r = self.reward_linear(h)  
-        future_r = torch.tanh(r)[:, -future_a.size(1):, :]
+        r = torch.tanh(r)
+        future_r = r[:, -future_a.size(1):, :]
         s = self.state_linear_(h)   
-        future_s = self.custom_activation(s, 'soft_sign')[:, -future_a.size(1):, :]
+        future_s = s[:, -future_a.size(1):, :]
 
         return future_r, future_s
     
