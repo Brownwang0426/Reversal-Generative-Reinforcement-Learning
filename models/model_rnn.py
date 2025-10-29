@@ -91,8 +91,8 @@ class build_model(nn.Module):
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
         
-        self.state_norm           = nn.LayerNorm(self.feature_size)
-        self.action_norm          = nn.LayerNorm(self.feature_size)
+        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -138,6 +138,8 @@ class build_model(nn.Module):
         elif type == 'gelu':
             # gelu
             x = F.gelu(x)
+        else:
+            raise KeyError
         return x
     
 
@@ -184,7 +186,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])   
-            s = self.custom_activation(s, 'scaled_mish')
+            s = self.custom_activation(s, 'soft_sign')
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -243,7 +245,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])   
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])    
-            s = self.custom_activation(s, 'scaled_mish')
+            s = self.custom_activation(s, 'soft_sign')
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -296,7 +298,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)  
         future_r = torch.tanh(r)[:, -future_a.size(1):, :]
         s = self.state_linear_(h)   
-        future_s = self.custom_activation(s, 'scaled_mish')[:, -future_a.size(1):, :]
+        future_s = self.custom_activation(s, 'soft_sign')[:, -future_a.size(1):, :]
 
         return future_r, future_s
     

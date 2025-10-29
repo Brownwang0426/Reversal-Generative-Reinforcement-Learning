@@ -156,8 +156,8 @@ class build_model(nn.Module):
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
 
-        self.state_norm           = nn.LayerNorm(self.feature_size)
-        self.action_norm          = nn.LayerNorm(self.feature_size)
+        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -203,6 +203,8 @@ class build_model(nn.Module):
         elif type == 'gelu':
             # gelu
             x = F.gelu(x)
+        else:
+            raise KeyError
         return x
 
 
@@ -245,9 +247,13 @@ class build_model(nn.Module):
             for layer in self.transformer_layers:
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h)
-                h   = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+                h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+                h   = h + h_
                 h_  = fully_connected_norm(h)
-                h   = h + fully_connected_linear(h_)
+                h_  = fully_connected_linear(h_)
+                # h_  = self.custom_activation(h_, 'gelu')
+                # h_  = fully_connected_linear(h_)
+                h   = h + h_
             h  = self.transformer_norm(h)
             """
             We utilize the last idx in h to derive the latest reward and state.
@@ -257,7 +263,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])  
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])   
-            s = self.custom_activation(s, 'scaled_mish')
+            s = self.custom_activation(s, 'soft_sign')
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -314,13 +320,17 @@ class build_model(nn.Module):
                 h = h + self.positional_encoding[:, long-1:long, :]
             for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                q = attention_norm(h)
+                h_ = attention_norm(h)
                 if i == 0:
-                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
+                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
                 else:
-                    q, kv_caches[j] = attention_linear(q, q, q, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
-                h = h + q
-                h = h + fully_connected_linear(fully_connected_norm(h))
+                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
+                h = h + h_
+                h_  = fully_connected_norm(h)
+                h_  = fully_connected_linear(h_)
+                # h_  = self.custom_activation(h_, 'gelu')
+                # h_  = fully_connected_linear(h_)
+                h   = h + h_
             h = self.transformer_norm(h)
             """
             Transformer decoder
@@ -330,7 +340,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, - 1:, :])   
             r = torch.tanh(r)
             s = self.state_linear_(h[:, - 1:, :])    
-            s = self.custom_activation(s, 'scaled_mish')
+            s = self.custom_activation(s, 'soft_sign')
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -378,10 +388,14 @@ class build_model(nn.Module):
         h = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-            h_ = attention_norm(h)
-            h  = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
-            h_ = fully_connected_norm(h)
-            h  = h + fully_connected_linear(h_)
+            h_  = attention_norm(h)
+            h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+            h   = h + h_
+            h_  = fully_connected_norm(h)
+            h_  = fully_connected_linear(h_)
+            # h_  = self.custom_activation(h_, 'gelu')
+            # h_  = fully_connected_linear(h_)
+            h   = h + h_
         h = self.transformer_norm(h)
         """
         Transformer decoder
@@ -391,7 +405,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)  
         future_r = torch.tanh(r)[:, -future_a.size(1):, :]
         s = self.state_linear_(h)   
-        future_s = self.custom_activation(s, 'scaled_mish')[:, -future_a.size(1):, :]
+        future_s = self.custom_activation(s, 'soft_sign')[:, -future_a.size(1):, :]
 
         return future_r, future_s
 
