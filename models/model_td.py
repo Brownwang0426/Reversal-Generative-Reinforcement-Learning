@@ -245,7 +245,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = torch.gelu(h)
+            h = F.gelu(h)
             h = self.dropout_0(h)
 
             """
@@ -260,7 +260,7 @@ class build_model(nn.Module):
                 h   = h + h_
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear_0(h_)
-                h_  = torch.gelu(h_)
+                h_  = F.gelu(h_)
                 h_  = fully_connected_linear_1(h_)
                 h   = h + h_
             h  = self.transformer_norm(h)
@@ -315,7 +315,7 @@ class build_model(nn.Module):
                 h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
             else:
                 h = present_s + future_a[:, i:i+1]
-            h = torch.gelu(h)
+            h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
@@ -336,7 +336,7 @@ class build_model(nn.Module):
                 h = h + h_
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear_0(h_)
-                h_  = torch.gelu(h_)
+                h_  = F.gelu(h_)
                 h_  = fully_connected_linear_1(h_)
                 h   = h + h_
             h = self.transformer_norm(h)
@@ -385,7 +385,7 @@ class build_model(nn.Module):
 
         future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
         h = torch.cat([history_s_a, future_s_a], dim=1)
-        h = torch.gelu(h)
+        h = F.gelu(h)
         h = self.dropout_0(h)
 
         """
@@ -400,13 +400,14 @@ class build_model(nn.Module):
             h   = h + h_
             h_  = fully_connected_norm(h)
             h_  = fully_connected_linear_0(h_)
-            h_  = torch.gelu(h_)
+            h_  = F.gelu(h_)
             h_  = fully_connected_linear_1(h_)
             h   = h + h_
         h = self.transformer_norm(h)
         """
         Transformer decoder
         """
+        
         h = self.dropout_1(h)
         r = self.reward_head(h[:, -1:, :])
         r = torch.tanh(r)  

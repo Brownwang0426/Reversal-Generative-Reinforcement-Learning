@@ -88,9 +88,17 @@ class build_model(nn.Module):
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
         self.dropout_1            = nn.Dropout(p=self.drop_rate)
-        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
-        self.state_linear_        = nn.Linear(self.feature_size, self.state_size   , bias=self.bias)
-        
+        self.reward_head = nn.Sequential(
+            nn.Linear(self.feature_size, self.feature_size, bias=self.bias ),
+            nn.GELU(),
+            nn.Linear(self.feature_size  , self.reward_size, bias=self.bias),
+        )
+        self.state_head = nn.Sequential(
+            nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+            nn.GELU(),
+            nn.Linear(self.feature_size, self.state_size, bias=self.bias),
+        )
+
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
@@ -171,7 +179,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = self.custom_activation(h, 'gelu')
+            h = F.gelu(h)
             h = self.dropout_0(h)
 
             """
@@ -183,10 +191,10 @@ class build_model(nn.Module):
             """
 
             h = self.dropout_1(h)
-            r = self.reward_linear(h[:, - 1:, :])  
-            r = torch.tanh(r)
-            s = self.state_linear_(h[:, - 1:, :])   
-
+            r = self.reward_head(h[:, -1:, :])
+            r = torch.tanh(r)  
+            s = self.state_head(h[:, -1:, :])
+            
             future_r_list.append(r)
             future_s_list.append(s)
 
@@ -229,7 +237,7 @@ class build_model(nn.Module):
                 h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
             else:
                 h = present_s + future_a[:, i:i+1]
-            h = self.custom_activation(h, 'gelu')
+            h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
@@ -241,9 +249,9 @@ class build_model(nn.Module):
             """
     
             h = self.dropout_1(h)
-            r = self.reward_linear(h[:, - 1:, :])   
-            r = torch.tanh(r)
-            s = self.state_linear_(h[:, - 1:, :])    
+            r = self.reward_head(h[:, -1:, :])
+            r = torch.tanh(r)  
+            s = self.state_head(h[:, -1:, :])
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -281,7 +289,7 @@ class build_model(nn.Module):
 
         future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
         h = torch.cat([history_s_a, future_s_a], dim=1)
-        h = self.custom_activation(h, 'gelu')
+        h = F.gelu(h)
         h = self.dropout_0(h)
 
         """
@@ -293,11 +301,12 @@ class build_model(nn.Module):
         """
 
         h = self.dropout_1(h)
-        r = self.reward_linear(h)  
-        r = torch.tanh(r)
+        r = self.reward_head(h[:, -1:, :])
+        r = torch.tanh(r)  
+        s = self.state_head(h[:, -1:, :])
+
         future_r = r[:, -future_a.size(1):, :]
-        s = self.state_linear_(h)   
-        future_s = s[:, -future_a.size(1):, :]
+        future_s = s[:, -future_a.size(1):, :] 
 
         return future_r, future_s
     
