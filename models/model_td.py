@@ -129,6 +129,8 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.dropout_0            = nn.Dropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
@@ -148,7 +150,7 @@ class build_model(nn.Module):
         self.register_buffer('mask', mask)  
 
         self.dropout_1            = nn.Dropout(self.drop_rate)
-        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size  , bias=self.bias)
+        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
 
         self.state_bias           = nn.Parameter(torch.zeros(self.feature_size) - 1.5)
         self.action_bias          = nn.Parameter(torch.zeros(self.feature_size) + 1.5)
@@ -184,18 +186,18 @@ class build_model(nn.Module):
     def forward(self, history_s, present_s, future_a):
 
         if history_s.size(1) > 0:
-            history_s = self.state_linear (history_s)  
-            present_s = self.state_linear (present_s.unsqueeze(1))
-            future_a  = self.action_linear(future_a) 
-            history_s = torch.tanh(history_s) + self.state_bias
-            present_s = torch.tanh(present_s) + self.state_bias
-            future_a  = torch.tanh(future_a ) + self.action_bias
+            history_s = self.state_norm(self.state_linear (history_s              ))
+            present_s = self.state_norm(self.state_linear (present_s.unsqueeze(1) ))
+            future_a  = self.action_norm(self.action_linear(future_a              ))
+            history_s = F.gelu(history_s + self.state_bias ) 
+            present_s = F.gelu(present_s + self.state_bias )
+            future_a  = F.gelu(future_a  + self.action_bias) 
             h = torch.cat([history_s, present_s, future_a], dim=1)
         else:
-            present_s = self.state_linear (present_s.unsqueeze(1))
-            future_a  = self.action_linear(future_a) 
-            present_s = torch.tanh(present_s) + self.state_bias
-            future_a  = torch.tanh(future_a ) + self.action_bias
+            present_s = self.state_norm(self.state_linear (present_s.unsqueeze(1)))
+            future_a  = self.action_norm(self.action_linear(future_a             ))
+            present_s = F.gelu(present_s + self.state_bias ) 
+            future_a  = F.gelu(future_a  + self.action_bias) 
             h = torch.cat([present_s, future_a], dim=1)
 
         h = self.dropout_0(h)
@@ -208,17 +210,21 @@ class build_model(nn.Module):
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_ = attention_norm(h)
-            h  = h + attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
-            h_ = fully_connected_norm(h)
-            h  = h + fully_connected_linear(h_)
+            h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long])
+            h  = h + h_
+            h_  = fully_connected_norm(h)
+            h_  = fully_connected_linear(h_)
+            h   = h + h_
         h = self.transformer_norm(h)
+        """
+        Transformer decoder
+        """
 
-        """
-        We utilize the last idx in h to derive the latest reward and state.
-        """
         h = self.dropout_1(h)
-        r = self.reward_linear(h[:, -future_a.size(1): , :])  
-        future_r = torch.tanh(r)
+        r = self.reward_linear(h)
+        r = torch.tanh(r)  
+
+        future_r = r[:, -future_a.size(1): , :]
 
         return future_r
 

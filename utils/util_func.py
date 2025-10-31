@@ -222,7 +222,7 @@ def update_model(itrtn_for_learning,
     
     device = next(model.parameters()).device
 
-    for _ in tqdm(range(itrtn_for_learning)):
+    for _ in range(itrtn_for_learning):
 
         random_indices = random.sample(range(len(dataset)), batch_size)
 
@@ -239,9 +239,10 @@ def update_model(itrtn_for_learning,
 
         loss_function               = model.loss_function
         envisaged_reward            = model(history_state, present_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) 
+        total_loss                  = loss_function(envisaged_reward[:, -1, :], future_reward[:, -1, :]) 
         total_loss.backward()     
 
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         selected_optimizer.step() 
 
     return model
@@ -250,7 +251,7 @@ def update_model_list(itrtn_for_learning,
                       dataset,
                       model_list,
                       batch_size):
-    for i, model in enumerate(model_list):
+    for i, model in enumerate(tqdm(model_list, desc="Updating models")):
         model_list[i] = update_model(itrtn_for_learning,
                                      dataset,
                                      model,
