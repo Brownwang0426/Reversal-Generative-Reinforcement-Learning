@@ -134,6 +134,8 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.dropout_0            = nn.Dropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
@@ -143,7 +145,6 @@ class build_model(nn.Module):
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
                 nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
             ])
             for _ in range(self.num_layers)
@@ -154,19 +155,8 @@ class build_model(nn.Module):
         self.register_buffer('mask', mask)  
 
         self.dropout_1            = nn.Dropout(self.drop_rate)
-        self.reward_head = nn.Sequential(
-            nn.Linear(self.feature_size, self.feature_size, bias=self.bias ),
-            nn.GELU(),
-            nn.Linear(self.feature_size  , self.reward_size, bias=self.bias),
-        )
-        self.state_head = nn.Sequential(
-            nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-            nn.GELU(),
-            nn.Linear(self.feature_size, self.state_size, bias=self.bias),
-        )
-
-        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
-        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.reward_head          = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+        self.state_head           = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -192,29 +182,6 @@ class build_model(nn.Module):
             'binary_crossentropy': torch.nn.BCELoss(reduction='none')
         }
         self.loss_function_ = losses[self.loss .lower()]
-
-
-
-    
-    def custom_activation(self, x, type = 'scaled_mish'):
-        if type == 'scaled_mish':
-            # scaled mish tanh
-            x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
-        elif type == 'mish':
-            # mish tanh
-            x = x * torch.tanh(F.softplus(x))
-        elif type == 'soft_sign':
-            # soft sign
-            x = (x / (1 + torch.abs(x)))
-        elif type == 'soft_arctan':
-            # soft_arctan
-            x = 0.95 * torch.tanh(torch.atan(x))
-        elif type == 'gelu':
-            # gelu
-            x = F.gelu(x)
-        else:
-            raise KeyError
-        return x
 
 
 
@@ -254,14 +221,12 @@ class build_model(nn.Module):
             long = h.size(1)
             h    = h + self.positional_encoding[:, :long, :]
             for layer in self.transformer_layers:
-                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear_0, fully_connected_linear_1 = layer
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h)
                 h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
                 h   = h + h_
                 h_  = fully_connected_norm(h)
-                h_  = fully_connected_linear_0(h_)
-                h_  = F.gelu(h_)
-                h_  = fully_connected_linear_1(h_)
+                h_  = fully_connected_linear(h_)
                 h   = h + h_
             h  = self.transformer_norm(h)
             """
@@ -306,6 +271,8 @@ class build_model(nn.Module):
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
+
+                
     
         kv_caches = [dict() for _ in self.transformer_layers]
     
@@ -327,7 +294,7 @@ class build_model(nn.Module):
             else:
                 h = h + self.positional_encoding[:, long-1:long, :]
             for j, layer in enumerate(self.transformer_layers):
-                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear_0, fully_connected_linear_1 = layer
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_ = attention_norm(h)
                 if i == 0:
                     h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
@@ -335,9 +302,7 @@ class build_model(nn.Module):
                     h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
                 h = h + h_
                 h_  = fully_connected_norm(h)
-                h_  = fully_connected_linear_0(h_)
-                h_  = F.gelu(h_)
-                h_  = fully_connected_linear_1(h_)
+                h_  = fully_connected_linear(h_)
                 h   = h + h_
             h = self.transformer_norm(h)
             """
@@ -394,20 +359,18 @@ class build_model(nn.Module):
         long = h.size(1)
         h = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
-            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear_0, fully_connected_linear_1 = layer
+            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_  = attention_norm(h)
             h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
             h   = h + h_
             h_  = fully_connected_norm(h)
-            h_  = fully_connected_linear_0(h_)
-            h_  = F.gelu(h_)
-            h_  = fully_connected_linear_1(h_)
+            h_  = fully_connected_linear(h_)
             h   = h + h_
         h = self.transformer_norm(h)
         """
         Transformer decoder
         """
-        
+
         h = self.dropout_1(h)
         r = self.reward_head(h[:, -1:, :])
         r = torch.tanh(r)  

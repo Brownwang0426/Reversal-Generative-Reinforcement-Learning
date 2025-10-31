@@ -77,7 +77,9 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
-        self.dropout_0            = nn.Dropout(p=self.drop_rate)
+        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.dropout_0            = nn.Dropout(self.drop_rate)
 
         neural_types = {
             'rnn': nn.RNN,
@@ -87,20 +89,9 @@ class build_model(nn.Module):
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
-        self.dropout_1            = nn.Dropout(p=self.drop_rate)
-        self.reward_head = nn.Sequential(
-            nn.Linear(self.feature_size, self.feature_size, bias=self.bias ),
-            nn.GELU(),
-            nn.Linear(self.feature_size  , self.reward_size, bias=self.bias),
-        )
-        self.state_head = nn.Sequential(
-            nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-            nn.GELU(),
-            nn.Linear(self.feature_size, self.state_size, bias=self.bias),
-        )
-
-        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
-        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.dropout_1            = nn.Dropout(self.drop_rate)
+        self.reward_head          = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+        self.state_head           = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -127,29 +118,6 @@ class build_model(nn.Module):
         }
         self.loss_function_ = losses[self.loss .lower()]
 
-
-
-
-    def custom_activation(self, x, type = 'scaled_mish'):
-        if type == 'scaled_mish':
-            # scaled mish tanh
-            x = 0.95 * torch.tanh(x * torch.tanh(F.softplus(x)))
-        elif type == 'mish':
-            # mish tanh
-            x = x * torch.tanh(F.softplus(x))
-        elif type == 'soft_sign':
-            # soft sign
-            x = (x / (1 + torch.abs(x)))
-        elif type == 'soft_arctan':
-            # soft_arctan
-            x = 0.95 * torch.tanh(torch.atan(x))
-        elif type == 'gelu':
-            # gelu
-            x = F.gelu(x)
-        else:
-            raise KeyError
-        return x
-    
 
 
 
@@ -228,6 +196,8 @@ class build_model(nn.Module):
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
+    
+
     
         hidden_cache = None
     
