@@ -40,6 +40,10 @@ from torch.utils.data import DataLoader
 
 import zlib
 
+from itertools import islice
+
+
+
 
 def load_performance_from_csv(filename='performance_log.csv'):
     performance_log = []
@@ -372,19 +376,22 @@ def update_model(itrtn_for_learning,
     
     device = next(model.parameters()).device
 
-    for _ in range(itrtn_for_learning):
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True
+    )
 
-        random_indices = random.sample(range(len(dataset)), min(batch_size, len(dataset)))
+    for i, batch_samples in enumerate(islice(dataloader, itrtn_for_learning)):
 
-        batch_samples  = [dataset[i] for i in random_indices]
-        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
-        history_state  = torch.stack(history_state ).to(device)
-        history_action = torch.stack(history_action).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-        future_state   = torch.stack(future_state  ).to(device)
-
+        history_state, history_action, present_state, future_action, future_reward, future_state = batch_samples
+        history_state  = history_state .to(device)
+        history_action = history_action.to(device)
+        present_state  = present_state .to(device)
+        future_action  = future_action .to(device)
+        future_reward  = future_reward .to(device)
+        future_state   = future_state  .to(device)
+ 
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
