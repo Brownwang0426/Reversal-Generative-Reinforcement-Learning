@@ -90,8 +90,8 @@ class build_model(nn.Module):
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
         self.dropout_1            = nn.Dropout(self.drop_rate)
-        self.reward_head          = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
-        self.state_head           = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
+        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+        self.state_linear_        = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -159,9 +159,9 @@ class build_model(nn.Module):
             """
 
             h = self.dropout_1(h)
-            r = self.reward_head(h[:, -1:, :])
+            r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
-            s = self.state_head(h[:, -1:, :])
+            s = self.state_linear_(h[:, -1:, :])
             
             future_r_list.append(r)
             future_s_list.append(s)
@@ -198,7 +198,7 @@ class build_model(nn.Module):
                 
     
 
-    
+
         hidden_cache = None
     
         for i in range(future_a.size(1)):
@@ -219,9 +219,9 @@ class build_model(nn.Module):
             """
     
             h = self.dropout_1(h)
-            r = self.reward_head(h[:, -1:, :])
+            r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
-            s = self.state_head(h[:, -1:, :])
+            s = self.state_linear_(h[:, -1:, :])
     
             future_r_list.append(r)
             future_s_list.append(s)
@@ -271,9 +271,9 @@ class build_model(nn.Module):
         """
 
         h = self.dropout_1(h)
-        r = self.reward_head(h[:, -1:, :])
+        r = self.reward_linear(h[:, -1:, :])
         r = torch.tanh(r)  
-        s = self.state_head(h[:, -1:, :])
+        s = self.state_linear_(h[:, -1:, :])
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 
