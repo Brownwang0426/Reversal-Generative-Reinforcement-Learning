@@ -75,8 +75,8 @@ num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
-load_pretrained_model = False
-ensemble_size =  20                  #◀️
+load_pretrained_model = True
+ensemble_size =  25                  #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -93,11 +93,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 10
+min_itrtn_for_learning = 1
 max_itrtn_for_learning = 1000
 min_param_for_learning = 1
-max_param_for_learning = 1
-
+max_param_for_learning = 100
 PER = False
 
 beta = 0.001
@@ -107,7 +106,7 @@ max_itrtn_for_planning = 100
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 100
-buffer_limit = 50
+episode_for_buffer = 1000
 render_for_human = False
 
 
@@ -155,7 +154,8 @@ if neural_type in model_modules:
 else:
     raise RuntimeError('Missing model functions')
 
-from utils.util_func  import load_performance_from_csv,\
+from utils.util_func  import make_buffer,\
+                             load_performance_from_csv,\
                              load_buffer_from_pickle,\
                              retrieve_history,\
                              retrieve_present,\
@@ -163,9 +163,7 @@ from utils.util_func  import load_performance_from_csv,\
                              initialize_desired_reward,\
                              update_future_action, \
                              sequentialize, \
-                             update_long_term_experience_replay_buffer,\
                              update_model_list,\
-                             limit_buffer,\
                              save_performance_to_csv,\
                              save_buffer_to_pickle
 
@@ -199,46 +197,19 @@ for _ in range(ensemble_size):
     model.to(device)
     model_list.append(model)
 
-# creating space for storing tensors as experience replay buffer
-history_state_stack        = torch.empty(0).to(device_, non_blocking=True)
-history_action_stack       = torch.empty(0).to(device_, non_blocking=True)
-present_state_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_action_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_reward_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_state_stack         = torch.empty(0).to(device_, non_blocking=True)
-history_state_hash_set     = set()
-history_action_hash_set    = set()
-present_state_hash_set     = set()
-future_action_hash_set     = set()
-future_reward_hash_set     = set()
-future_state_hash_set      = set()
+# create buffer
+buffer = make_buffer(max_episode=episode_for_buffer)
 
 # load from pre-trained models if needed
 if load_pretrained_model == True:
     try:
+        performance_log        = load_performance_from_csv(performance_directory)
+        last_episode           = performance_log[-1][0] if len(performance_log) > 0 else 0
         model_dict = torch.load(model_directory)
         for i, model in enumerate(model_list):
             model.load_state_dict(model_dict[f'model_{i}'])
-        history_state_stack, \
-        history_action_stack,\
-        present_state_stack, \
-        future_action_stack, \
-        future_reward_stack, \
-        future_state_stack,  \
-        history_state_hash_set , \
-        history_action_hash_set , \
-        present_state_hash_set , \
-        future_action_hash_set , \
-        future_reward_hash_set , \
-        future_state_hash_set  = load_buffer_from_pickle(buffer_directory)
-        history_state_stack    = history_state_stack.to (device_) 
-        history_action_stack   = history_action_stack.to(device_) 
-        present_state_stack    = present_state_stack.to (device_) 
-        future_action_stack    = future_action_stack.to (device_) 
-        future_reward_stack    = future_reward_stack.to (device_) 
-        future_state_stack     = future_state_stack .to (device_) 
-        performance_log        = load_performance_from_csv(performance_directory)
-        last_episode           = performance_log[-1][0] if len(performance_log) > 0 else 0
+        buffer = load_buffer_from_pickle(buffer_directory)
+        buffer.to(device_)
         print('Loaded pre-trained models.')
     except:
         print('Failed loading pre-trained models. Now using new models.')
@@ -378,39 +349,8 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
-    """
-    We dropped duplicated experiences in the buffer and to maintain diveristy.
-    """
     # storing sequentialized short term experience to long term experience replay buffer
-    history_state_stack, \
-    history_action_stack, \
-    present_state_stack, \
-    future_action_stack, \
-    future_reward_stack, \
-    future_state_stack,\
-    history_state_hash_set   , \
-    history_action_hash_set   , \
-    present_state_hash_set   , \
-    future_action_hash_set   , \
-    future_reward_hash_set   , \
-    future_state_hash_set       = update_long_term_experience_replay_buffer(history_state_stack,
-                                                                            history_action_stack,
-                                                                            present_state_stack,
-                                                                            future_action_stack,
-                                                                            future_reward_stack,
-                                                                            future_state_stack ,
-                                                                            history_state_hash_set   ,
-                                                                            history_action_hash_set   ,
-                                                                            present_state_hash_set   ,
-                                                                            future_action_hash_set   ,
-                                                                            future_reward_hash_set   ,
-                                                                            future_state_hash_set    ,
-                                                                            history_state_list   ,
-                                                                            history_action_list   ,
-                                                                            present_state_list,
-                                                                            future_action_list,
-                                                                            future_reward_list,
-                                                                            future_state_list )
+    buffer.add_episode(current_episode, history_state_list, history_action_list, present_state_list, future_action_list, future_reward_list, future_state_list)
 
 
 
@@ -429,50 +369,12 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # training
-        dataset     = TensorDataset    (history_state_stack,
-                                        history_action_stack,
-                                        present_state_stack,
-                                        future_action_stack,
-                                        future_reward_stack,
-                                        future_state_stack  )
         model_list  = update_model_list(itrtn_for_learning,
-                                        dataset,
+                                        buffer,
                                         model_list,
                                         param_for_learning,
                                         PER
                                         )
-
-
-
-
-        """
-        We limit buffer to save vram.
-        """
-        # limit_buffer
-        history_state_stack, \
-        history_action_stack, \
-        present_state_stack, \
-        future_action_stack, \
-        future_reward_stack, \
-        future_state_stack , \
-        history_state_hash_set   , \
-        history_action_hash_set   , \
-        present_state_hash_set   , \
-        future_action_hash_set   , \
-        future_reward_hash_set   , \
-        future_state_hash_set    = limit_buffer(history_state_stack,
-                                                history_action_stack,
-                                                present_state_stack,
-                                                future_action_stack,
-                                                future_reward_stack,
-                                                future_state_stack ,
-                                                history_state_hash_set   ,
-                                                history_action_hash_set   ,
-                                                present_state_hash_set   ,
-                                                future_action_hash_set   ,
-                                                future_reward_hash_set   ,
-                                                future_state_hash_set  ,
-                                                buffer_limit  )
 
 
 
@@ -487,19 +389,7 @@ for training_episode in tqdm(range(episode_for_training)):
         torch.save(model_dict, model_directory)
 
         # saving long term experience replay buffer
-        save_buffer_to_pickle(buffer_directory,
-                              history_state_stack,
-                              history_action_stack,
-                              present_state_stack,
-                              future_action_stack,
-                              future_reward_stack,
-                              future_state_stack,
-                              history_state_hash_set ,
-                              history_action_hash_set ,
-                              present_state_hash_set ,
-                              future_action_hash_set ,
-                              future_reward_hash_set ,
-                              future_state_hash_set )
+        save_buffer_to_pickle(buffer_directory, buffer)
 
 
 

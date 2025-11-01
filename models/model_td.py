@@ -96,6 +96,17 @@ class custom_attn(nn.Module):
 
 
 
+class state_activation(nn.Module):
+    def __init__(self, scale=1):
+        super().__init__()
+        self.scale = scale
+
+    def forward(self, x):
+        return x / (1 + torch.abs(x))
+
+
+
+
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -157,6 +168,8 @@ class build_model(nn.Module):
         self.dropout_1            = nn.Dropout(self.drop_rate)
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
+
+        self.state_activate               = state_activation()
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -237,6 +250,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
+            s = self.state_activate(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -313,6 +327,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r) 
             s = self.state_linear_(h[:, -1:, :])
+            s = self.state_activate(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -375,6 +390,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
+        s = self.state_activate(s)
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 
