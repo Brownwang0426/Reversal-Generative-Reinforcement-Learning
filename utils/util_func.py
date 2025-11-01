@@ -47,10 +47,11 @@ from collections import deque
 
 
 class make_buffer:
-    def __init__(self, max_episode=1000, device="cpu", alpha=5.0):
+    def __init__(self, max_episode=1000, device="cpu", alpha=10.0, recent_n=50):
         self.buffer = deque(maxlen=max_episode)
         self.device = device
         self.alpha  = alpha 
+        self.recent_n = recent_n
 
     def to(self, device):
         """
@@ -87,6 +88,20 @@ class make_buffer:
         indices = torch.arange(N, dtype=torch.float32)
         weights = torch.exp(self.alpha * (indices / (N - 1 + 1e-6)))
         probs   = weights / weights.sum()
+        return probs
+
+    def __get_time_weights(self):
+        N = len(self.buffer)
+        indices = torch.arange(N, dtype=torch.float32)
+
+        # 給最近 N 個高權重，其他非常小的權重
+        weights = torch.zeros(N)
+        if N > 0:
+            start = max(0, N - self.recent_n)
+            weights[start:] = torch.linspace(1.0, self.alpha, N - start)  # 最近的越新越大
+            weights[:start] = 1e-4  # 很老的 episode 幾乎不被抽中
+        
+        probs = weights / weights.sum()
         return probs
 
     def sample_transition(self, batch_size=1, replacement=True):

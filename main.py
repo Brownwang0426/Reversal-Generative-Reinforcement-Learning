@@ -75,7 +75,7 @@ num_heads = 10                       #⚠️
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
-load_pretrained_model = True
+load_pretrained_model = False
 ensemble_size =  25                  #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
@@ -86,7 +86,6 @@ future_size = 10                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 3                        #⚠️
-
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
@@ -106,7 +105,11 @@ max_itrtn_for_planning = 100
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 100
+
 episode_for_buffer = 1000
+alpha_for_buffer = 10
+recent_n_for_buffer = 3
+
 render_for_human = False
 
 
@@ -198,7 +201,7 @@ for _ in range(ensemble_size):
     model_list.append(model)
 
 # create buffer
-buffer = make_buffer(max_episode=episode_for_buffer)
+buffer = make_buffer(max_episode=episode_for_buffer, alpha=alpha_for_buffer, recent_n=recent_n_for_buffer)
 
 # load from pre-trained models if needed
 if load_pretrained_model == True:
