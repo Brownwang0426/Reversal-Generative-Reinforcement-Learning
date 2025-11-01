@@ -92,10 +92,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 1
+min_itrtn_for_learning = 10
 max_itrtn_for_learning = 1000
 min_param_for_learning = 1
-max_param_for_learning = 100
+max_param_for_learning = 10
 PER = False
 
 beta = 0.001
@@ -110,7 +110,7 @@ episode_for_buffer = 1000
 alpha_for_buffer = 10
 recent_n_for_buffer = 3
 
-render_for_human = False
+render_for_human = True
 
 
 
