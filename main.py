@@ -94,8 +94,8 @@ drop_rate = 0.0
 alpha = 0.1
 min_itrtn_for_learning = 1
 max_itrtn_for_learning = 1000
-min_param_for_learning = 10
-max_param_for_learning = 100
+min_param_for_learning = 100
+max_param_for_learning = 1000
 
 beta = 0.001
 min_itrtn_for_planning = 1
@@ -103,6 +103,7 @@ max_itrtn_for_planning = 100
 
 episode_for_training = 100000
 episode_for_validation = 1
+
 episode_for_averaging = 100
 
 episode_for_buffer = 1000

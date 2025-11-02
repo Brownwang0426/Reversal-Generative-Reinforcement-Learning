@@ -45,7 +45,7 @@ class state_activation(nn.Module):
         self.scale = scale
 
     def forward(self, x):
-        return x / (1 + torch.abs(x))
+        return x 
 
 
 
