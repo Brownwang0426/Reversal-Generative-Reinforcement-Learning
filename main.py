@@ -60,7 +60,7 @@ game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 5                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -76,7 +76,7 @@ game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_s
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = False
-ensemble_size =  25                  #◀️
+ensemble_size =  10                  #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -84,7 +84,7 @@ feature_size = 150                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
+num_layers = 5                       #⚠️
 num_heads = 3                        #⚠️
 init = "xavier_normal"
 opti = 'sgd'
@@ -92,11 +92,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 10
+min_itrtn_for_learning = 1
 max_itrtn_for_learning = 1000
-min_param_for_learning = 1
-max_param_for_learning = 10
-PER = False
+min_param_for_learning = 10
+max_param_for_learning = 100
 
 beta = 0.001
 min_itrtn_for_planning = 1
@@ -107,10 +106,8 @@ episode_for_validation = 1
 episode_for_averaging = 100
 
 episode_for_buffer = 1000
-alpha_for_buffer = 10
-recent_n_for_buffer = 3
 
-render_for_human = True
+render_for_human = False
 
 
 
@@ -201,7 +198,7 @@ for _ in range(ensemble_size):
     model_list.append(model)
 
 # create buffer
-buffer = make_buffer(max_episode=episode_for_buffer, alpha=alpha_for_buffer, recent_n=recent_n_for_buffer)
+buffer = make_buffer(max_episode=episode_for_buffer)
 
 # load from pre-trained models if needed
 if load_pretrained_model == True:
@@ -375,8 +372,7 @@ for training_episode in tqdm(range(episode_for_training)):
         model_list  = update_model_list(itrtn_for_learning,
                                         buffer,
                                         model_list,
-                                        param_for_learning,
-                                        PER
+                                        param_for_learning
                                         )
 
 

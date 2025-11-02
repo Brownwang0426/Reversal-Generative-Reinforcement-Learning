@@ -102,7 +102,7 @@ class state_activation(nn.Module):
         self.scale = scale
 
     def forward(self, x):
-        return x / (1 + torch.abs(x))
+        return x
 
 
 
@@ -169,7 +169,7 @@ class build_model(nn.Module):
         self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
 
-        self.state_activate               = state_activation()
+        self.state_activate       = state_activation()
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
