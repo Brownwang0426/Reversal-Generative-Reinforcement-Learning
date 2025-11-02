@@ -57,11 +57,9 @@ class make_buffer:
         """
         Move all tensors in the buffer to a new device (e.g., 'cuda:0').
         """
-        # device = torch.device(device)
         for episode in self.buffer:
             for transition in episode["transitions"]:
                 for key, value in transition.items():
-                    # if torch.is_tensor(value):
                     transition[key] = value.to(device)
         self.device = device
         return self
@@ -89,30 +87,6 @@ class make_buffer:
         logits = self.alpha * (indices / (N - 1 + 1e-6))
         probs = torch.softmax(logits, dim=0)
         return probs
-    
-    def _get_time_weights(self, recent_n=3, recent_ratio=0.8):
-        N = len(self.buffer)
-
-        weights = torch.zeros(N, dtype=torch.float32)
-
-        split_idx = max(0, N - recent_n)
-
-        if N <= recent_n:
-            weights[:] = 1.0 / N
-            return weights
-
-        n_old = split_idx
-        n_recent = N - split_idx
-
-        total_recent = recent_ratio
-        total_old = 1.0 - recent_ratio
-
-        weights[:split_idx] = total_old / n_old
-        weights[split_idx:] = total_recent / n_recent
-
-        weights = weights / weights.sum()
-
-        return weights
 
     def sample_transition(self, batch_size=1, replacement=True):
         probs   = self._get_time_weights()
@@ -122,57 +96,6 @@ class make_buffer:
             trns = self.buffer[i.item()]["transitions"]
             transitions.append(random.choice(trns)) 
         return transitions
-
-class make_buffer_:
-    def __init__(self, max_size=100000, device="cpu"):
-        self.max_size = max_size
-        self.device = device
-        self.buffer = []
-        self.transition_set = set()  
-
-    def to(self, device):
-        """Move all tensors in the buffer to a new device."""
-        for transition in self.buffer:
-            for key, value in transition.items():
-                transition[key] = value.to(device)
-        self.device = device
-        return self
-
-    def _hash_transition(self, transition):
-        key_parts = []
-        for k, v in sorted(transition.items()):
-            key_parts.append((k, tuple(v.flatten().tolist())))
-        return str(key_parts)
-
-    def add_episode(self, episode_counter, history_state_list, history_action_list, present_state_list, future_action_list, future_reward_list, future_state_list):
-        for i in range(len(present_state_list)):
-            transition = {
-                "history_state" : history_state_list[i].to(self.device),
-                "history_action": history_action_list[i].to(self.device),
-                "present_state" : present_state_list[i].to(self.device),
-                "future_action" : future_action_list[i].to(self.device),
-                "future_reward" : future_reward_list[i].to(self.device),
-                "future_state"  : future_state_list[i].to(self.device)
-            }
-
-            h = self._hash_transition(transition)
-            if h not in self.transition_set:
-                self.transition_set.add(h)
-                self.buffer.append(transition)
-
-        if len(self.buffer) > self.max_size:
-            overflow = len(self.buffer) - self.max_size
-            del self.buffer[:overflow]
-
-    def sample_transition(self, batch_size=1, replacement=False):
-
-        n = len(self.buffer)
-
-        if not replacement and batch_size > n:
-            batch_size = n
-
-        sampled = random.sample(self.buffer, batch_size) if not replacement else random.choices(self.buffer, k=batch_size)
-        return sampled
 
 
 
