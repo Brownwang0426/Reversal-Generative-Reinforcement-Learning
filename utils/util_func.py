@@ -363,7 +363,7 @@ def update_model_per(itrtn_for_learning,
     # PER_epsilon    = 1e-10
     # PER_exponent   = param
 
-    priority_probability    = obtain_reward_based_priority(model, dataset, td_error_batch, device)
+    priority_probability    = obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=param)
     # priority             = obsolute_TD_error + PER_epsilon
     # exponent_priority    = priority ** PER_exponent
     # priority_probability = exponent_priority / torch.sum(exponent_priority)
