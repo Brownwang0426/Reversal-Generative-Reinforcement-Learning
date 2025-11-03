@@ -323,7 +323,7 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
-def obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
+def obtain_reward_based_priority_(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
 
     data_loader  = DataLoader(dataset, batch_size=td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
     
@@ -347,6 +347,37 @@ def obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_
     sample_weights = torch.tensor([reward_to_invfreq[r.item()] for r in rewards], device=device)
 
     probabilities = torch.clamp(sample_weights, min=min_prob)
+    probabilities = probabilities / probabilities.sum()
+
+    return probabilities 
+
+def obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
+
+    data_loader  = DataLoader(dataset, batch_size=td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
+    
+    reward_list = []
+
+    for _, _, _, _, future_reward, _ in data_loader:
+        reward_list.append(future_reward[:, -1:, :].detach()) # future_reward shape: [batch, 1, reward_dim]
+
+    rewards = torch.cat(reward_list, dim=0).to(device)  # shape [N, 1, reward_dim] or [N, 1]
+
+    rewards = (rewards + 1) / 2
+
+    rewards = rewards.mean(dim=tuple(range(1, rewards.dim())))
+
+    unique_rewards, counts = torch.unique(rewards, return_counts=True)
+
+    num_unique = len(unique_rewards)
+
+    class_total_prob = 1.0 / num_unique
+
+    reward_to_prob = {u.item(): class_total_prob / c.item()
+                      for u, c in zip(unique_rewards, counts)}
+
+    sample_probs = torch.tensor([reward_to_prob[r.item()] for r in rewards], device=device)
+
+    probabilities = torch.clamp(sample_probs, min=min_prob)
     probabilities = probabilities / probabilities.sum()
 
     return probabilities 

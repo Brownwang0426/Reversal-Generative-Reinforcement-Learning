@@ -94,17 +94,17 @@ bias = False
 drop_rate = 0.0
 alpha = 0.1
 min_itrtn_for_learning = 1
-max_itrtn_for_learning = 1000
+max_itrtn_for_learning = 1500
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
-max_param_for_learning = 10
+max_param_for_learning = 15
 
 PER = True
 
 beta = 0.001
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 100
+max_itrtn_for_planning = 150
 
 episode_for_training = 100000
 episode_for_validation = 1
