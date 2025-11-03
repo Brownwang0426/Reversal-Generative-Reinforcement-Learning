@@ -102,7 +102,7 @@ max_param_for_learning = 1
 
 PER = True
 
-beta = 0.1
+beta = 0.001
 min_itrtn_for_planning = 1
 max_itrtn_for_planning = 100
 

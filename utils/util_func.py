@@ -323,6 +323,34 @@ def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
 
     return TD_error
 
+def obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
+
+    data_loader  = DataLoader(dataset, batch_size=td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
+    
+    reward_list = []
+
+    for _, _, _, _, future_reward, _ in data_loader:
+        reward_list.append(future_reward[:, -1:, :].detach()) # future_reward shape: [batch, 1, reward_dim]
+
+    rewards = torch.cat(reward_list, dim=0).to(device)  # shape [N, 1, reward_dim] or [N, 1]
+
+    rewards = (rewards + 1) / 2
+
+    rewards = rewards.mean(dim=tuple(range(1, rewards.dim())))
+
+    unique_rewards, counts = torch.unique(rewards, return_counts=True)
+
+    inv_freq = 1.0 / counts.float()
+    inv_freq = inv_freq ** reward_power  # power sparse reward
+
+    reward_to_invfreq = dict(zip(unique_rewards.tolist(), inv_freq.tolist()))
+    sample_weights = torch.tensor([reward_to_invfreq[r.item()] for r in rewards], device=device)
+
+    probabilities = torch.clamp(sample_weights, min=min_prob)
+    probabilities = probabilities / probabilities.sum()
+
+    return probabilities 
+
 def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
@@ -332,17 +360,17 @@ def update_model_per(itrtn_for_learning,
     
     device         = next(model.parameters()).device
     td_error_batch = td_error_batch
-    PER_epsilon    = 1e-10
-    PER_exponent   = param
+    # PER_epsilon    = 1e-10
+    # PER_exponent   = param
 
+    priority_probability    = obtain_reward_based_priority(model, dataset, td_error_batch, device)
+    # priority             = obsolute_TD_error + PER_epsilon
+    # exponent_priority    = priority ** PER_exponent
+    # priority_probability = exponent_priority / torch.sum(exponent_priority)
+    
     for _ in range(itrtn_for_learning):
 
-        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, td_error_batch, device)
-        priority             = obsolute_TD_error + PER_epsilon
-        exponent_priority    = priority ** PER_exponent
-        priority_probability = exponent_priority / torch.sum(exponent_priority)
-        final_indices        = torch.multinomial(priority_probability, min(batch_size, len(dataset)), replacement=False)
-
+        final_indices  = torch.multinomial(priority_probability, min(batch_size, len(dataset)), replacement=False)
         batch_samples  = [dataset[i] for i in final_indices.cpu().tolist()]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
         history_state  = torch.stack(history_state ).to(device)
@@ -427,7 +455,7 @@ def update_model_list(itrtn_for_learning,
                                         param)
     else:
         device = next(model_list[0].parameters()).device
-        td_error_batch = find_optimal_batch_size(model_list[0], dataset, device=device)
+        td_error_batch = len(dataset) # find_optimal_batch_size(model_list[0], dataset, device=device)
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model_per(itrtn_for_learning,
                                             dataset,
