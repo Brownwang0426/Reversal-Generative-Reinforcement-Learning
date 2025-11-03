@@ -60,7 +60,7 @@ game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 5                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -93,21 +93,23 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.0
 alpha = 0.1
-min_itrtn_for_learning = 10
+min_itrtn_for_learning = 1
 max_itrtn_for_learning = 1000
-min_param_for_learning = 1
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+min_param_for_learning = 0
 max_param_for_learning = 1
 
-PER = False
+PER = True
 
-beta = 0.001
+beta = 0.1
 min_itrtn_for_planning = 1
 max_itrtn_for_planning = 100
 
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 100
-buffer_limit = 50
+buffer_limit = 100000
 render_for_human = False
 
 
@@ -423,6 +425,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # retreive highest reward
         itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
+        batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
         param_for_learning = min_param_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_learning - min_param_for_learning, episode_for_averaging)
 
 
@@ -438,6 +441,7 @@ for training_episode in tqdm(range(episode_for_training)):
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
+                                        batch_size_for_learning,
                                         param_for_learning,
                                         PER
                                         )
