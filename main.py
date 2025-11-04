@@ -76,7 +76,7 @@ game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_s
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = False
-ensemble_size =  20                  #◀️
+ensemble_size = 20                   #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -91,14 +91,14 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.0
+drop_rate = 0.
 alpha = 0.1
 min_itrtn_for_learning = 1
-max_itrtn_for_learning = 1500
+max_itrtn_for_learning = 1000
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
-max_param_for_learning = 15
+max_param_for_learning = 1
 
 PER = True
 

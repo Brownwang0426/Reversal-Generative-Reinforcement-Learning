@@ -40,8 +40,6 @@ from torch.utils.data import DataLoader
 
 import zlib
 
-from itertools import islice
-
 
 
 
@@ -255,154 +253,64 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def find_optimal_batch_size(model, dataset, device='cuda:0', bs_list=None, max_mem_ratio=0.9):
+def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
 
-    if bs_list is None:
-        bs_list = [64, 128, 256, 512, 1024]
-
-    torch.cuda.set_device(device)
-    total_mem = torch.cuda.get_device_properties(device).total_memory
-    results = []
-
-    for bs in bs_list:
-        torch.cuda.empty_cache(); gc.collect()
-        loader = DataLoader(dataset, batch_size=bs, shuffle=False)
-        batch = next(iter(loader))
-        try:
-            batch = [x.to(device) for x in batch]
-            hs, ha, ps, fa, fr, fs = batch
-            model.eval()
-            torch.cuda.reset_peak_memory_stats(device)
-            start = time.time()
-            with torch.no_grad():
-                _ = model.forward_(hs, ha, ps, fs, fa)  
-            duration = time.time() - start
-            peak_mem = torch.cuda.max_memory_allocated(device)
-            mem_ratio = peak_mem / total_mem
-
-            if mem_ratio < max_mem_ratio:
-                results.append((bs, duration, mem_ratio))
-                pass
-            else:
-                pass
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                pass
-            else:
-                raise e
-
-    if not results:
-        raise RuntimeError("all batch size OOM")
-
-    best_bs = min(results, key=lambda x: x[1])[0]
-    return best_bs
-
-def obtain_obsolute_TD_error(model, dataset, td_error_batch, device):
-
-    data_loader  = DataLoader(dataset, batch_size = td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
-    
-    TD_error_list = []
-
-    for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
-
-        history_state  = history_state .to(device)
-        history_action = history_action.to(device)
-        present_state  = present_state .to(device)
-        future_action  = future_action .to(device)
-        future_reward  = future_reward .to(device)
-        future_state   = future_state  .to(device)
-
-        model.train()
-        loss_function                 = model.loss_function_
-        envisaged_reward, \
-        envisaged_state               = model.forward_(history_state, history_action, present_state, future_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, -1:, :], future_reward[:, -1:, :]) ), dim=(1, 2)) # / future_reward.size(2) + torch.sum(torch.abs(loss_function(envisaged_state, future_state) ), dim=(1, 2)) / future_state.size(2)
-        TD_error_list.append(total_loss.detach())  
-
-    TD_error = torch.cat(TD_error_list, dim=0).to(device)
-
-    return TD_error
-
-def obtain_reward_based_priority_(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
-
-    data_loader  = DataLoader(dataset, batch_size=td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
+    data_loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
     
     reward_list = []
-
     for _, _, _, _, future_reward, _ in data_loader:
         reward_list.append(future_reward[:, -1:, :].detach()) # future_reward shape: [batch, 1, reward_dim]
-
     rewards = torch.cat(reward_list, dim=0).to(device)  # shape [N, 1, reward_dim] or [N, 1]
-
-    rewards = (rewards + 1) / 2
-
+    rewards = (rewards + 1) / 2 # normalize [-1, 1] to [0, 1]
     rewards = rewards.mean(dim=tuple(range(1, rewards.dim())))
 
+    # 🔹 Type 1: weight by reward
+    # sample_weights = rewards ** param
+    # sample_weights = torch.clamp(sample_weights, min=min_prob)
+    # probabilities  = sample_weights / sample_weights.sum()
+
+    # 🔹 Type 2: inverse weight by count
     unique_rewards, counts = torch.unique(rewards, return_counts=True)
-
     inv_freq = 1.0 / counts.float()
-    inv_freq = inv_freq ** reward_power  # power sparse reward
-
+    inv_freq = inv_freq ** param  # power sparse reward
     reward_to_invfreq = dict(zip(unique_rewards.tolist(), inv_freq.tolist()))
     sample_weights = torch.tensor([reward_to_invfreq[r.item()] for r in rewards], device=device)
-
     probabilities = torch.clamp(sample_weights, min=min_prob)
     probabilities = probabilities / probabilities.sum()
 
-    return probabilities 
+    # 🔹 Type 3: weight by category
+    # unique_rewards, counts = torch.unique(rewards, return_counts=True)
+    # num_unique = len(unique_rewards)
+    # class_total_prob = 1.0 / num_unique
+    # reward_to_prob = {u.item(): class_total_prob / c.item()
+    #                   for u, c in zip(unique_rewards, counts)}
+    # sample_probs = torch.tensor([reward_to_prob[r.item()] for r in rewards], device=device)
+    # probabilities = torch.clamp(sample_probs, min=min_prob)
+    # probabilities = probabilities / probabilities.sum()
 
-def obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=1.0, min_prob=0.01):
-
-    data_loader  = DataLoader(dataset, batch_size=td_error_batch, shuffle=False, pin_memory=True, num_workers=0)
-    
-    reward_list = []
-
-    for _, _, _, _, future_reward, _ in data_loader:
-        reward_list.append(future_reward[:, -1:, :].detach()) # future_reward shape: [batch, 1, reward_dim]
-
-    rewards = torch.cat(reward_list, dim=0).to(device)  # shape [N, 1, reward_dim] or [N, 1]
-
-    rewards = (rewards + 1) / 2
-
-    rewards = rewards.mean(dim=tuple(range(1, rewards.dim())))
-
-    unique_rewards, counts = torch.unique(rewards, return_counts=True)
-
-    num_unique = len(unique_rewards)
-
-    class_total_prob = 1.0 / num_unique
-
-    reward_to_prob = {u.item(): class_total_prob / c.item()
-                      for u, c in zip(unique_rewards, counts)}
-
-    sample_probs = torch.tensor([reward_to_prob[r.item()] for r in rewards], device=device)
-
-    probabilities = torch.clamp(sample_probs, min=min_prob)
-    probabilities = probabilities / probabilities.sum()
+    # 🔹 Type 4: normalize then softmax
+    # rewards = (rewards - rewards.min()) / (rewards.max() - rewards.min() + 1e-8)
+    # logits = rewards / param
+    # sample_weights = torch.softmax(logits, dim=0)
+    # sample_weights = torch.clamp(sample_weights, min=min_prob)
+    # probabilities  = sample_weights / sample_weights.sum()
 
     return probabilities 
 
 def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
-                     td_error_batch,
                      batch_size,
                      param):
     
-    device         = next(model.parameters()).device
-    td_error_batch = td_error_batch
-    # PER_epsilon    = 1e-10
-    # PER_exponent   = param
-
-    priority_probability    = obtain_reward_based_priority(model, dataset, td_error_batch, device, reward_power=param)
-    # priority             = obsolute_TD_error + PER_epsilon
-    # exponent_priority    = priority ** PER_exponent
-    # priority_probability = exponent_priority / torch.sum(exponent_priority)
+    device = next(model.parameters()).device
+    priority_probability = obtain_priority_probability(model, dataset, len(dataset), device, param=param)
     
     for _ in range(itrtn_for_learning):
 
-        final_indices  = torch.multinomial(priority_probability, min(batch_size, len(dataset)), replacement=False)
-        batch_samples  = [dataset[i] for i in final_indices.cpu().tolist()]
+        final_indices  = torch.multinomial(priority_probability, batch_size, replacement=True)
+        final_indices  = final_indices.cpu().tolist()
+        batch_samples  = [dataset[i] for i in final_indices]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
         history_state  = torch.stack(history_state ).to(device)
         history_action = torch.stack(history_action).to(device)
@@ -437,21 +345,17 @@ def update_model(itrtn_for_learning,
     
     device = next(model.parameters()).device
 
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=True
-    )
+    for _ in range(itrtn_for_learning):
 
-    for i, batch_samples in enumerate(islice(dataloader, itrtn_for_learning)):
-
-        history_state, history_action, present_state, future_action, future_reward, future_state = batch_samples
-        history_state  = history_state .to(device)
-        history_action = history_action.to(device)
-        present_state  = present_state .to(device)
-        future_action  = future_action .to(device)
-        future_reward  = future_reward .to(device)
-        future_state   = future_state  .to(device)
+        random_indices = random.choices(range(len(dataset)), k=batch_size)
+        batch_samples  = [dataset[i] for i in random_indices]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        history_action = torch.stack(history_action).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        future_state   = torch.stack(future_state  ).to(device)
  
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -480,20 +384,17 @@ def update_model_list(itrtn_for_learning,
     if not PER:
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model(itrtn_for_learning,
-                                        dataset,
-                                        model,
-                                        batch_size,
-                                        param)
+                                         dataset,
+                                         model,
+                                         batch_size,
+                                         param)
     else:
-        device = next(model_list[0].parameters()).device
-        td_error_batch = len(dataset) # find_optimal_batch_size(model_list[0], dataset, device=device)
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model_per(itrtn_for_learning,
-                                            dataset,
-                                            model,
-                                            td_error_batch,
-                                            batch_size,
-                                            param)
+                                             dataset,
+                                             model,
+                                             batch_size,
+                                             param)
     return model_list
 
 
