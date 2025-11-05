@@ -94,7 +94,7 @@ bias = False
 drop_rate = 0.
 alpha = 0.1
 min_itrtn_for_learning = 10
-max_itrtn_for_learning = 10000
+max_itrtn_for_learning = 1000
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
@@ -107,7 +107,7 @@ max_itrtn_for_planning = 100
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 50
+episode_for_averaging = 100
 buffer_limit = 100000
 render_for_human = False
 
