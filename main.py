@@ -98,7 +98,7 @@ max_itrtn_for_learning = 1000
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
-max_param_for_learning = 10
+max_param_for_learning = 1
 PER = True
 
 beta = 0.001

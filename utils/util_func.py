@@ -253,9 +253,9 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
+def obtain_priority_probability_(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
 
-    data_loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
     
     reward_list = []
     for _, _, _, _, future_reward, _ in data_loader:
@@ -296,6 +296,31 @@ def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, m
     # probabilities  = sample_weights / sample_weights.sum()
 
     return probabilities 
+
+def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
+    
+    reward_list = []
+    for history_state, history_action, present_state, _, future_reward, _ in data_loader:
+        history_state  = history_state.reshape(history_state.size(0), -1)
+        history_action = history_action.reshape(history_action.size(0), -1)
+        present_state  = present_state.reshape(present_state.size(0), -1)
+        future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)  
+        combined = torch.cat((history_state, history_action, present_state, future_reward), dim=1)
+        reward_list.append(combined.detach())
+
+    rewards = torch.cat(reward_list, dim=0).to(device)  # [N, D]
+
+    # 🔹 unique rewards by row
+    unique_rewards, inverse_indices, counts = torch.unique(rewards, dim=0, return_inverse=True, return_counts=True)
+
+    # 🔹 inverse frequency weighting
+    inv_freq = (1.0 / counts.float()) ** param
+    sample_weights = inv_freq[inverse_indices]  # map back to each sample
+    probabilities = torch.clamp(sample_weights, min=min_prob)
+    probabilities = probabilities / probabilities.sum()
+
+    return probabilities
 
 def update_model_per(itrtn_for_learning,
                      dataset,
