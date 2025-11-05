@@ -189,15 +189,15 @@ class build_model(nn.Module):
             history_s = self.state_norm(self.state_linear (history_s              ))
             present_s = self.state_norm(self.state_linear (present_s.unsqueeze(1) ))
             future_a  = self.action_norm(self.action_linear(future_a              ))
-            history_s = F.gelu(history_s + self.state_bias ) 
-            present_s = F.gelu(present_s + self.state_bias )
-            future_a  = F.gelu(future_a  + self.action_bias) 
+            history_s = torch.tanh(history_s) # + self.state_bias 
+            present_s = torch.tanh(present_s) # + self.state_bias 
+            future_a  = torch.tanh(future_a ) # + self.action_bias
             h = torch.cat([history_s, present_s, future_a], dim=1)
         else:
             present_s = self.state_norm(self.state_linear (present_s.unsqueeze(1)))
             future_a  = self.action_norm(self.action_linear(future_a             ))
-            present_s = F.gelu(present_s + self.state_bias ) 
-            future_a  = F.gelu(future_a  + self.action_bias) 
+            present_s = torch.tanh(present_s) # + self.state_bias 
+            future_a  = torch.tanh(future_a ) # + self.action_bias
             h = torch.cat([present_s, future_a], dim=1)
 
         h = self.dropout_0(h)

@@ -72,10 +72,10 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
-        if (state == 15):         # If the agent reaches goal
-            reward = torch.ones(reward_size ).to(device, non_blocking=True)
+        if done:         # If the agent reaches goal
+            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
         else:
-            reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
+            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
             # x, y = divmod(state, 4)
             # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
             # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
@@ -83,7 +83,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
             # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
             # reward[0: idx] = 1
     else:
-        reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
+        reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
         # x, y = divmod(state, 4)
         # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         # max_distance = np.sqrt(3**2 + 3**2)  # 4.24

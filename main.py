@@ -60,7 +60,7 @@ game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -71,6 +71,20 @@ neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  260                    #⚠️
+action_size = 2                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size = 200                   #⚠️
+future_size = 50                     #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
 
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
 max_steps_for_each_episode = 10      #⚠️
@@ -81,22 +95,28 @@ state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 150                   #⚠️
-history_size = 10                    #⚠️
+history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 3                        #⚠️
 
+
+
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.0
+drop_rate = 0.
 alpha = 0.1
-min_itrtn_for_learning = 10
-max_itrtn_for_learning = 1000
+min_itrtn_for_learning = 100
+max_itrtn_for_learning = 10000
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
+min_param_for_learning = 1
+max_param_for_learning = 100
+
+PER = True
 
 beta = 0.001
 min_itrtn_for_planning = 1
@@ -105,14 +125,14 @@ max_itrtn_for_planning = 100
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 100
-buffer_limit = 50000
+buffer_limit = 100000
 render_for_human = False
 
 
 
 
 
-suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}-learn_{max_itrtn_for_learning:05d}-plan_{max_itrtn_for_planning:05d}"
+suffix                 = f"game_{game_name}-type_{neural_type}-ensemble_{ensemble_size:05d}"
 directory              = f'./result/{game_name}/'
 performance_directory  = f'./result/{game_name}/performace-{suffix}.csv'
 model_directory        = f'./result/{game_name}/model-{suffix}.pth'
@@ -230,8 +250,6 @@ if load_pretrained_model == True:
         print('Loaded pre-trained models.')
     except:
         print('Failed loading pre-trained models. Now using new models.')
-
-
 
 
 
@@ -400,6 +418,7 @@ for training_episode in tqdm(range(episode_for_training)):
         # retreive highest reward
         itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
         batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
+        param_for_learning = min_param_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_learning - min_param_for_learning, episode_for_averaging)
 
 
 
@@ -412,14 +431,16 @@ for training_episode in tqdm(range(episode_for_training)):
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
-                                        batch_size_for_learning
+                                        batch_size_for_learning,
+                                        param_for_learning,
+                                        PER
                                         )
 
 
 
 
         """
-        We limit buffer by random drop to save vram.
+        We limit buffer to save vram.
         """
         # limit_buffer
         history_state_stack, \
