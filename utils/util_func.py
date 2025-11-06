@@ -297,7 +297,7 @@ def obtain_priority_probability_(model, dataset, batch_size, device, param=1.0, 
 
     return probabilities 
 
-def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
+def obtain_priority_probability__(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
     
     reward_list = []
@@ -317,6 +317,54 @@ def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, m
     # 🔹 inverse frequency weighting
     inv_freq = (1.0 / counts.float()) ** param
     sample_weights = inv_freq[inverse_indices]  # map back to each sample
+    probabilities = torch.clamp(sample_weights, min=min_prob)
+    probabilities = probabilities / probabilities.sum()
+
+    return probabilities
+
+def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, min_prob=0.01):
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
+    
+    # 🔹
+    history_state_list, history_action_list, present_state_list, future_reward_list = [], [], [], []
+    for history_state, history_action, present_state, _, future_reward, _ in data_loader:
+        history_state  = history_state.reshape(history_state.size(0), -1)
+        history_action = history_action.reshape(history_action.size(0), -1)
+        present_state  = present_state.reshape(present_state.size(0), -1)
+        future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)
+
+        history_state_list.append(history_state.detach())
+        history_action_list.append(history_action.detach())
+        present_state_list.append(present_state.detach())
+        future_reward_list.append(future_reward.detach())
+
+    # 🔹🔹
+    history_state  = torch.cat(history_state_list, dim=0).to(device)
+    history_action = torch.cat(history_action_list, dim=0).to(device)
+    present_state  = torch.cat(present_state_list, dim=0).to(device)
+    future_reward  = torch.cat(future_reward_list, dim=0).to(device)
+
+    # 🔹🔹🔹
+    state_action = torch.cat((history_state, history_action, present_state), dim=1)  # [N, D]
+    sa_unique, sa_inverse_idx, sa_counts = torch.unique(
+        state_action, dim=0, return_inverse=True, return_counts=True
+    )
+    num_groups = sa_unique.size(0)
+    group_base_prob = torch.ones(num_groups, device=device) / num_groups  
+
+    # 🔹🔹🔹🔹
+    sample_weights = torch.zeros_like(sa_inverse_idx, dtype=torch.float, device=device)
+    for g in range(num_groups):
+        mask = (sa_inverse_idx == g)
+        rewards_g = future_reward[mask]  # shape: [N_g]
+        rewards_g = (rewards_g + 1) / 2 # normalize [-1, 1] to [0, 1]
+        rewards_g = rewards_g.mean(dim=tuple(range(1, rewards_g.dim())))
+        rewards_g = rewards_g ** param
+        rewards_g = torch.clamp(rewards_g, min=min_prob)
+        local_base_prob  = rewards_g / rewards_g.sum()
+        sample_weights[mask] = group_base_prob[g] * local_base_prob
+    
+    # 🔹🔹🔹🔹🔹 
     probabilities = torch.clamp(sample_weights, min=min_prob)
     probabilities = probabilities / probabilities.sum()
 
