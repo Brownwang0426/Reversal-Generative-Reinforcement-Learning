@@ -302,7 +302,7 @@ def obtain_priority_probability__(model, dataset, batch_size, device, param=1.0,
     
     reward_list = []
     for history_state, history_action, present_state, _, future_reward, _ in data_loader:
-        history_state  = history_state.reshape(history_state.size(0), -1)
+        history_state  = history_state .reshape(history_state.size(0), -1)
         history_action = history_action.reshape(history_action.size(0), -1)
         present_state  = present_state.reshape(present_state.size(0), -1)
         future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)  
@@ -328,10 +328,10 @@ def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, m
     # 🔹
     history_state_list, history_action_list, present_state_list, future_reward_list = [], [], [], []
     for history_state, history_action, present_state, _, future_reward, _ in data_loader:
-        history_state  = history_state.reshape(history_state.size(0), -1)
+        history_state  = history_state .reshape(history_state.size(0), -1)
         history_action = history_action.reshape(history_action.size(0), -1)
         present_state  = present_state.reshape(present_state.size(0), -1)
-        future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)
+        future_reward  = future_reward [:, -1:, :].reshape(future_reward.size(0), -1)
 
         history_state_list.append(history_state.detach())
         history_action_list.append(history_action.detach())
@@ -374,11 +374,10 @@ def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
                      batch_size,
-                     param):
+                     priority_probability):
     
     device = next(model.parameters()).device
-    priority_probability = obtain_priority_probability(model, dataset, len(dataset), device, param=param)
-    
+
     for _ in range(itrtn_for_learning):
 
         final_indices  = torch.multinomial(priority_probability, batch_size, replacement=True)
@@ -462,12 +461,15 @@ def update_model_list(itrtn_for_learning,
                                          batch_size,
                                          param)
     else:
+        model  = model_list[0]
+        device = next(model.parameters()).device
+        priority_probability = obtain_priority_probability(model, dataset, len(dataset), device, param=param)
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model_per(itrtn_for_learning,
                                              dataset,
                                              model,
                                              batch_size,
-                                             param)
+                                             priority_probability)
     return model_list
 
 
