@@ -361,26 +361,32 @@ def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, m
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
     
     # 🔹
-    history_state_list, history_action_list, present_state_list, future_reward_list = [], [], [], []
-    for  _, history_state, history_action,  _, present_state, future_reward, _, _  in data_loader:
-        history_state  = history_state [:, -1:, :].reshape(history_state.size(0), -1)
-        history_action = history_action[:, -1:, :].reshape(history_action.size(0), -1)
+    history_reward_list, history_state_list, history_action_list, present_reward_list, present_state_list, future_reward_list = [], [], [], [], [], []
+    for history_reward, history_state, history_action,  present_reward, present_state, future_reward, _, _  in data_loader:
+        history_reward = history_reward [:,  :, :].reshape(history_reward.size(0), -1)
+        history_state  = history_state [:,  :, :].reshape(history_state.size(0), -1)
+        history_action = history_action[:,  :, :].reshape(history_action.size(0), -1)
+        present_reward = present_reward.reshape(present_reward.size(0), -1)
         present_state  = present_state.reshape(present_state.size(0), -1)
         future_reward  = future_reward [:, -1:, :].reshape(future_reward.size(0), -1)
 
+        history_reward_list.append(history_reward.detach())
         history_state_list.append(history_state.detach())
         history_action_list.append(history_action.detach())
+        present_reward_list.append(present_reward.detach())
         present_state_list.append(present_state.detach())
         future_reward_list.append(future_reward.detach())
 
     # 🔹🔹
+    history_reward = torch.cat(history_reward_list, dim=0).to(device)
     history_state  = torch.cat(history_state_list, dim=0).to(device)
     history_action = torch.cat(history_action_list, dim=0).to(device)
+    present_reward = torch.cat(present_reward_list, dim=0).to(device)
     present_state  = torch.cat(present_state_list, dim=0).to(device)
     future_reward  = torch.cat(future_reward_list, dim=0).to(device)
 
     # 🔹🔹🔹
-    state_action = torch.cat((history_state, history_action, present_state), dim=1)  # [N, D]
+    state_action = torch.cat((history_reward, history_state, history_action, present_reward, present_state), dim=1)  # [N, D]
     sa_unique, sa_inverse_idx, sa_counts = torch.unique(
         state_action, dim=0, return_inverse=True, return_counts=True
     )
