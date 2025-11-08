@@ -203,16 +203,20 @@ for _ in range(ensemble_size):
 # creating space for storing tensors as experience replay buffer
 history_state_stack        = torch.empty(0).to(device_, non_blocking=True)
 history_action_stack       = torch.empty(0).to(device_, non_blocking=True)
+history_reward_stack       = torch.empty(0).to(device_, non_blocking=True)
+present_reward_stack       = torch.empty(0).to(device_, non_blocking=True)
 present_state_stack        = torch.empty(0).to(device_, non_blocking=True)
+future_state_stack         = torch.empty(0).to(device_, non_blocking=True)
 future_action_stack        = torch.empty(0).to(device_, non_blocking=True)
 future_reward_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_state_stack         = torch.empty(0).to(device_, non_blocking=True)
 history_state_hash_set     = set()
 history_action_hash_set    = set()
+history_reward_hash_set    = set()
+present_reward_hash_set    = set()
 present_state_hash_set     = set()
+future_state_hash_set      = set()
 future_action_hash_set     = set()
 future_reward_hash_set     = set()
-future_state_hash_set      = set()
 
 # load from pre-trained models if needed
 if load_pretrained_model == True:
@@ -222,22 +226,27 @@ if load_pretrained_model == True:
             model.load_state_dict(model_dict[f'model_{i}'])
         history_state_stack, \
         history_action_stack,\
+        history_reward_stack,\
+        present_reward_stack, \
         present_state_stack, \
+        future_state_stack,\
         future_action_stack, \
         future_reward_stack, \
-        future_state_stack,  \
         history_state_hash_set , \
         history_action_hash_set , \
+        history_reward_hash_set , \
         present_state_hash_set , \
+        future_state_hash_set  ,\
         future_action_hash_set , \
-        future_reward_hash_set , \
-        future_state_hash_set  = load_buffer_from_pickle(buffer_directory)
+        future_reward_hash_set = load_buffer_from_pickle(buffer_directory)
         history_state_stack    = history_state_stack.to (device_) 
         history_action_stack   = history_action_stack.to(device_) 
+        history_reward_stack   = history_reward_stack.to(device_) 
+        present_reward_stack   = present_reward_stack.to(device_) 
         present_state_stack    = present_state_stack.to (device_) 
+        future_state_stack     = future_state_stack .to (device_) 
         future_action_stack    = future_action_stack.to (device_) 
         future_reward_stack    = future_reward_stack.to (device_) 
-        future_state_stack     = future_state_stack .to (device_) 
         performance_log        = load_performance_from_csv(performance_directory)
         last_episode           = performance_log[-1][0] if len(performance_log) > 0 else 0
         print('Loaded pre-trained models.')
@@ -263,13 +272,14 @@ for training_episode in tqdm(range(episode_for_training)):
     summed_reward  = 0
 
     # initializing short term experience replay buffer
+    reward_list = []
     state_list  = []
     action_list = []
-    reward_list = []
     for _ in range(history_size):
+        reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
         state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
         action_list.append(torch.zeros(action_size ).to(device_, non_blocking=True) - 1 )
-        reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
+    reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
 
     # initializing environment
     if game_name == 'FrozenLake-v1'  :
@@ -298,15 +308,19 @@ for training_episode in tqdm(range(episode_for_training)):
         The final desired reward is factually the last time step in desired reward.
         """
         # initializing and updating action by desired reward
+        history_reward,\
         history_state, \
-        history_action  = retrieve_history(state_list, action_list, history_size, device_)
-        present_state   = retrieve_present(state_list, device_)
+        history_action  = retrieve_history(state_list, action_list, reward_list, history_size, device_)
+        present_reward,\
+        present_state   = retrieve_present(state_list, reward_list, device_)
         future_action   = initialize_future_action ((1, future_size, action_size), device_)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
         future_action   = update_future_action(itrtn_for_planning ,
                                                model_list,
+                                               history_reward,
                                                history_state ,
                                                history_action,
+                                               present_reward, 
                                                present_state,
                                                future_action,
                                                desired_reward,
@@ -365,12 +379,14 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
     # sequentializing short term experience replay buffer
+    history_reward_list   ,\
     history_state_list   ,\
     history_action_list   ,\
+    present_reward_list   ,\
     present_state_list   ,\
-    future_action_list   ,\
-    future_reward_list   ,\
-    future_state_list    = sequentialize(state_list  ,
+    future_reward_list  ,\
+    future_state_list    ,\
+    future_action_list   = sequentialize(state_list  ,
                                          action_list ,
                                          reward_list ,
                                          history_size,
@@ -383,35 +399,45 @@ for training_episode in tqdm(range(episode_for_training)):
     We dropped duplicated experiences in the buffer and to maintain diveristy.
     """
     # storing sequentialized short term experience to long term experience replay buffer
+    history_reward_stack,\
     history_state_stack, \
     history_action_stack, \
+    present_reward_stack, \
     present_state_stack, \
-    future_action_stack, \
     future_reward_stack, \
     future_state_stack,\
+    future_action_stack, \
+    history_reward_hash_set   , \
     history_state_hash_set   , \
     history_action_hash_set   , \
+    present_reward_hash_set   , \
     present_state_hash_set   , \
-    future_action_hash_set   , \
-    future_reward_hash_set   , \
-    future_state_hash_set       = update_long_term_experience_replay_buffer(history_state_stack,
+    future_reward_hash_set,\
+    future_state_hash_set     ,\
+    future_action_hash_set      = update_long_term_experience_replay_buffer(history_reward_stack,
+                                                                            history_state_stack,
                                                                             history_action_stack,
+                                                                            present_reward_stack,
                                                                             present_state_stack,
-                                                                            future_action_stack,
                                                                             future_reward_stack,
                                                                             future_state_stack ,
+                                                                            future_action_stack,
+                                                                            history_reward_hash_set   ,
                                                                             history_state_hash_set   ,
                                                                             history_action_hash_set   ,
+                                                                            present_reward_hash_set   ,
                                                                             present_state_hash_set   ,
-                                                                            future_action_hash_set   ,
                                                                             future_reward_hash_set   ,
                                                                             future_state_hash_set    ,
+                                                                            future_action_hash_set   ,
+                                                                            history_reward_list   ,
                                                                             history_state_list   ,
                                                                             history_action_list   ,
+                                                                            present_reward_list,
                                                                             present_state_list,
-                                                                            future_action_list,
                                                                             future_reward_list,
-                                                                            future_state_list )
+                                                                            future_state_list,
+                                                                            future_action_list)
 
 
 
@@ -431,12 +457,14 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # training
-        dataset     = TensorDataset    (history_state_stack,
+        dataset     = TensorDataset    (history_reward_stack,
+                                        history_state_stack,
                                         history_action_stack,
+                                        present_reward_stack,
                                         present_state_stack,
-                                        future_action_stack,
                                         future_reward_stack,
-                                        future_state_stack  )
+                                        future_state_stack  ,
+                                        future_action_stack)
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
@@ -452,30 +480,38 @@ for training_episode in tqdm(range(episode_for_training)):
         We limit buffer to save vram.
         """
         # limit_buffer
+        history_reward_stack,\
         history_state_stack, \
         history_action_stack, \
+        present_reward_stack, \
         present_state_stack, \
-        future_action_stack, \
         future_reward_stack, \
         future_state_stack , \
+        future_action_stack, \
+        history_reward_hash_set   , \
         history_state_hash_set   , \
         history_action_hash_set   , \
+        present_reward_hash_set   , \
         present_state_hash_set   , \
-        future_action_hash_set   , \
-        future_reward_hash_set   , \
-        future_state_hash_set    = limit_buffer(history_state_stack,
+        future_reward_hash_set ,\
+        future_state_hash_set    , \
+        future_action_hash_set   = limit_buffer(history_reward_stack,
+                                                history_state_stack, 
                                                 history_action_stack,
-                                                present_state_stack,
+                                                present_reward_stack,
+                                                present_state_stack, 
+                                                future_reward_stack, 
+                                                future_state_stack,
                                                 future_action_stack,
-                                                future_reward_stack,
-                                                future_state_stack ,
-                                                history_state_hash_set   ,
-                                                history_action_hash_set   ,
-                                                present_state_hash_set   ,
-                                                future_action_hash_set   ,
-                                                future_reward_hash_set   ,
-                                                future_state_hash_set  ,
-                                                buffer_limit  )
+                                                history_reward_hash_set , 
+                                                history_state_hash_set , 
+                                                history_action_hash_set , 
+                                                present_reward_hash_set , 
+                                                present_state_hash_set , 
+                                                future_reward_hash_set , 
+                                                future_state_hash_set ,
+                                                future_action_hash_set , 
+                                                buffer_limit )
 
 
 
@@ -491,18 +527,22 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # saving long term experience replay buffer
         save_buffer_to_pickle(buffer_directory,
-                              history_state_stack,
+                              history_reward_stack,
+                              history_state_stack, 
                               history_action_stack,
-                              present_state_stack,
-                              future_action_stack,
-                              future_reward_stack,
+                              present_reward_stack,
+                              present_state_stack, 
+                              future_reward_stack, 
                               future_state_stack,
-                              history_state_hash_set ,
-                              history_action_hash_set ,
-                              present_state_hash_set ,
-                              future_action_hash_set ,
-                              future_reward_hash_set ,
-                              future_state_hash_set )
+                              future_action_stack,
+                              history_reward_hash_set , 
+                              history_state_hash_set , 
+                              history_action_hash_set , 
+                              present_reward_hash_set , 
+                              present_state_hash_set , 
+                              future_reward_hash_set , 
+                              future_state_hash_set ,
+                              future_action_hash_set)
 
 
 

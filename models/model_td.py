@@ -134,8 +134,10 @@ class build_model(nn.Module):
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.reward_linear        = nn.Linear(self.reward_size , self.feature_size, bias=self.bias)
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.reward_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.dropout_0            = nn.Dropout(self.drop_rate)
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
@@ -155,7 +157,7 @@ class build_model(nn.Module):
         self.register_buffer('mask', mask)  
 
         self.dropout_1            = nn.Dropout(self.drop_rate)
-        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+        self.reward_linear_       = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
         self.state_linear_        = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
 
         # Initialize weights for fully connected layers
@@ -186,7 +188,7 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, history_a, present_s, future_s, future_a):
+    def forward(self, history_r, history_s, history_a, present_r, present_s, future_r, future_s, future_a):
 
         future_r_list = list()
         future_s_list = list()
@@ -195,22 +197,24 @@ class build_model(nn.Module):
 
 
         if history_s.size(1) > 0:
+            history_r = self.reward_norm(self.reward_linear(history_r) )
             history_s = self.state_norm (self.state_linear (history_s) )
             history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_a  = self.action_norm(self.action_linear(future_a              ))
+        present_r = self.reward_norm (self.reward_linear(present_r.unsqueeze(1)))
+        present_s = self.state_norm (self.state_linear  (present_s.unsqueeze(1)))
+        future_a  = self.action_norm(self.action_linear (future_a              ))
 
         window_list   = list()
         if history_s.size(1) > 0:
             for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
+                window_list.append(history_r[:, i:i+1] + + history_s[:, i:i+1] + history_a[:, i:i+1]) 
         
 
 
 
         for i in range(future_a.size(1)):
 
-            window_list.append(present_s + future_a[:, i:i+1])
+            window_list.append(present_r + present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
             h = F.gelu(h)
             h = self.dropout_0(h)
@@ -234,12 +238,14 @@ class build_model(nn.Module):
             """
 
             h = self.dropout_1(h)
-            r = self.reward_linear(h[:, -1:, :])
-            r = torch.tanh(r)  
+            r = self.reward_linear_(h[:, -1:, :])
             s = self.state_linear_(h[:, -1:, :])
 
             future_r_list.append(r)
             future_s_list.append(s)
+
+            present_r = r
+            present_r = self.reward_norm(self.reward_linear(present_r)) 
 
             present_s = s
             present_s = self.state_norm(self.state_linear(present_s)) 
@@ -252,7 +258,7 @@ class build_model(nn.Module):
 
 
 
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    def _forward(self, history_r, history_s, history_a, present_r, present_s, future_r, future_s, future_a):
     
         future_r_list = list()
         future_s_list = list()
@@ -261,15 +267,17 @@ class build_model(nn.Module):
     
     
         if history_s.size(1) > 0:
+            history_r = self.reward_norm(self.reward_linear(history_r) )
             history_s = self.state_norm (self.state_linear (history_s) )
             history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_a  = self.action_norm(self.action_linear(future_a              ))
-    
+        present_r = self.reward_norm (self.reward_linear(present_r.unsqueeze(1)))
+        present_s = self.state_norm (self.state_linear  (present_s.unsqueeze(1)))
+        future_a  = self.action_norm(self.action_linear (future_a              ))
+
         if history_s.size(1) > 0:
-            history_s_a = history_s + history_a
+            history_r_s_a = history_r + history_s + history_a
         else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            history_r_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
 
 
@@ -279,16 +287,16 @@ class build_model(nn.Module):
         for i in range(future_a.size(1)):
     
             if i == 0:
-                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+                h = torch.cat([history_r_s_a, (present_r + present_s + future_a[:, i:i+1])], dim=1)
             else:
-                h = present_s + future_a[:, i:i+1]
+                h = present_r + present_s + future_a[:, i:i+1]
             h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
             Transformer decoder
             """
-            long = history_s_a.size(1) + 1 + i
+            long = history_r_s_a.size(1) + 1 + i
             if i == 0:
                 h = h + self.positional_encoding[:, :long, :]
             else:
@@ -310,16 +318,18 @@ class build_model(nn.Module):
             """
     
             h = self.dropout_1(h)
-            r = self.reward_linear(h[:, -1:, :])
-            r = torch.tanh(r) 
+            r = self.reward_linear_(h[:, -1:, :])
             s = self.state_linear_(h[:, -1:, :])
 
             future_r_list.append(r)
             future_s_list.append(s)
     
+            present_r = r
+            present_r = self.reward_norm(self.reward_linear(present_r)) 
+
             present_s = s
             present_s = self.state_norm(self.state_linear(present_s)) 
-            
+
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
     
@@ -328,28 +338,31 @@ class build_model(nn.Module):
     
 
 
-    def forward_(self, history_s, history_a, present_s, future_s, future_a):
+    def forward_(self, history_r, history_s, history_a, present_r, present_s, future_r, future_s, future_a):
 
 
 
 
         if history_s.size(1) > 0:
+            history_r = self.reward_norm(self.reward_linear(history_r) )
             history_s = self.state_norm (self.state_linear (history_s) )
             history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_s_ = self.state_norm (self.state_linear (future_s)[:, :-1, :])
-        future_a  = self.action_norm(self.action_linear(future_a) )
+        present_r = self.reward_norm(self.reward_linear (present_r.unsqueeze(1)))
+        present_s = self.state_norm (self.state_linear  (present_s.unsqueeze(1)))
+        future_r_ = self.reward_norm(self.reward_linear (future_r)[:, :-1, :])
+        future_s_ = self.state_norm (self.state_linear  (future_s)[:, :-1, :])
+        future_a  = self.action_norm(self.action_linear (future_a              ))
 
         if history_s.size(1) > 0:
-            history_s_a = history_s + history_a
+            history_r_s_a = history_r + history_s + history_a
         else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            history_r_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
 
 
 
-        future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
-        h = torch.cat([history_s_a, future_s_a], dim=1)
+        future_r_s_a = torch.cat((present_r, future_r_), dim=1) + torch.cat((present_s, future_s_), dim=1) + future_a
+        h = torch.cat([history_r_s_a, future_r_s_a], dim=1)
         h = F.gelu(h)
         h = self.dropout_0(h)
 
@@ -372,8 +385,7 @@ class build_model(nn.Module):
         """
 
         h = self.dropout_1(h)
-        r = self.reward_linear(h)
-        r = torch.tanh(r)  
+        r = self.reward_linear_(h)
         s = self.state_linear_(h)
 
         future_r = r[:, -future_a.size(1):, :]
