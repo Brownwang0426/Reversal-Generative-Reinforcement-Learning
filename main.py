@@ -93,8 +93,10 @@ loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.1
 alpha = 0.1
+L2_lambda = 1e-4
+grad_clip_value = 1.0
 min_itrtn_for_learning = 100
-max_itrtn_for_learning = 1000
+max_itrtn_for_learning = 1500
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
@@ -103,7 +105,7 @@ PER = False
 
 beta = 0.001
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 100
+max_itrtn_for_planning = 150
 
 episode_for_training = 100000
 episode_for_validation = 10
@@ -196,7 +198,9 @@ for _ in range(ensemble_size):
                         loss,
                         bias,
                         drop_rate,
-                        alpha)
+                        alpha,
+                        L2_lambda,
+                        grad_clip_value)
     model.to(device)
     model_list.append(model)
 

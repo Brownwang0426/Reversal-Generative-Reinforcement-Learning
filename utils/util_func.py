@@ -382,6 +382,7 @@ def update_model_per(itrtn_for_learning,
 
         final_indices  = torch.multinomial(priority_probability, batch_size, replacement=True)
         final_indices  = final_indices.cpu().tolist()
+
         batch_samples  = [dataset[i] for i in final_indices]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
         history_state  = torch.stack(history_state ).to(device)
@@ -401,7 +402,7 @@ def update_model_per(itrtn_for_learning,
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
         
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
         selected_optimizer.step() 
 
     return model
@@ -419,8 +420,9 @@ def update_model(itrtn_for_learning,
 
     for _ in range(itrtn_for_learning):
 
-        random_indices = random.choices(range(len(dataset)), k=batch_size)
-        batch_samples  = [dataset[i] for i in random_indices]
+        final_indices  = random.choices(range(len(dataset)), k=batch_size)
+
+        batch_samples  = [dataset[i] for i in final_indices]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
         history_state  = torch.stack(history_state ).to(device)
         history_action = torch.stack(history_action).to(device)
@@ -439,7 +441,7 @@ def update_model(itrtn_for_learning,
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()   
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
         selected_optimizer.step() 
 
     return model
