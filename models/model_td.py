@@ -239,9 +239,9 @@ class build_model(nn.Module):
 
             h = self.dropout_1(h)
             r = self.reward_linear_(h[:, -1:, :])
-            r = torch.tanh(r)
+            r = (r)
             s = self.state_linear_(h[:, -1:, :])
-            s = torch.tanh(s)
+            s = (s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -321,9 +321,9 @@ class build_model(nn.Module):
     
             h = self.dropout_1(h)
             r = self.reward_linear_(h[:, -1:, :])
-            r = torch.tanh(r)
+            r = (r)
             s = self.state_linear_(h[:, -1:, :])
-            s = torch.tanh(s)
+            s = (s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -390,9 +390,9 @@ class build_model(nn.Module):
 
         h = self.dropout_1(h)
         r = self.reward_linear_(h)
-        r = torch.tanh(r)
+        r = (r)
         s = self.state_linear_(h)
-        s = torch.tanh(s)
+        s = (s)
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 

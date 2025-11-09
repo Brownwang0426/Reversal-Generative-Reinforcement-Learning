@@ -363,7 +363,7 @@ def obtain_priority_probability(model, dataset, batch_size, device, param=1.0, m
     # 🔹
     history_reward_list, history_state_list, history_action_list, present_reward_list, present_state_list, future_reward_list = [], [], [], [], [], []
     for history_reward, history_state, history_action,  present_reward, present_state, future_reward, _, _  in data_loader:
-        history_reward = history_reward [:,  :, :].reshape(history_reward.size(0), -1)
+        history_reward = history_reward[:,  :, :].reshape(history_reward.size(0), -1)
         history_state  = history_state [:,  :, :].reshape(history_state.size(0), -1)
         history_action = history_action[:,  :, :].reshape(history_action.size(0), -1)
         present_reward = present_reward.reshape(present_reward.size(0), -1)
