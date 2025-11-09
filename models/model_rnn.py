@@ -154,7 +154,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = F.gelu(h)
+            h = F.gelu(h)   # typical layer norm -> gelu
             h = self.dropout_0(h)
 
             """

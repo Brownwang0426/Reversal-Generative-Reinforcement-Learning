@@ -219,7 +219,7 @@ class build_model(nn.Module):
 
             window_list.append(present_s + future_a[:, i:i+1])
             h = torch.cat(window_list, dim=1)
-            h = F.gelu(h)
+            h = F.gelu(h)  # typical layer norm -> gelu
             h = self.dropout_0(h)
 
             """
@@ -229,12 +229,12 @@ class build_model(nn.Module):
             h    = h + self.positional_encoding[:, :long, :]
             for layer in self.transformer_layers:
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                h_  = attention_norm(h)
+                h_  = attention_norm(h) 
                 h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
-                h   = h + h_
+                h   = h + h_ # typical pre-norm style
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear(h_)
-                h   = h + h_
+                h   = h + h_ # typical pre-norm style
             h  = self.transformer_norm(h)
             """
             We utilize the last idx in h to derive the latest reward and state.
