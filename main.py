@@ -94,34 +94,36 @@ ensemble_size = 10                   #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 150                   #⚠️
+feature_size = 250                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
-num_heads = 3                        #⚠️
+num_heads = 2                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.
 alpha = 0.1
-min_itrtn_for_learning = 10
-max_itrtn_for_learning = 10000
+L2_lambda = 1e-4
+grad_clip_value = 1.0
+min_itrtn_for_learning = 1           #⚠️
+max_itrtn_for_learning = 1000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
 max_param_for_learning = 1
-PER = True
+PER = False
 
-beta = 0.001
+beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 1000
+max_itrtn_for_planning = 100
 
 episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 100
+episode_for_validation = 1
+episode_for_averaging = 10
 buffer_limit = 100000
 render_for_human = False
 
@@ -210,7 +212,9 @@ for _ in range(ensemble_size):
                         loss,
                         bias,
                         drop_rate,
-                        alpha)
+                        alpha,
+                        L2_lambda,
+                        grad_clip_value)
     model.to(device)
     model_list.append(model)
 
