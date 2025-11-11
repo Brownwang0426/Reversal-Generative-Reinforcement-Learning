@@ -105,7 +105,7 @@ PER = False
 
 beta = 0.001
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 50
+max_itrtn_for_planning = 50           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 1
