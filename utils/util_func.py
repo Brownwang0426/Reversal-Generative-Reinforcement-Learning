@@ -445,7 +445,7 @@ def update_model_per(itrtn_for_learning,
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
         
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
         selected_optimizer.step() 
 
 
@@ -487,7 +487,7 @@ def update_model(itrtn_for_learning,
         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
         total_loss.backward()     
         
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
         selected_optimizer.step() 
 
 

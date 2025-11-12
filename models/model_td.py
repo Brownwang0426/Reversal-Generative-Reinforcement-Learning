@@ -112,7 +112,9 @@ class build_model(nn.Module):
                  loss,
                  bias,
                  drop_rate,
-                 alpha):
+                 alpha,
+                 L2_lambda,
+                 grad_clip_value):
 
         super(build_model, self).__init__()
 
@@ -131,6 +133,8 @@ class build_model(nn.Module):
         self.bias                 = bias
         self.drop_rate            = drop_rate
         self.alpha                = alpha
+        self.L2_lambda            = L2_lambda
+        self.grad_clip_value      = grad_clip_value
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
@@ -167,21 +171,24 @@ class build_model(nn.Module):
         optimizers = {
             'adam': optim.Adam,
             'sgd': optim.SGD,
-            'rmsprop': optim.RMSprop
+            'rmsprop': optim.RMSprop,
+            'adamw': optim.AdamW
         }
-        self.selected_optimizer = optimizers[self.opti.lower()](self.parameters(), lr=self.alpha)
+        self.selected_optimizer = optimizers[self.opti.lower()](self.parameters(), lr=self.alpha, weight_decay=self.L2_lambda)
 
         # Loss function
         losses = {
             'mean_squared_error': torch.nn.MSELoss(reduction='mean'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='mean')
+            'binary_crossentropy': torch.nn.BCELoss(reduction='mean'),
+            'huber_loss': torch.nn.SmoothL1Loss(reduction='mean')
         }
         self.loss_function = losses[self.loss .lower()]
 
         # Loss function
         losses = {
             'mean_squared_error': torch.nn.MSELoss(reduction='none'),
-            'binary_crossentropy': torch.nn.BCELoss(reduction='none')
+            'binary_crossentropy': torch.nn.BCELoss(reduction='none'),
+            'huber_loss': torch.nn.SmoothL1Loss(reduction='none')
         }
         self.loss_function_ = losses[self.loss .lower()]
 
@@ -418,10 +425,14 @@ class build_model(nn.Module):
             'glorot_uniform': nn.init.xavier_uniform_,
             'glorot_normal': nn.init.xavier_normal_,
             'xavier_uniform': nn.init.xavier_uniform_,
-            'xavier_normal': nn.init.xavier_normal_
+            'xavier_normal': nn.init.xavier_normal_,
+            'kaiming_uniform': nn.init.kaiming_uniform_, # since we are using nn.linear -> norm layer -> gelu , we don't really need kaiming for gelu
+            'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                initializer(module.weight)
+                initializer(module.weight)     # module.weight and module.bias are parameters
+                if module.bias is not None:   
+                    nn.init.zeros_(module.bias)
 
