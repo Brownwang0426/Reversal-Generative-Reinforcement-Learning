@@ -59,7 +59,7 @@ game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_s
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 5                    #◀️
+ensemble_size = 10                   #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -78,7 +78,7 @@ drop_rate = 0.
 alpha = 0.1
 L2_lambda = 1e-4                     #⚠️
 grad_clip_value = 1.0
-min_itrtn_for_learning = 10          #⚠️
+min_itrtn_for_learning = 1           #⚠️
 max_itrtn_for_learning = 1000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
@@ -88,7 +88,7 @@ PER = False
 
 beta = 0.001
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 50          #⚠️
+max_itrtn_for_planning = 100          #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 1
@@ -113,32 +113,16 @@ neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 2                        #⚠️
 
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = False
-ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 200                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
-num_heads = 2                        #⚠️
-
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
 drop_rate = 0.
 alpha = 0.1
-L2_lambda = 1e-4                     #⚠️
+L2_lambda = 1e-6                     #⚠️
 grad_clip_value = 1.0
-min_itrtn_for_learning = 1           #⚠️
-max_itrtn_for_learning = 1000        #⚠️
+min_itrtn_for_learning = 100         #⚠️
+max_itrtn_for_learning = 100000      #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
