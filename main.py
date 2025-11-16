@@ -257,21 +257,22 @@ if load_pretrained_model == True:
         model_dict = torch.load(model_directory)
         for i, model in enumerate(model_list):
             model.load_state_dict(model_dict[f'model_{i}'])
-        history_state_stack, \
-        history_action_stack,\
-        history_reward_stack,\
-        present_reward_stack, \
-        present_state_stack, \
-        future_state_stack,\
-        future_action_stack, \
-        future_reward_stack, \
-        history_state_hash_set , \
-        history_action_hash_set , \
-        history_reward_hash_set , \
-        present_state_hash_set , \
-        future_state_hash_set  ,\
-        future_action_hash_set , \
-        future_reward_hash_set = load_buffer_from_pickle(buffer_directory)
+        history_reward_stack,
+        history_state_stack, 
+        history_action_stack,
+        present_reward_stack,
+        present_state_stack, 
+        future_reward_stack, 
+        future_state_stack,
+        future_action_stack,
+        history_reward_hash_set , 
+        history_state_hash_set , 
+        history_action_hash_set , 
+        present_reward_hash_set , 
+        present_state_hash_set , 
+        future_reward_hash_set , 
+        future_state_hash_set ,
+        future_action_hash_set= load_buffer_from_pickle(buffer_directory)
         history_state_stack    = history_state_stack.to (device_) 
         history_action_stack   = history_action_stack.to(device_) 
         history_reward_stack   = history_reward_stack.to(device_) 
