@@ -59,8 +59,8 @@ def load_performance_from_csv(filename='performance_log.csv'):
 
 def load_buffer_from_pickle(filename):
     with open(filename, 'rb') as file:
-        list = dill.load(file)
-    return list
+        data = dill.load(file)
+    return data   
 
 
 
@@ -429,7 +429,7 @@ def update_model_per(itrtn_for_learning,
         history_reward = torch.stack(history_reward ).to(device)
         history_state  = torch.stack(history_state  ).to(device)
         history_action = torch.stack(history_action ).to(device)
-        present_reward  = torch.stack(present_reward).to(device)    
+        present_reward = torch.stack(present_reward ).to(device)    
         present_state  = torch.stack(present_state  ).to(device)
         future_reward  = torch.stack(future_reward  ).to(device)
         future_state   = torch.stack(future_state   ).to(device)
@@ -577,7 +577,7 @@ def limit_buffer(history_reward_stack,
     history_reward_hash_set = history_reward_hash_set & hr_hash_set
     history_state_hash_set  = history_state_hash_set  & hs_hash_set
     history_action_hash_set = history_action_hash_set & ha_hash_set
-    present_reward_hash_set = present_reward_hash_set & ps_hash_set
+    present_reward_hash_set = present_reward_hash_set & pr_hash_set
     present_state_hash_set  = present_state_hash_set  & ps_hash_set
     future_reward_hash_set  = future_reward_hash_set  & fr_hash_set
     future_state_hash_set   = future_state_hash_set   & fs_hash_set
@@ -598,8 +598,8 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 
 
-def save_buffer_to_pickle(filename, *list):
-    with open(filename, 'wb') as file:
-        dill.dump(list, file)
+def save_buffer_to_pickle(filename, **kwargs):
+    with open(filename, 'wb') as f:
+        dill.dump(kwargs, f)
 
 
