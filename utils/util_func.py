@@ -129,7 +129,20 @@ def update_future_action(itrtn_for_planning,
         total_loss         = loss_function(envisaged_reward[:, -1:, :], desired_reward[:, -1:, :])
         total_loss.backward() 
 
-        future_action     -= future_action_.grad * (1 - future_action_ * future_action_) * beta 
+        grad = future_action_.grad
+        grad = grad * (1 - future_action_ * future_action_)
+
+        # --------
+
+        grad_sign   = grad.sign()
+        grad_abs    = grad.abs()
+        base        = torch.tanh(2 * grad_abs)
+        decay       = torch.exp(-(grad_abs - 1))
+        scaled_grad = grad_sign * base * decay 
+        
+        # --------
+
+        future_action = future_action - beta * scaled_grad
 
     future_action = future_action.to(device_, non_blocking=True)
 
