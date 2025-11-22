@@ -55,6 +55,8 @@ torch.backends.cudnn.benchmark = True
 
 
 
+
+
 # -----------------------
 
 
@@ -98,8 +100,6 @@ episode_for_validation = 1
 episode_for_averaging = 10
 buffer_limit = 100000
 render_for_human = False
-
-
 
 
 # -----------------------

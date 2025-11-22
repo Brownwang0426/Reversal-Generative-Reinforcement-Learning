@@ -132,15 +132,15 @@ def update_future_action(itrtn_for_planning,
         grad = future_action_.grad
         grad = grad * (1 - future_action_ * future_action_)
 
-        # --------
+        # ----- custom gradient update -----
 
         grad_sign   = grad.sign()
         grad_abs    = grad.abs()
         base        = torch.tanh(2 * grad_abs)
-        decay       = torch.exp(-(grad_abs - 1))
+        decay       = torch.exp(-(grad_abs - 1).clamp(min=0))
         scaled_grad = grad_sign * base * decay 
         
-        # --------
+        # ----- custom gradient update -----
 
         future_action = future_action - beta * scaled_grad
 
@@ -455,7 +455,22 @@ def update_model(itrtn_for_learning,
         total_loss.backward()   
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
-        selected_optimizer.step() 
+
+        # ----- custom gradient update -----
+
+        with torch.no_grad():
+            for param in model.parameters():
+                if param.grad is None:
+                    continue
+                g = param.grad
+                g_abs  = g.abs()
+                g_sign = g.sign()
+                base   = torch.tanh(2 * g_abs)
+                decay  = torch.exp(-(g_abs - 1).clamp(min=0))
+                scaled_grad = g_sign * base * decay
+                param -= model.alpha * scaled_grad
+                
+        # ----- custom gradient update -----
 
     return model
 
