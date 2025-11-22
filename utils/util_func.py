@@ -136,7 +136,7 @@ def update_future_action(itrtn_for_planning,
 
         grad_sign   = grad.sign()
         grad_abs    = grad.abs()
-        base        = torch.tanh(2 * grad_abs)
+        base        = torch.tanh(3 * grad_abs)
         decay       = torch.exp(-(grad_abs - 1).clamp(min=0))
         scaled_grad = grad_sign * base * decay 
         
@@ -465,11 +465,11 @@ def update_model(itrtn_for_learning,
                 g = param.grad
                 g_abs  = g.abs()
                 g_sign = g.sign()
-                base   = torch.tanh(2 * g_abs)
+                base   = torch.tanh(3 * g_abs)
                 decay  = torch.exp(-(g_abs - 1).clamp(min=0))
                 scaled_grad = g_sign * base * decay
                 param -= model.alpha * scaled_grad
-                
+
         # ----- custom gradient update -----
 
     return model
