@@ -89,7 +89,7 @@ def initialize_future_action(shape, device):
 
 
 def initialize_desired_reward(shape, device):
-    return  torch.ones(shape).to(device, non_blocking=True)
+    return torch.ones(shape).to(device, non_blocking=True)
 
 
 
@@ -136,9 +136,15 @@ def update_future_action(itrtn_for_planning,
 
         grad_sign   = grad.sign()
         grad_abs    = grad.abs()
-        base        = torch.tanh(5 * grad_abs)
-        decay       = torch.exp(-(grad_abs - 1).clamp(min=0))
-        scaled_grad = grad_sign * base * decay 
+        base        = torch.tanh(2 * grad_abs)
+        decay       = torch.exp(-(grad_abs.mean() - 1).clamp(min=0))
+        scaled_grad = grad_sign * base * decay
+
+        # grad_sign   = grad.sign()
+        # grad_abs    = grad.abs()
+        # base        = torch.tanh(3 * grad_abs)
+        # decay       = torch.exp(-(grad_abs - 1).clamp(min=0))
+        # scaled_grad = grad_sign * base * decay 
         
         # ----- custom gradient update -----
 
@@ -455,22 +461,7 @@ def update_model(itrtn_for_learning,
         total_loss.backward()   
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
-
-        # ----- custom gradient update -----
-
-        with torch.no_grad():
-            for param in model.parameters():
-                if param.grad is None:
-                    continue
-                g = param.grad
-                g_abs  = g.abs()
-                g_sign = g.sign()
-                base   = torch.tanh(5 * g_abs)
-                decay  = torch.exp(-(g_abs - 1).clamp(min=0))
-                scaled_grad = g_sign * base * decay
-                param -= model.alpha * scaled_grad
-                
-        # ----- custom gradient update -----
+        selected_optimizer.step() 
 
     return model
 
