@@ -136,8 +136,8 @@ def update_future_action(itrtn_for_planning,
 
         grad_sign   = grad.sign()
         grad_abs    = grad.abs()
-        base        = torch.tanh(2 * grad_abs)
-        decay       = torch.exp(-(grad_abs.mean() - 1).clamp(min=0))
+        base        = torch.tanh(grad_abs)
+        decay       = torch.exp(-(grad_abs.mean() - 1))
         scaled_grad = grad_sign * base * decay
 
         # grad_sign   = grad.sign()
