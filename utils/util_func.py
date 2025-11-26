@@ -116,8 +116,8 @@ def update_future_action(itrtn_for_planning,
 
         model              = random.choice(model_list)
 
-        future_action_     = torch.tanh(future_action)
-        future_action_     = future_action_.detach().requires_grad_(True)
+        _future_action     = future_action.clone().detach().requires_grad_(True)
+        future_action_     = torch.tanh(_future_action)
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -129,8 +129,7 @@ def update_future_action(itrtn_for_planning,
         total_loss         = loss_function(envisaged_reward[:, -1:, :], desired_reward[:, -1:, :])
         total_loss.backward() 
 
-        grad = future_action_.grad
-        grad = grad * (1 - future_action_ * future_action_)
+        grad = _future_action.grad
 
         # ----- custom gradient update -----
 
