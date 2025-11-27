@@ -60,9 +60,12 @@ class custom_attn(nn.Module):
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
 
     def scaled_dot_product_attention(self, Q, K, V, mask):
+
+        # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
+        K_T = K.transpose(-2, -1).contiguous()
+        attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
         
-        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
-        
+
         if mask != None:
             attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
@@ -70,7 +73,8 @@ class custom_attn(nn.Module):
 
         attn_probs = torch.softmax(attn_scores, dim=-1) 
         attn_probs = self.attn_dropout (attn_probs)
-        output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
+        # output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
+        output     = attn_probs @ V
         return output                             # (batch_size, num_heads, sequence_size, head_size)
 
     def combine_heads(self, x):
