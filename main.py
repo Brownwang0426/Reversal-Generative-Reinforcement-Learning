@@ -112,6 +112,7 @@ render_for_human = False
 
 
 
+
 # -----------------------
 
 
@@ -155,7 +156,7 @@ episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 10
 buffer_limit = 50000
-render_for_human = False
+render_for_human = True
 
 
 
@@ -173,7 +174,7 @@ reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
 history_size = 25                    #⚠️
 future_size = 25                     #⚠️ 
-skip = 5                             #⚠️ 
+skip = 4                             #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -203,7 +204,6 @@ episode_for_validation = 1
 episode_for_averaging = 10
 buffer_limit = 50000
 render_for_human = False
-
 
 
 
@@ -374,7 +374,7 @@ for training_episode in tqdm(range(episode_for_training)):
     state_list  = []
     action_list = []
     reward_list = []
-    for _ in range(history_size * (skip + 1)):
+    for _ in range(history_size * skip):
         state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
         action_list.append(torch.zeros(action_size ).to(device_, non_blocking=True) - 1 )
         reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
@@ -394,7 +394,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
     # starting each step
     post_done_truncated_counter = 0
-    post_done_truncated_steps = future_size * (skip + 1)
+    post_done_truncated_steps = future_size * skip
     done_truncated_flag = False
     total_step = 0
     while not done_truncated_flag:
@@ -489,7 +489,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
     """
-    We dropped duplicated experiences in the buffer and to maintain diveristy.
+    We dropped duplicated experiences in the buffer and to maintain diveristy and to save ram.
     """
     # storing sequentialized short term experience to long term experience replay buffer
     history_state_stack, \
