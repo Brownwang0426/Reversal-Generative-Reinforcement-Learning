@@ -400,6 +400,9 @@ for training_episode in tqdm(range(episode_for_training)):
     while not done_truncated_flag:
 
         """
+        We added skipping and Singularity-Bound Optimization for future action
+        """
+        """
         We let agent took some history states into consideration.
         """
         """
