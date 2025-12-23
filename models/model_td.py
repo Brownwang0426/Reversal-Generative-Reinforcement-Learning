@@ -283,34 +283,34 @@ class build_model(nn.Module):
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
 
-
+        skip = 20
     
         kv_caches = [dict() for _ in self.transformer_layers]
     
-        for i in range(future_a.size(1)):
+        for i in range(int(future_a.size(1)/skip)):
     
             if i == 0:
-                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+                h = torch.cat([history_s_a, present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
             else:
-                h = present_s + future_a[:, i:i+1]
+                h = torch.cat([             present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
             h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
             Transformer decoder
             """
-            long = history_s_a.size(1) + 1 + i
+            long = history_s_a.size(1) + i * skip + skip
             if i == 0:
-                h = h + self.positional_encoding[:, :long, :]
+                h = h + self.positional_encoding[:,          :long, :]
             else:
-                h = h + self.positional_encoding[:, long-1:long, :]
+                h = h + self.positional_encoding[:, long-skip:long, :]
             for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_ = attention_norm(h)
                 if i == 0:
-                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=kv_caches[j])
+                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :,          :long, :long], kv_cache=kv_caches[j])
                 else:
-                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-1:long, :long], kv_cache=kv_caches[j])
+                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-skip:long, :long], kv_cache=kv_caches[j])
                 h = h + h_
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear(h_)
@@ -320,7 +320,7 @@ class build_model(nn.Module):
             Transformer decoder
             """
     
-            h = h[:, -1:, :]
+            h = h[:, -skip:, :]
             h = self.dropout_1(h)
             r = self.reward_linear(h)
             r = torch.tanh(r) 
@@ -329,7 +329,7 @@ class build_model(nn.Module):
             future_r_list.append(r)
             future_s_list.append(s)
     
-            present_s = s
+            present_s = s[:, -1:, :]
             present_s = self.state_norm(self.state_linear(present_s)) 
             
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
@@ -348,19 +348,24 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s = self.state_norm (self.state_linear (history_s) )
             history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_s_ = self.state_norm (self.state_linear (future_s)[:, :-1, :])
-        future_a  = self.action_norm(self.action_linear(future_a) )
-
-        if history_s.size(1) > 0:
             history_s_a = history_s + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+
+
+        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_s  = self.state_norm (self.state_linear (future_s)[:, :-1, :])
+        future_s  = torch.cat((present_s, future_s), dim=1)
+        future_a  = self.action_norm(self.action_linear(future_a) )
+        B, T, D = future_s.shape
+        skip = 20 
+        time_idx = torch.arange(T, device=future_s.device)
+        mask = (time_idx % skip == skip-1)          
+        mask = mask.view(1, T, 1)              
+        future_s  = future_s * mask   
+        future_s_a = future_s + future_a
+        
                 
-
-
-
-        future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
         h = torch.cat([history_s_a, future_s_a], dim=1)
         h = F.gelu(h)
         h = self.dropout_0(h)
