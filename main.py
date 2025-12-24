@@ -65,98 +65,8 @@ torch.backends.cudnn.benchmark = True
 
 
 
-# -----------------------
 
 
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size =  260                    #⚠️
-action_size = 2                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size = 25                    #⚠️
-future_size = 25                     #⚠️
-skip = 5                             #⚠️ 
-neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
-num_heads = 10                       #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.001
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-min_itrtn_for_learning = 1000        #⚠️
-max_itrtn_for_learning = 1000        #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1
-max_itrtn_for_planning = 50        
-
-episode_for_training = 100000
-episode_for_validation = 1
-episode_for_averaging = 10
-buffer_limit = 50000
-render_for_human = False
-
-
-
-
-# -----------------------
-
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-skip = 1                             #⚠️ 
-neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
-num_heads = 10                       #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.001
-alpha = 0.1
-L2_lambda = 0                  
-grad_clip_value = 1.0
-min_itrtn_for_learning = 100         #⚠️
-max_itrtn_for_learning = 100         #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1
-max_itrtn_for_planning = 50
-
-episode_for_training = 100000
-episode_for_validation = 1
-episode_for_averaging = 10
-buffer_limit = 50000
-render_for_human = True
 
 
 
@@ -174,6 +84,52 @@ reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
 history_size = 200                   #⚠️
 future_size = 200                    #⚠️ 
+skip = 20                            #⚠️ 
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.001
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+min_itrtn_for_learning = 2000        #⚠️
+max_itrtn_for_learning = 2000        #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+min_param_for_learning = 1
+max_param_for_learning = 1
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1
+max_itrtn_for_planning = 50        
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 50
+buffer_limit = 50000
+render_for_human = False
+
+
+# -----------------------
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
@@ -206,6 +162,50 @@ buffer_limit = 50000
 render_for_human = False
 
 
+# -----------------------
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  260                    #⚠️
+action_size = 2                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size = 100                   #⚠️
+future_size = 100                    #⚠️
+skip = 10                            #⚠️ 
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.001
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+min_itrtn_for_learning = 2000        #⚠️
+max_itrtn_for_learning = 2000        #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+min_param_for_learning = 1
+max_param_for_learning = 1
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1
+max_itrtn_for_planning = 50        
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 50
+buffer_limit = 50000
+render_for_human = False
 
 # -----------------------
 
@@ -304,7 +304,8 @@ for _ in range(ensemble_size):
                         drop_rate,
                         alpha,
                         L2_lambda,
-                        grad_clip_value)
+                        grad_clip_value,
+                        skip)
     model.to(device)
     model_list.append(model)
 
@@ -374,7 +375,7 @@ for training_episode in tqdm(range(episode_for_training)):
     state_list  = []
     action_list = []
     reward_list = []
-    for _ in range(history_size * skip):
+    for _ in range(history_size):
         state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
         action_list.append(torch.zeros(action_size ).to(device_, non_blocking=True) - 1 )
         reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
@@ -394,7 +395,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
     # starting each step
     post_done_truncated_counter = 0
-    post_done_truncated_steps = future_size * skip
+    post_done_truncated_steps = future_size
     done_truncated_flag = False
     total_step = 0
     while not done_truncated_flag:
@@ -410,7 +411,7 @@ for training_episode in tqdm(range(episode_for_training)):
         """
         # initializing and updating action by desired reward
         history_state, \
-        history_action  = retrieve_history(state_list, action_list, history_size, skip, device_)
+        history_action  = retrieve_history(state_list, action_list, history_size , device_)
         present_state   = retrieve_present(state_list, device_)
         future_action   = initialize_future_action ((1, future_size, action_size), device_)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
@@ -485,8 +486,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                          action_list ,
                                          reward_list ,
                                          history_size,
-                                         future_size,
-                                         skip)
+                                         future_size)
 
 
 

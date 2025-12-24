@@ -118,7 +118,8 @@ class build_model(nn.Module):
                  drop_rate,
                  alpha,
                  L2_lambda,
-                 grad_clip_value):
+                 grad_clip_value,
+                 skip):
 
         super(build_model, self).__init__()
 
@@ -139,6 +140,7 @@ class build_model(nn.Module):
         self.alpha                = alpha
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
+        self.skip                 = skip
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
@@ -283,7 +285,7 @@ class build_model(nn.Module):
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
 
-        skip = 20
+        skip = self.skip
     
         kv_caches = [dict() for _ in self.transformer_layers]
     
@@ -358,7 +360,7 @@ class build_model(nn.Module):
         future_s  = torch.cat((present_s, future_s), dim=1)
         future_a  = self.action_norm(self.action_linear(future_a) )
         B, T, D = future_s.shape
-        skip = 20 
+        skip = self.skip
         time_idx = torch.arange(T, device=future_s.device)
         mask = (time_idx % skip == skip-1)          
         mask = mask.view(1, T, 1)              
