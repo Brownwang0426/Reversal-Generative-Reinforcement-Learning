@@ -195,7 +195,7 @@ min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
 max_param_for_learning = 1
-PER = False
+PER = False 
 
 beta = 0.1
 min_itrtn_for_planning = 1

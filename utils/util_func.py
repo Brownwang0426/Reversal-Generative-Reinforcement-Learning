@@ -279,10 +279,10 @@ def update_long_term_experience_replay_buffer(history_state_stack,
 
 
 
-def obtain_obsolute_TD_error(model, dataset, device):
+def obtain_priority_probability(model, dataset, device):
 
-    data_loader  = DataLoader(dataset, batch_size = 50, shuffle=False, pin_memory=True, num_workers=0)
-    
+    data_loader  = DataLoader(dataset, batch_size=50, shuffle=False, pin_memory=True, num_workers=0)
+
     TD_error_list = []
 
     for history_state, history_action, present_state, future_action, future_reward, future_state in data_loader:
@@ -305,12 +305,14 @@ def obtain_obsolute_TD_error(model, dataset, device):
                                         torch.sum(torch.abs(loss_function(envisaged_state [:, :, :], future_state [:, :, :]) ), dim=(1, 2))
         TD_error_list.append(total_loss.detach())  
 
-    TD_error = torch.cat(TD_error_list, dim=0).to(device)
+    PER_epsilon          = 1e-10
+    PER_exponent         = 1
+    obsolute_TD_error    = torch.cat(TD_error_list, dim=0).to(device)
+    priority             = obsolute_TD_error + PER_epsilon
+    exponent_priority    = priority ** PER_exponent
+    probabilities        = exponent_priority / torch.sum(exponent_priority)
 
-    return TD_error
-
-
-
+    return probabilities
 
 def update_model_per(itrtn_for_learning,
                      dataset,
@@ -319,15 +321,77 @@ def update_model_per(itrtn_for_learning,
                      param):
         
     device         = next(model.parameters()).device
-    PER_epsilon    = 1e-10
-    PER_exponent   = param
 
     for _ in range(itrtn_for_learning):
 
-        obsolute_TD_error    = obtain_obsolute_TD_error(model, dataset, device)
-        priority             = obsolute_TD_error + PER_epsilon
-        exponent_priority    = priority ** PER_exponent
-        priority_probability = exponent_priority / torch.sum(exponent_priority)
+        priority_probability = obtain_priority_probability(model, dataset, device)
+        final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
+
+        batch_samples  = [dataset[i] for i in final_indices]
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+        history_state  = torch.stack(history_state ).to(device)
+        history_action = torch.stack(history_action).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        future_state   = torch.stack(future_state  ).to(device)
+
+        model.train()
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+        
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
+        selected_optimizer.step() 
+
+    return model
+
+def obtain_priority_probability(model, dataset, device):
+
+    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, pin_memory=True, num_workers=0)
+    
+    reward_list = []
+
+    for history_state, history_action, present_state, _, future_reward, _ in data_loader:
+        # history_state  = history_state.reshape(history_state.size(0), -1)
+        # history_action = history_action.reshape(history_action.size(0), -1)
+        # present_state  = present_state.reshape(present_state.size(0), -1)
+        future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)  
+        # combined = torch.cat((history_state, history_action, present_state, future_reward), dim=1)
+        combined = future_reward
+        reward_list.append(combined.detach())
+
+    rewards = torch.cat(reward_list, dim=0).to(device)  # [N, D]
+
+    # 🔹 unique rewards by row
+    unique_rewards, inverse_indices, counts = torch.unique(rewards, dim=0, return_inverse=True, return_counts=True)
+
+    # 🔹 inverse frequency weighting
+    param    = 1.0
+    min_prob = 0.01
+    inv_freq = (1.0 / counts.float()) ** param
+    sample_weights = inv_freq[inverse_indices]  # map back to each sample
+    probabilities = torch.clamp(sample_weights, min=min_prob)
+    probabilities = probabilities / probabilities.sum()
+
+    return probabilities
+
+def update_model_per(itrtn_for_learning,
+                     dataset,
+                     model,
+                     batch_size,
+                     param):
+        
+    device         = next(model.parameters()).device
+    priority_probability = obtain_priority_probability(model, dataset, device)
+
+    for _ in range(itrtn_for_learning):
+
         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
 
         batch_samples  = [dataset[i] for i in final_indices]

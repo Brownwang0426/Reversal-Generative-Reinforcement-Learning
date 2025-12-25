@@ -57,7 +57,8 @@ class build_model(nn.Module):
                  drop_rate,
                  alpha,
                  L2_lambda,
-                 grad_clip_value):
+                 grad_clip_value,
+                 skip):
 
         super(build_model, self).__init__()
 
@@ -78,6 +79,7 @@ class build_model(nn.Module):
         self.alpha                = alpha
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
+        self.skip                 = skip
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
@@ -204,16 +206,16 @@ class build_model(nn.Module):
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
     
-
+        skip = self.skip
 
         hidden_cache = None
     
-        for i in range(future_a.size(1)):
+        for i in range(int(future_a.size(1)/skip)):
     
             if i == 0:
-                h = torch.cat([history_s_a, (present_s + future_a[:, i:i+1])], dim=1)
+                h = torch.cat([history_s_a, present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
             else:
-                h = present_s + future_a[:, i:i+1]
+                h = torch.cat([             present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
             h = F.gelu(h)
             h = self.dropout_0(h)
     
@@ -225,7 +227,7 @@ class build_model(nn.Module):
             Transformer decoder
             """
     
-            h = h[:, -1:, :]
+            h = h[:, -skip:, :]
             h = self.dropout_1(h)
             r = self.reward_linear(h)
             r = torch.tanh(r) 
@@ -234,7 +236,7 @@ class build_model(nn.Module):
             future_r_list.append(r)
             future_s_list.append(s)
     
-            present_s = s
+            present_s = s[:, -1:, :]
             present_s = self.state_norm(self.state_linear(present_s)) 
     
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
@@ -251,21 +253,26 @@ class build_model(nn.Module):
 
 
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_s_ = self.state_norm (self.state_linear (future_s)[:, :-1, :])
-        future_a  = self.action_norm(self.action_linear(future_a) )
-
-        if history_s.size(1) > 0:
+            history_s   = self.state_norm (self.state_linear (history_s) )
+            history_a   = self.action_norm(self.action_linear(history_a) )
             history_s_a = history_s + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-                
 
 
+        present_s  = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
+        future_s   = torch.cat((present_s, future_s), dim=1)
+        future_a   = self.action_norm(self.action_linear(future_a) )
+        B, T, D    = future_s.shape
+        skip       = self.skip
+        time_idx   = torch.arange(T, device=future_s.device)
+        mask       = (time_idx % skip == skip-1)          
+        mask       = mask.view(1, T, 1)              
+        future_s   = future_s * mask   
+        future_s_a = future_s + future_a
 
-        future_s_a = torch.cat((present_s, future_s_), dim=1) + future_a
+
         h = torch.cat([history_s_a, future_s_a], dim=1)
         h = F.gelu(h)
         h = self.dropout_0(h)

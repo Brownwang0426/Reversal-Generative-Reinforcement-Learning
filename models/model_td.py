@@ -348,23 +348,23 @@ class build_model(nn.Module):
 
 
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
+            history_s   = self.state_norm (self.state_linear (history_s) )
+            history_a   = self.action_norm(self.action_linear(history_a) )
             history_s_a = history_s + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
 
 
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_s  = self.state_norm (self.state_linear (future_s)[:, :-1, :])
-        future_s  = torch.cat((present_s, future_s), dim=1)
-        future_a  = self.action_norm(self.action_linear(future_a) )
-        B, T, D = future_s.shape
-        skip = self.skip
-        time_idx = torch.arange(T, device=future_s.device)
-        mask = (time_idx % skip == skip-1)          
-        mask = mask.view(1, T, 1)              
-        future_s  = future_s * mask   
+        present_s  = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
+        future_s   = torch.cat((present_s, future_s), dim=1)
+        future_a   = self.action_norm(self.action_linear(future_a) )
+        B, T, D    = future_s.shape
+        skip       = self.skip
+        time_idx   = torch.arange(T, device=future_s.device)
+        mask       = (time_idx % skip == skip-1)          
+        mask       = mask.view(1, T, 1)              
+        future_s   = future_s * mask   
         future_s_a = future_s + future_a
         
                 
