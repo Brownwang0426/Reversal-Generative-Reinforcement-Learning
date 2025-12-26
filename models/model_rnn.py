@@ -135,23 +135,21 @@ class build_model(nn.Module):
         future_r_list = list()
         future_s_list = list()
 
+        present_s = present_s.unsqueeze(1)
 
-
-
-        if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_a  = self.action_norm(self.action_linear(future_a              ))
 
         window_list   = list()
         if history_s.size(1) > 0:
+            history_s = self.state_norm (self.state_linear (history_s) )
+            history_a = self.action_norm(self.action_linear(history_a) )
             for i in range(history_s.size(1)):
                 window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
         
 
-
+        present_s = self.state_norm (self.state_linear (present_s))
+        future_a  = self.action_norm(self.action_linear(future_a ))
         
+
         for i in range(future_a.size(1)):
 
             window_list.append(present_s + future_a[:, i:i+1])
@@ -186,29 +184,41 @@ class build_model(nn.Module):
 
 
 
+    def segment(self, future_s):
+        B, T, D    = future_s.shape
+        skip       = self.skip
+        time_idx   = torch.arange(T, device=future_s.device)
+        mask       = (time_idx % skip == 0)          
+        mask       = mask.view(1, T, 1)              
+        future_s   = future_s * mask   
+        return future_s
+
+
+
+
     def _forward(self, history_s, history_a, present_s, future_s, future_a):
     
         future_r_list = list()
         future_s_list = list()
+        
+        skip = self.skip
+
+        present_s = present_s.unsqueeze(1)
     
-    
-    
-    
+
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
-        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-        future_a  = self.action_norm(self.action_linear(future_a              ))
-    
-        if history_s.size(1) > 0:
-            history_s_a = history_s + history_a
+            history_s   = self.state_norm (self.state_linear (history_s) )
+            history_a   = self.action_norm(self.action_linear(history_a) )
+            history_s_a = self.segment(history_s) + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
-    
-        skip = self.skip
 
-        hidden_cache = None
+        present_s = self.state_norm (self.state_linear (present_s))
+        future_a  = self.action_norm(self.action_linear(future_a ))
+    
+
+        kv_caches = [dict() for _ in self.transformer_layers]
     
         for i in range(int(future_a.size(1)/skip)):
     
@@ -216,6 +226,7 @@ class build_model(nn.Module):
                 h = torch.cat([history_s_a, present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
             else:
                 h = torch.cat([             present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
+                
             h = F.gelu(h)
             h = self.dropout_0(h)
     
@@ -250,29 +261,24 @@ class build_model(nn.Module):
     def forward_(self, history_s, history_a, present_s, future_s, future_a):
 
 
+        present_s = present_s.unsqueeze(1)
 
 
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a
+            history_s_a = self.segment(history_s) + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
 
 
-        present_s  = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+        present_s  = self.state_norm (self.state_linear (present_s))
         future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
         future_s   = torch.cat((present_s, future_s), dim=1)
         future_a   = self.action_norm(self.action_linear(future_a) )
-        B, T, D    = future_s.shape
-        skip       = self.skip
-        time_idx   = torch.arange(T, device=future_s.device)
-        mask       = (time_idx % skip == skip-1)          
-        mask       = mask.view(1, T, 1)              
-        future_s   = future_s * mask   
-        future_s_a = future_s + future_a
-
-
+        future_s_a = self.segment(future_s) + future_a
+        
+                
         h = torch.cat([history_s_a, future_s_a], dim=1)
         h = F.gelu(h)
         h = self.dropout_0(h)
