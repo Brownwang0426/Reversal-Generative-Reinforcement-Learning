@@ -209,7 +209,7 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = self.segment(history_s) + history_a
+            history_s_a = history_s + history_a # self.segment(history_s) + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
@@ -267,7 +267,7 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = self.segment(history_s) + history_a
+            history_s_a = history_s + history_a # self.segment(history_s) + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
 
