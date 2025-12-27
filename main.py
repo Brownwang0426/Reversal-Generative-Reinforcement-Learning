@@ -161,21 +161,21 @@ episode_for_averaging = 50
 buffer_limit = 50000
 render_for_human = False
 
-
 # -----------------------
 
 
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
+
+game_name =  'MountainCar-v0'        #⚠️
+max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  260                    #⚠️
-action_size = 2                      #⚠️
+state_size =  220                    #⚠️
+action_size = 3                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size = 500                   #⚠️
-future_size = 500                    #⚠️
+feature_size = 300                   #⚠️
+history_size  = 200                  #⚠️
+future_size = 200                    #⚠️
 skip = 10                            #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
@@ -207,20 +207,20 @@ episode_for_averaging = 50
 buffer_limit = 50000
 render_for_human = False
 
+
 # -----------------------
 
 
-
-game_name =  'MountainCar-v0'        #⚠️
-max_steps_for_each_episode = 200     #⚠️
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  220                    #⚠️
-action_size = 3                      #⚠️
+state_size =  260                    #⚠️
+action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 300                   #⚠️
-history_size  = 200                  #⚠️
+feature_size = 500                   #⚠️
+history_size = 200                   #⚠️
 future_size = 200                    #⚠️
 skip = 10                            #⚠️ 
 neural_type = 'td'                   #⚠️
