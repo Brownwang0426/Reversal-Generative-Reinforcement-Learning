@@ -255,6 +255,7 @@ render_for_human = False
 
 # -----------------------
 
+assert future_size % skip == 0, f"future_size ({future_size}) cannot be evenly divided by skip ({skip})"
 
 
 
