@@ -118,8 +118,7 @@ class build_model(nn.Module):
                  drop_rate,
                  alpha,
                  L2_lambda,
-                 grad_clip_value,
-                 skip):
+                 grad_clip_value):
 
         super(build_model, self).__init__()
 
@@ -140,7 +139,6 @@ class build_model(nn.Module):
         self.alpha                = alpha
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
-        self.skip                 = skip
 
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
@@ -263,24 +261,10 @@ class build_model(nn.Module):
 
 
 
-    def segment(self, future_s):
-        B, T, D    = future_s.shape
-        skip       = self.skip
-        time_idx   = torch.arange(T, device=future_s.device)
-        mask       = (time_idx % skip == 0)          
-        mask       = mask.view(1, T, 1)              
-        future_s   = future_s * mask   
-        return future_s
-
-
-
-
     def _forward(self, history_s, history_a, present_s, future_s, future_a):
     
         future_r_list = list()
         future_s_list = list()
-        
-        skip = self.skip
 
         present_s = present_s.unsqueeze(1)
     
@@ -288,7 +272,7 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a # self.segment(history_s) + history_a
+            history_s_a = history_s + history_a 
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
                 
@@ -299,12 +283,12 @@ class build_model(nn.Module):
 
         kv_caches = [dict() for _ in self.transformer_layers]
     
-        for i in range(int(future_a.size(1)/skip)):
+        for i in range(int(future_a.size(1))):
     
             if i == 0:
-                h = torch.cat([history_s_a, present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
+                h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
             else:
-                h = torch.cat([             present_s + future_a[:, i*skip:i*skip+1], future_a[:, i*skip+1:i*skip+skip]], dim=1)
+                h = torch.cat([             present_s + future_a[:, i:i+1]], dim=1)
                 
             h = F.gelu(h)
             h = self.dropout_0(h)
@@ -312,18 +296,18 @@ class build_model(nn.Module):
             """
             Transformer decoder
             """
-            long = history_s_a.size(1) + i * skip + skip
+            long = history_s_a.size(1) + i + 1
             if i == 0:
                 h = h + self.positional_encoding[:,          :long, :]
             else:
-                h = h + self.positional_encoding[:, long-skip:long, :]
+                h = h + self.positional_encoding[:, long-1   :long, :]
             for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_ = attention_norm(h)
                 if i == 0:
                     h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :,          :long, :long], kv_cache=kv_caches[j])
                 else:
-                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-skip:long, :long], kv_cache=kv_caches[j])
+                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-1   :long, :long], kv_cache=kv_caches[j])
                 h = h + h_
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear(h_)
@@ -333,7 +317,7 @@ class build_model(nn.Module):
             Transformer decoder
             """
     
-            h = h[:, -skip:, :]
+            h = h[:, -1:, :]
             h = self.dropout_1(h)
             r = self.reward_linear(h)
             r = torch.tanh(r) 
@@ -362,7 +346,7 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a # self.segment(history_s) + history_a
+            history_s_a = history_s + history_a
         else:
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
 
@@ -371,7 +355,7 @@ class build_model(nn.Module):
         future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
         future_s   = torch.cat((present_s, future_s), dim=1)
         future_a   = self.action_norm(self.action_linear(future_a) )
-        future_s_a = self.segment(future_s) + future_a
+        future_s_a = future_s + future_a
         
                 
         h = torch.cat([history_s_a, future_s_a], dim=1)
