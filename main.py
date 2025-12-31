@@ -250,7 +250,7 @@ max_itrtn_for_planning = 20
 episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 50
-buffer_limit = 50000
+buffer_limit = 100000
 render_for_human = False
 
 # -----------------------
