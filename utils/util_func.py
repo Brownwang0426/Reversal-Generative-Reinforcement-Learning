@@ -68,8 +68,8 @@ def load_buffer_from_pickle(filename):
 def retrieve_history(state_list, action_list, history_size, skip, device):
     if history_size != 0:
         history_size     *= skip
-        history_state     = torch.stack(state_list [-history_size-1:-1][:: skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_action    = torch.stack(action_list[-history_size  :  ][:: skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_state     = torch.stack(state_list [-history_size-1:-1: skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_action    = torch.stack(action_list[-history_size  :  : skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
     else:
         history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
         history_action    = torch.empty(0, 0, 0).to(device, non_blocking=True)
@@ -178,8 +178,8 @@ def sequentialize(state_list, action_list, reward_list, history_size, future_siz
 
             node  = i + history_size
             
-            history_state_list.append (      torch.stack(state_list [ i : node ][         :                               :  skip  ], dim=0)          )
-            history_action_list.append(      torch.stack(action_list[ i : node ][         :                               :  skip  ], dim=0)          )
+            history_state_list.append (      torch.stack(state_list [ i : node                                            :  skip  ], dim=0)          )
+            history_action_list.append(      torch.stack(action_list[ i : node                                            :  skip  ], dim=0)          )
             present_state_list.append (                  state_list [     node                                                     ]                  )
             future_action_list.append (      torch.stack(action_list[     node            : node + future_size            :  skip  ], dim=0)          )
             future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size            :  skip  ], dim=0)          )
@@ -191,8 +191,8 @@ def sequentialize(state_list, action_list, reward_list, history_size, future_siz
 
             node = i + history_size
 
-            history_state_list.append (      torch_empty  )
-            history_action_list.append(      torch_empty  )
+            history_state_list.append (                  torch_empty                                                                                  )
+            history_action_list.append(                  torch_empty                                                                                  )
             present_state_list.append (                  state_list [     node                                                     ]                  )
             future_action_list.append (      torch.stack(action_list[     node            : node + future_size            :  skip  ], dim=0)          )
             future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size            :  skip  ], dim=0)          )
