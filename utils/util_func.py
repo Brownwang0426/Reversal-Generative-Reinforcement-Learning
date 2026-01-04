@@ -134,11 +134,11 @@ def update_future_action(itrtn_for_planning,
 
         # ----- custom gradient update -----
 
-        grad_sign   = grad.sign()
-        grad_abs    = grad.abs()
-        base        = torch.tanh(grad_abs)
-        decay       = torch.exp(-(grad_abs.mean() - 1))
-        grad        = grad_sign * base * decay
+        # grad_sign   = grad.sign()
+        # grad_abs    = grad.abs()
+        # base        = torch.tanh(grad_abs)
+        # decay       = torch.exp(-(grad_abs.mean() - 1))
+        # grad        = grad_sign * base * decay
 
         # grad_sign   = grad.sign()
         # grad_abs    = grad.abs()

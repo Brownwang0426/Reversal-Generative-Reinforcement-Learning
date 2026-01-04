@@ -167,11 +167,12 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
+            s = torch.tanh(s) 
             
             future_r_list.append(r)
             future_s_list.append(s)
 
-            present_s = s
+            present_s = copy.deepcopy(s)
             present_s = self.state_norm(self.state_linear(present_s)) 
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
@@ -202,15 +203,9 @@ class build_model(nn.Module):
         future_a  = self.action_norm(self.action_linear(future_a ))
     
 
-        kv_caches = [dict() for _ in self.transformer_layers]
-    
         for i in range(int(future_a.size(1))):
     
-            if i == 0:
-                h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
-            else:
-                h = torch.cat([             present_s + future_a[:, i:i+1]], dim=1)
-                
+            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
             h = F.gelu(h)
             h = self.dropout_0(h)
     
@@ -227,13 +222,16 @@ class build_model(nn.Module):
             r = self.reward_linear(h)
             r = torch.tanh(r) 
             s = self.state_linear_(h)
+            s = torch.tanh(s) 
 
             future_r_list.append(r)
             future_s_list.append(s)
     
             present_s = s[:, -1:, :]
             present_s = self.state_norm(self.state_linear(present_s)) 
-            
+
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
     
@@ -279,6 +277,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
+        s = torch.tanh(s) 
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 

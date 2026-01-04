@@ -246,11 +246,12 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
+            s = torch.tanh(s) 
 
             future_r_list.append(r)
             future_s_list.append(s)
 
-            present_s = s
+            present_s = copy.deepcopy(s)
             present_s = self.state_norm(self.state_linear(present_s)) 
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
@@ -282,33 +283,24 @@ class build_model(nn.Module):
     
 
         kv_caches = [dict() for _ in self.transformer_layers]
+        start     = 0
     
         for i in range(int(future_a.size(1))):
     
-            if i == 0:
-                h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
-            else:
-                h = torch.cat([             present_s + future_a[:, i:i+1]], dim=1)
-                
+            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
             h = F.gelu(h)
             h = self.dropout_0(h)
     
             """
             Transformer decoder
             """
-            long = history_s_a.size(1) + i + 1
-            if i == 0:
-                h = h + self.positional_encoding[:,          :long, :]
-            else:
-                h = h + self.positional_encoding[:, long-1   :long, :]
+            end  = start + history_s_a.size(1) + 1
+            h    = h + self.positional_encoding[:, start : end , :]
             for j, layer in enumerate(self.transformer_layers):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                h_ = attention_norm(h)
-                if i == 0:
-                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :,          :long, :long], kv_cache=kv_caches[j])
-                else:
-                    h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, long-1   :long, :long], kv_cache=kv_caches[j])
-                h = h + h_
+                h_  = attention_norm(h)
+                h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, start : end, : end], kv_cache=kv_caches[j])
+                h   = h + h_
                 h_  = fully_connected_norm(h)
                 h_  = fully_connected_linear(h_)
                 h   = h + h_
@@ -322,12 +314,16 @@ class build_model(nn.Module):
             r = self.reward_linear(h)
             r = torch.tanh(r) 
             s = self.state_linear_(h)
+            s = torch.tanh(s) 
 
             future_r_list.append(r)
             future_s_list.append(s)
     
             present_s = s[:, -1:, :]
             present_s = self.state_norm(self.state_linear(present_s)) 
+
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            start       = copy.deepcopy(end) 
             
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
@@ -384,7 +380,8 @@ class build_model(nn.Module):
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
-
+        s = torch.tanh(s) 
+        
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 
 
