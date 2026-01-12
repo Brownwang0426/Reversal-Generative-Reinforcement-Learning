@@ -132,21 +132,14 @@ def update_future_action(itrtn_for_planning,
 
         grad = _future_action.grad
 
-        # ----- custom gradient update -----
-
-        # grad_sign   = grad.sign()
-        # grad_abs    = grad.abs()
-        # base        = torch.tanh(grad_abs)
-        # decay       = torch.exp(-(grad_abs.mean() - 1))
-        # grad        = grad_sign * base * decay
-
-        # grad_sign   = grad.sign()
-        # grad_abs    = grad.abs()
-        # base        = torch.tanh(3 * grad_abs)
-        # decay       = torch.exp(-(grad_abs - 1).clamp(min=0))
-        # grad        = grad_sign * base * decay 
-        
-        # ----- custom gradient update -----
+        """
+        Magnitude-aware gradient descent
+        """
+        grad_sign   = grad.sign()
+        grad_abs    = grad.abs()
+        base        = torch.tanh(grad_abs)
+        decay       = torch.exp(-(grad_abs.mean() - 1))
+        grad        = grad_sign * base * decay
 
         future_action = future_action - beta * grad
 
@@ -371,12 +364,8 @@ def obtain_priority_probability(model, dataset, device):
     # 🔹 unique rewards by row
     unique_rewards, inverse_indices, counts = torch.unique(rewards, dim=0, return_inverse=True, return_counts=True)
 
-    # 🔹 inverse frequency weighting
-    param    = 1.0
-    min_prob = 0.01
-    inv_freq = (1.0 / counts.float()) ** param
-    sample_weights = inv_freq[inverse_indices]  # map back to each sample
-    probabilities = torch.clamp(sample_weights, min=min_prob)
+    num_classes   = unique_rewards.size(0)
+    probabilities = 1.0 / (num_classes * counts[inverse_indices].float())
     probabilities = probabilities / probabilities.sum()
 
     return probabilities
@@ -402,6 +391,21 @@ def update_model_per(itrtn_for_learning,
         future_action  = torch.stack(future_action ).to(device)
         future_reward  = torch.stack(future_reward ).to(device)
         future_state   = torch.stack(future_state  ).to(device)
+
+        """
+        Training with random variable-length sequences similar to Context length randomization
+        """
+        h_len          = history_state.size(1)
+        f_len          = future_action.size(1)
+        k              = 1
+        r_h            = k + np.random.randint(h_len - k)
+        r_f            = k + np.random.randint(f_len - k)
+        history_state  = history_state [:, -r_h:, :]
+        history_action = history_action[:, -r_h:, :]
+        present_state  = present_state
+        future_action  = future_action [:,  :r_f, :]
+        future_reward  = future_reward [:,  :r_f, :]
+        future_state   = future_state  [:,  :r_f, :]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -435,13 +439,29 @@ def update_model(itrtn_for_learning,
 
         batch_samples  = [dataset[i] for i in final_indices]
         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+
         history_state  = torch.stack(history_state ).to(device)
         history_action = torch.stack(history_action).to(device)
         present_state  = torch.stack(present_state ).to(device)
         future_action  = torch.stack(future_action ).to(device)
         future_reward  = torch.stack(future_reward ).to(device)
         future_state   = torch.stack(future_state  ).to(device)
- 
+
+        """
+        Training with random variable-length sequences similar to Context length randomization
+        """
+        h_len          = history_state.size(1)
+        f_len          = future_action.size(1)
+        k              = 1
+        r_h            = k + np.random.randint(h_len - k)
+        r_f            = k + np.random.randint(f_len - k)
+        history_state  = history_state [:, -r_h:, :]
+        history_action = history_action[:, -r_h:, :]
+        present_state  = present_state
+        future_action  = future_action [:,  :r_f, :]
+        future_reward  = future_reward [:,  :r_f, :]
+        future_state   = future_state  [:,  :r_f, :]
+
         model.train()
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()

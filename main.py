@@ -71,51 +71,6 @@ torch.backends.cudnn.benchmark = True
 # -----------------------
 
 
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-skip = 1                             #⚠️ 
-neural_type = 'td'                   #⚠️
-num_layers = 3                       #⚠️
-num_heads = 10                       #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.00
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1
-max_itrtn_for_planning = 20        
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 50
-buffer_limit = 100000
-render_for_human = False
-
-# -----------------------
-
-
 
 game_name =  'MountainCar-v0'        #⚠️
 max_steps_for_each_episode = 200     #⚠️
@@ -141,8 +96,8 @@ drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
+min_itrtn_for_learning = 5000        #⚠️
+max_itrtn_for_learning = 5000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
@@ -151,13 +106,14 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 20        
+max_itrtn_for_planning = 50       
 
 episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 50
 buffer_limit = 100000
 render_for_human = False
+
 
 
 # -----------------------
@@ -187,8 +143,8 @@ drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
+min_itrtn_for_learning = 5000        #⚠️
+max_itrtn_for_learning = 5000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
@@ -197,7 +153,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 20        
+max_itrtn_for_planning = 50       
 
 episode_for_training = 100000
 episode_for_validation = 10
@@ -208,21 +164,22 @@ render_for_human = False
 
 
 
+
 # -----------------------
 
 
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  500                    #⚠️
+state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size = 25                    #⚠️
-future_size = 15                     #⚠️ 
-skip = 2                             #⚠️ 
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+skip = 1                             #⚠️ 
 neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
@@ -235,23 +192,70 @@ drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
+min_itrtn_for_learning = 500         #⚠️
+max_itrtn_for_learning = 500         #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 min_param_for_learning = 1
 max_param_for_learning = 1
 PER = False
 
-beta = 0.01
+beta = 0.1
 min_itrtn_for_planning = 1
-max_itrtn_for_planning = 100        
+max_itrtn_for_planning = 50       
 
 episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 50
 buffer_limit = 100000
 render_for_human = False
+
+# -----------------------
+
+
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 500     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  500                    #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size = 50                    #⚠️
+future_size = 20                     #⚠️ 
+skip = 4                             #⚠️ 
+neural_type = 'td'                   #⚠️
+num_layers = 3                       #⚠️
+num_heads = 10                       #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.00
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+min_itrtn_for_learning = 5000        #⚠️
+max_itrtn_for_learning = 5000        #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+min_param_for_learning = 1
+max_param_for_learning = 1
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1
+max_itrtn_for_planning = 50       
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 50
+buffer_limit = 100000
+render_for_human = False
+
+
 
 # -----------------------
 
@@ -598,7 +602,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
 
-        print(history_state_stack.size())
+
         """
         We limit buffer to save vram.
         """
@@ -627,7 +631,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                                 future_reward_hash_set   ,
                                                 future_state_hash_set  ,
                                                 buffer_limit  )
-        print(history_state_stack.size())
+
 
 
 
