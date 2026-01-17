@@ -215,7 +215,7 @@ render_for_human = False
 
 
 game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 100     #⚠️
+max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
@@ -223,8 +223,8 @@ state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size =  50                   #⚠️
-future_size = 50                     #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td_ori'               #⚠️
 num_layers = 3                       #⚠️
