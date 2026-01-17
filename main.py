@@ -169,7 +169,7 @@ render_for_human = False
 # -----------------------
 
 game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 500     #⚠️
+max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
@@ -177,8 +177,8 @@ state_size =  500                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size = 100                   #⚠️
-future_size = 100                    #⚠️ 
+history_size = 150                   #⚠️
+future_size = 150                    #⚠️ 
 skip = 1                             #⚠️ 
 neural_type = 'td_ori'               #⚠️
 num_layers = 3                       #⚠️
