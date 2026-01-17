@@ -133,7 +133,7 @@ def update_future_action(itrtn_for_planning,
         grad = _future_action.grad
 
         """
-        Magnitude-aware gradient descent
+        [ADDITIONAL] We use magnitude-aware gradient descent
         """
         grad_sign   = grad.sign()
         grad_abs    = grad.abs()
@@ -393,7 +393,7 @@ def update_model_per(itrtn_for_learning,
         future_state   = torch.stack(future_state  ).to(device)
 
         """
-        Training with random variable-length sequences similar to Context length randomization
+        [ADDITIONAL] Training with random variable-length sequences similar to Context length randomization
         """
         h_len          = history_state.size(1)
         f_len          = future_action.size(1)

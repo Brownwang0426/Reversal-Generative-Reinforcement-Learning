@@ -247,7 +247,7 @@ class build_model(nn.Module):
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
             """
-            To avoid vanishing gradient descent, we use linear activation here
+            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
             """
             # s = torch.tanh(s) 
             s = s

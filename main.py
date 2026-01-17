@@ -443,13 +443,13 @@ for training_episode in tqdm(range(episode_for_training)):
     while not done_truncated_flag:
 
         """
-        We added frame skipping.
+        [ADDITIONAL] We added frame skipping.
         """
         """
-        We let agent took some history states into consideration.
+        [ADDITIONAL] We let agent took some history states into consideration.
         """
         """
-        The final desired reward is factually the last time step in desired reward.
+        [ADDITIONAL] The final desired reward is factually the last time step in desired reward.
         """
         # initializing and updating action by desired reward
         history_state, \
@@ -489,7 +489,7 @@ for training_episode in tqdm(range(episode_for_training)):
         state_list.append(state)
 
         """
-        We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes.
+        [ADDITIONAL] We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes.
         Though it is contrary to common practice in RL, this is for better handling the sequentialization of the short-term experience replay buffer with fixed window length.
         And it is also for agent to plan ahead even after the episode is done.
         We give a done flag to state to indicate that the environment is done so that the agent won't be confused.
@@ -535,7 +535,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
     """
-    We dropped duplicated experiences in the buffer and to maintain diveristy and to save ram.
+    [ADDITIONAL] We dropped duplicated experiences in the buffer and to maintain diveristy and to save ram.
     """
     # storing sequentialized short term experience to long term experience replay buffer
     history_state_stack, \
@@ -604,7 +604,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         """
-        We limit buffer to save vram.
+        [ADDITIONAL] We limit buffer to save vram.
         """
         # limit_buffer
         history_state_stack, \
