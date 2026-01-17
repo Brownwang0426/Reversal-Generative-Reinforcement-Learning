@@ -83,8 +83,13 @@ def retrieve_present(state_list, device):
 
 
 
-def initialize_future_action(shape, device):
-    return torch.zeros(shape).to(device, non_blocking=True)
+def initialize_future_action(shape, device, mean=0.0, std=0.0):
+    return torch.normal(
+        mean=mean,
+        std=std,
+        size=shape,
+        device=device
+    )
 
 
 
@@ -132,14 +137,14 @@ def update_future_action(itrtn_for_planning,
 
         grad = _future_action.grad
 
-        """
-        [ADDITIONAL] We use magnitude-aware gradient descent
-        """
-        grad_sign   = grad.sign()
-        grad_abs    = grad.abs()
-        base        = torch.tanh(grad_abs)
-        decay       = torch.exp(-(grad_abs.mean() - 1))
-        grad        = grad_sign * base * decay
+        # """
+        # [ADDITIONAL] We use magnitude-aware gradient descent
+        # """
+        # grad_sign   = grad.sign()
+        # grad_abs    = grad.abs()
+        # base        = torch.tanh(grad_abs)
+        # decay       = torch.exp(-(grad_abs.mean() - 1))
+        # grad        = grad_sign * base * decay
 
         future_action = future_action - beta * grad
 
