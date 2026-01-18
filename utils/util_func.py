@@ -83,7 +83,7 @@ def retrieve_present(state_list, device):
 
 
 
-def initialize_future_action(shape, device, mean=0.0, std=0.0):
+def initialize_future_action(shape, device, mean=0.0, std=0.01):
     return torch.normal(
         mean=mean,
         std=std,
@@ -136,15 +136,6 @@ def update_future_action(itrtn_for_planning,
         total_loss.backward() 
 
         grad = _future_action.grad
-
-        # """
-        # [ADDITIONAL] We use magnitude-aware gradient descent
-        # """
-        # grad_sign   = grad.sign()
-        # grad_abs    = grad.abs()
-        # base        = torch.tanh(grad_abs)
-        # decay       = torch.exp(-(grad_abs.mean() - 1))
-        # grad        = grad_sign * base * decay
 
         future_action = future_action - beta * grad
 
@@ -315,8 +306,7 @@ def obtain_priority_probability(model, dataset, device):
 def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
-                     batch_size,
-                     param):
+                     batch_size):
         
     device         = next(model.parameters()).device
 
@@ -378,8 +368,7 @@ def obtain_priority_probability(model, dataset, device):
 def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
-                     batch_size,
-                     param):
+                     batch_size):
         
     device         = next(model.parameters()).device
     priority_probability = obtain_priority_probability(model, dataset, device)
@@ -396,21 +385,6 @@ def update_model_per(itrtn_for_learning,
         future_action  = torch.stack(future_action ).to(device)
         future_reward  = torch.stack(future_reward ).to(device)
         future_state   = torch.stack(future_state  ).to(device)
-
-        """
-        [ADDITIONAL] Training with random variable-length sequences similar to Context length randomization
-        """
-        h_len          = history_state.size(1)
-        f_len          = future_action.size(1)
-        k              = 1
-        r_h            = k + np.random.randint(h_len - k)
-        r_f            = k + np.random.randint(f_len - k)
-        history_state  = history_state [:, -r_h:, :]
-        history_action = history_action[:, -r_h:, :]
-        present_state  = present_state
-        future_action  = future_action [:,  :r_f, :]
-        future_reward  = future_reward [:,  :r_f, :]
-        future_state   = future_state  [:,  :r_f, :]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -433,8 +407,7 @@ def update_model_per(itrtn_for_learning,
 def update_model(itrtn_for_learning,
                  dataset,
                  model,
-                 batch_size,
-                 param):
+                 batch_size):
     
     device = next(model.parameters()).device
 
@@ -451,21 +424,6 @@ def update_model(itrtn_for_learning,
         future_action  = torch.stack(future_action ).to(device)
         future_reward  = torch.stack(future_reward ).to(device)
         future_state   = torch.stack(future_state  ).to(device)
-
-        """
-        Training with random variable-length sequences similar to Context length randomization
-        """
-        h_len          = history_state.size(1)
-        f_len          = future_action.size(1)
-        k              = 1
-        r_h            = k + np.random.randint(h_len - k)
-        r_f            = k + np.random.randint(f_len - k)
-        history_state  = history_state [:, -r_h:, :]
-        history_action = history_action[:, -r_h:, :]
-        present_state  = present_state
-        future_action  = future_action [:,  :r_f, :]
-        future_reward  = future_reward [:,  :r_f, :]
-        future_state   = future_state  [:,  :r_f, :]
 
         model.train()
         selected_optimizer = model.selected_optimizer
@@ -489,22 +447,19 @@ def update_model_list(itrtn_for_learning,
                       dataset,
                       model_list,
                       batch_size,
-                      param,
                       PER):
     if not PER:
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model(itrtn_for_learning,
                                          dataset,
                                          model,
-                                         batch_size,
-                                         param)
+                                         batch_size)
     else:
         for i, model in enumerate(tqdm(model_list, desc="Updating models")):
             model_list[i] = update_model_per(itrtn_for_learning,
                                              dataset,
                                              model,
-                                             batch_size,
-                                             param)
+                                             batch_size)
     return model_list
 
 

@@ -100,8 +100,8 @@ min_itrtn_for_learning = 5000        #⚠️
 max_itrtn_for_learning = 5000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
+min_param_for_planning = 1
+max_param_for_planning = 1
 PER = False
 
 beta = 0.1
@@ -147,8 +147,8 @@ min_itrtn_for_learning = 5000        #⚠️
 max_itrtn_for_learning = 5000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
+min_param_for_planning = 1
+max_param_for_planning = 1
 PER = False
 
 beta = 0.1
@@ -180,7 +180,7 @@ feature_size = 500                   #⚠️
 history_size = 150                   #⚠️
 future_size = 150                    #⚠️ 
 skip = 1                             #⚠️ 
-neural_type = 'td_ori'               #⚠️
+neural_type = 'td'                   #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
@@ -196,8 +196,8 @@ min_itrtn_for_learning = 5000        #⚠️
 max_itrtn_for_learning = 5000        #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
+min_param_for_planning = 1
+max_param_for_planning = 1
 PER = False
 
 beta = 0.1
@@ -226,7 +226,7 @@ feature_size = 500                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
-neural_type = 'td_ori'               #⚠️
+neural_type = 'td_chain'             #⚠️
 num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 
@@ -242,13 +242,13 @@ min_itrtn_for_learning = 500         #⚠️
 max_itrtn_for_learning = 500         #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
-min_param_for_learning = 1
-max_param_for_learning = 1
 PER = False
 
 beta = 0.1
-min_itrtn_for_planning = 1
-max_itrtn_for_planning = 100       
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 100         #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
@@ -294,14 +294,14 @@ else:
     raise RuntimeError('Missing env functions')
 
 model_modules = {
-    'td_ori': 'models.model_td_ori',
-    'rnn_ori': 'models.model_rnn_ori',
-    'gru_ori': 'models.model_rnn_ori',
-    'lstm_ori': 'models.model_rnn_ori',
     'td': 'models.model_td',
     'rnn': 'models.model_rnn',
     'gru': 'models.model_rnn',
-    'lstm': 'models.model_rnn'
+    'lstm': 'models.model_rnn',
+    'td_chain': 'models.model_td_chain',
+    'rnn_chain': 'models.model_rnn_chain',
+    'gru_chain': 'models.model_rnn_chain',
+    'lstm_chain': 'models.model_rnn_chain'
 }
 if neural_type in model_modules:
     model_module = __import__(model_modules[neural_type], fromlist=['build_model'])
@@ -407,8 +407,11 @@ if load_pretrained_model == True:
 # retreive highest reward
 if len(performance_log) > 0:
     itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
+    param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
+
 else:
     itrtn_for_planning = min_itrtn_for_planning
+    param_for_planning = max_param_for_planning
 
 # starting each episode
 for training_episode in tqdm(range(episode_for_training)):
@@ -459,7 +462,7 @@ for training_episode in tqdm(range(episode_for_training)):
         history_state, \
         history_action  = retrieve_history(state_list, action_list, history_size, skip, device_)
         present_state   = retrieve_present(state_list, device_)
-        future_action   = initialize_future_action ((1, future_size, action_size), device_)
+        future_action   = initialize_future_action ((1, future_size, action_size), device_, std = param_for_planning)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
         future_action   = update_future_action(itrtn_for_planning ,
                                                model_list,
@@ -584,7 +587,6 @@ for training_episode in tqdm(range(episode_for_training)):
         # retreive highest reward
         itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
         batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
-        param_for_learning = min_param_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_learning - min_param_for_learning, episode_for_averaging)
 
 
 
@@ -600,7 +602,6 @@ for training_episode in tqdm(range(episode_for_training)):
                                         dataset,
                                         model_list,
                                         batch_size_for_learning,
-                                        param_for_learning,
                                         PER
                                         )
 

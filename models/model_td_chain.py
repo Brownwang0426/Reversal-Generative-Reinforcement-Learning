@@ -140,28 +140,29 @@ class build_model(nn.Module):
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
 
-        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.dropout_0            = nn.Dropout(self.drop_rate)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                nn.Sequential(
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                    nn.GELU(),
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                )
             ])
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size), float("-inf"))
+        mask                      = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
@@ -202,38 +203,184 @@ class build_model(nn.Module):
 
     def forward(self, history_s, history_a, present_s, future_s, future_a):
 
-        if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s              ))
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            history_s = history_s + self.state_type
-            present_s = present_s + self.state_type
-            future_a  = future_a  + self.action_type
-            h = torch.cat([history_s, present_s, future_a], dim=1)
-        else:
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-            future_a  = self.action_norm(self.action_linear(future_a              ))
-            present_s = present_s + self.state_type
-            future_a  = future_a  + self.action_type
-            h = torch.cat([present_s, future_a], dim=1)
+        future_r_list = list()
+        future_s_list = list()
 
-        h = F.gelu(h)  # typical layer norm -> gelu
+        present_s = present_s.unsqueeze(1)
+
+
+        window_list   = list()
+        if history_s.size(1) > 0:
+            history_s = self.state_norm (self.state_linear (history_s) )
+            history_a = self.action_norm(self.action_linear(history_a) )
+            for i in range(history_s.size(1)):
+                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
+        
+
+        present_s = self.state_norm (self.state_linear (present_s))
+        future_a  = self.action_norm(self.action_linear(future_a ))
+
+
+        for i in range(future_a.size(1)):
+
+            window_list.append(present_s + future_a[:, i:i+1])
+            h = torch.cat(window_list, dim=1)
+            h = F.gelu(h)  # typical layer norm -> gelu
+            h = self.dropout_0(h)
+
+            """
+            Transformer decoder
+            """
+            long = h.size(1)
+            h    = h + self.positional_encoding[:, :long, :]
+            for layer in self.transformer_layers:
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+                h_  = attention_norm(h) 
+                h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+                h   = h + h_ # typical pre-norm style
+                h_  = fully_connected_norm(h)
+                h_  = fully_connected_linear(h_)
+                h   = h + h_ # typical pre-norm style
+            h  = self.transformer_norm(h)
+            """
+            We utilize the last idx in h to derive the latest reward and state.
+            """
+
+            h = self.dropout_1(h)
+            r = self.reward_linear(h[:, -1:, :])
+            r = torch.tanh(r)  
+            s = self.state_linear_(h[:, -1:, :])
+            """
+            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
+            """
+            # s = torch.tanh(s) 
+            s = s
+
+            future_r_list.append(r)
+            future_s_list.append(s)
+
+            present_s = copy.deepcopy(s)
+            present_s = self.state_norm(self.state_linear(present_s)) 
+
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+
+
+
+    def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    
+        future_r_list = list()
+        future_s_list = list()
+
+        present_s = present_s.unsqueeze(1)
+    
+
+        if history_s.size(1) > 0:
+            history_s   = self.state_norm (self.state_linear (history_s) )
+            history_a   = self.action_norm(self.action_linear(history_a) )
+            history_s_a = history_s + history_a 
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+                
+
+        present_s = self.state_norm (self.state_linear (present_s))
+        future_a  = self.action_norm(self.action_linear(future_a ))
+    
+
+        kv_caches = [dict() for _ in self.transformer_layers]
+        start     = 0
+    
+        for i in range(int(future_a.size(1))):
+    
+            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
+            h = F.gelu(h)
+            h = self.dropout_0(h)
+    
+            """
+            Transformer decoder
+            """
+            end  = start + history_s_a.size(1) + 1
+            h    = h + self.positional_encoding[:, start : end , :]
+            for j, layer in enumerate(self.transformer_layers):
+                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+                h_  = attention_norm(h)
+                h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, start : end, : end], kv_cache=kv_caches[j])
+                h   = h + h_
+                h_  = fully_connected_norm(h)
+                h_  = fully_connected_linear(h_)
+                h   = h + h_
+            h = self.transformer_norm(h)
+            """
+            Transformer decoder
+            """
+    
+            h = h[:, -1:, :]
+            h = self.dropout_1(h)
+            r = self.reward_linear(h)
+            r = torch.tanh(r) 
+            s = self.state_linear_(h)
+            # s = torch.tanh(s) 
+            s = s
+
+            future_r_list.append(r)
+            future_s_list.append(s)
+    
+            present_s = s[:, -1:, :]
+            present_s = self.state_norm(self.state_linear(present_s)) 
+
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            start       = copy.deepcopy(end) 
+            
+        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
+        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+    
+        return future_r, future_s
+
+    
+
+
+    def forward_(self, history_s, history_a, present_s, future_s, future_a):
+
+
+        present_s = present_s.unsqueeze(1)
+
+
+        if history_s.size(1) > 0:
+            history_s   = self.state_norm (self.state_linear (history_s) )
+            history_a   = self.action_norm(self.action_linear(history_a) )
+            history_s_a = history_s + history_a
+        else:
+            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+
+
+        present_s  = self.state_norm (self.state_linear (present_s))
+        future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
+        future_s   = torch.cat((present_s, future_s), dim=1)
+        future_a   = self.action_norm(self.action_linear(future_a) )
+        future_s_a = future_s + future_a
+        
+                
+        h = torch.cat([history_s_a, future_s_a], dim=1)
+        h = F.gelu(h)
         h = self.dropout_0(h)
 
         """
         Transformer decoder
         """
         long = h.size(1)
-        h    = h + self.positional_encoding[:, :long, :]
+        h = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-            h_ = attention_norm(h)
-            h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
-            h  = h + h_ # typical pre-norm style
-            h_ = fully_connected_norm(h)
-            h_ = fully_connected_linear(h_)
-            h  = h + h_ # typical pre-norm style
-        h = self.transformer_norm(h) 
+            h_  = attention_norm(h)
+            h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+            h   = h + h_
+            h_  = fully_connected_norm(h)
+            h_  = fully_connected_linear(h_)
+            h   = h + h_
+        h = self.transformer_norm(h)
         """
         Transformer decoder
         """
@@ -241,23 +388,14 @@ class build_model(nn.Module):
         h = self.dropout_1(h)
         r = self.reward_linear(h)
         r = torch.tanh(r)  
+        s = self.state_linear_(h)
+        # s = torch.tanh(s) 
+        s = s
 
-        future_r = r[:, -future_a.size(1): , :]
-        future_s = torch.zeros((future_a.size(0), future_a.size(1), self.state_size), device=future_a.device, dtype=future_a.dtype)
+        future_r = r[:, -future_a.size(1):, :]
+        future_s = s[:, -future_a.size(1):, :] 
 
         return future_r, future_s
-
-
-
-
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
-        return self.forward(history_s, history_a, present_s, future_s, future_a)
-
-    
-
-
-    def forward_(self, history_s, history_a, present_s, future_s, future_a):
-        return self.forward(history_s, history_a, present_s, future_s, future_a)
 
 
 

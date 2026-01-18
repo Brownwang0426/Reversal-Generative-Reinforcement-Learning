@@ -79,6 +79,9 @@ class build_model(nn.Module):
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
 
+        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+
         self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
         self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
@@ -130,168 +133,64 @@ class build_model(nn.Module):
 
     def forward(self, history_s, history_a, present_s, future_s, future_a):
 
-        future_r_list = list()
-        future_s_list = list()
-
-        present_s = present_s.unsqueeze(1)
-
-
-        window_list   = list()
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
-            for i in range(history_s.size(1)):
-                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1]) 
-        
+            history_s = self.state_norm (self.state_linear (history_s              ))
+            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
+            future_a  = self.action_norm(self.action_linear(future_a               ))
+            history_s = history_s + self.state_type
+            present_s = present_s + self.state_type
+            future_a  = future_a  + self.action_type
+            h = torch.cat([history_s, present_s, future_a], dim=1)
+        else:
+            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
+            future_a  = self.action_norm(self.action_linear(future_a              ))
+            present_s = present_s + self.state_type
+            future_a  = future_a  + self.action_type
+            h = torch.cat([present_s, future_a], dim=1)
 
-        present_s = self.state_norm (self.state_linear (present_s))
-        future_a  = self.action_norm(self.action_linear(future_a ))
-        
+        h = F.gelu(h)  # typical layer norm -> gelu
+        h = self.dropout_0(h)
 
-        for i in range(future_a.size(1)):
+        """
+        Transformer decoder
+        """
+        h, _ = self.recurrent_layers(h)
+        """
+        Transformer decoder
+        """
 
-            window_list.append(present_s + future_a[:, i:i+1])
-            h = torch.cat(window_list, dim=1)
-            h = F.gelu(h)   # typical layer norm -> gelu
-            h = self.dropout_0(h)
+        h = self.dropout_1(h)
+        r = self.reward_linear(h)
+        r = torch.tanh(r)  
 
-            """
-            RNN, GRU, LSTM
-            """
-            h, _ = self.recurrent_layers(h)
-            """
-            RNN, GRU, LSTM
-            """
+        future_r = r[:, -future_a.size(1): , :]
+        future_s = torch.zeros((future_a.size(0), future_a.size(1), self.state_size), device=future_a.device, dtype=future_a.dtype)
 
-            h = self.dropout_1(h)
-            r = self.reward_linear(h[:, -1:, :])
-            r = torch.tanh(r)  
-            s = self.state_linear_(h[:, -1:, :])
-            """
-            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
-            """
-            # s = torch.tanh(s) 
-            s = s  
-            
-            future_r_list.append(r)
-            future_s_list.append(s)
-
-            present_s = copy.deepcopy(s)
-            present_s = self.state_norm(self.state_linear(present_s)) 
-
-        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
-    
         return future_r, future_s
 
 
 
 
     def _forward(self, history_s, history_a, present_s, future_s, future_a):
-    
-        future_r_list = list()
-        future_s_list = list()
-
-        present_s = present_s.unsqueeze(1)
-    
-
-        if history_s.size(1) > 0:
-            history_s   = self.state_norm (self.state_linear (history_s) )
-            history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a 
-        else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-                
-
-        present_s = self.state_norm (self.state_linear (present_s))
-        future_a  = self.action_norm(self.action_linear(future_a ))
-    
-
-        for i in range(int(future_a.size(1))):
-    
-            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
-            h = F.gelu(h)
-            h = self.dropout_0(h)
-    
-            """
-            Transformer decoder
-            """
-            h, hidden_cache = self.recurrent_layers(h, hidden_cache)
-            """
-            Transformer decoder
-            """
-    
-            h = h[:, -1:, :]
-            h = self.dropout_1(h)
-            r = self.reward_linear(h)
-            r = torch.tanh(r) 
-            s = self.state_linear_(h)
-            # s = torch.tanh(s) 
-            s = s
-
-            future_r_list.append(r)
-            future_s_list.append(s)
-    
-            present_s = s[:, -1:, :]
-            present_s = self.state_norm(self.state_linear(present_s)) 
-
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-
-        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
-    
-        return future_r, future_s
-
-
+        return self.forward(history_s, history_a, present_s, future_s, future_a)
 
     
+
+
     def forward_(self, history_s, history_a, present_s, future_s, future_a):
+        return self.forward(history_s, history_a, present_s, future_s, future_a)
 
 
-        present_s = present_s.unsqueeze(1)
 
 
-        if history_s.size(1) > 0:
-            history_s   = self.state_norm (self.state_linear (history_s) )
-            history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a 
-        else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
-
-
-        present_s  = self.state_norm (self.state_linear (present_s))
-        future_s   = self.state_norm (self.state_linear (future_s)[:, :-1, :])
-        future_s   = torch.cat((present_s, future_s), dim=1)
-        future_a   = self.action_norm(self.action_linear(future_a) )
-        future_s_a = future_s + future_a
-        
-                
-        h = torch.cat([history_s_a, future_s_a], dim=1)
-        h = F.gelu(h)
-        h = self.dropout_0(h)
-
-        """
-        RNN, GRU, LSTM
-        """
-        h, _ = self.recurrent_layers(h)
-        """
-        RNN, GRU, LSTM
-        """
-
-        h = self.dropout_1(h)
-        r = self.reward_linear(h)
-        r = torch.tanh(r)  
-        s = self.state_linear_(h)
-        # s = torch.tanh(s) 
-        s = s
-
-        future_r = r[:, -future_a.size(1):, :]
-        future_s = s[:, -future_a.size(1):, :] 
-
-        return future_r, future_s
-    
-
-
+    def generate_positional_encoding(self, sequence_size, feature_size):
+        pe = torch.zeros(sequence_size,feature_size)
+        for pos in range(sequence_size):
+            for i in range(0,feature_size,2):
+                pe[pos, i] = math.sin(pos / (10000 ** ((2 * i)/feature_size)))
+                if i + 1 < feature_size:
+                    pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * i)/feature_size)))
+        return pe.unsqueeze(0)  # Shape: (1, sequence_size, feature_size)
 
     def initialize_weights(self, initializer):
         initializers = {
@@ -310,12 +209,3 @@ class build_model(nn.Module):
                 initializer(module.weight)     # module.weight and module.bias are parameters
                 if module.bias is not None:   
                     nn.init.zeros_(module.bias)
-
-
-
-
-
-
-
-
-
