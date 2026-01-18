@@ -141,14 +141,10 @@ class build_model(nn.Module):
         self.grad_clip_value      = grad_clip_value
 
         self.state_linear         = nn.Sequential(
-                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias)
                                     )
         self.action_linear        = nn.Sequential(
-                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias)
                                     )
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
@@ -176,13 +172,9 @@ class build_model(nn.Module):
 
         self.dropout_1            = nn.Dropout(self.drop_rate)
         self.reward_linear        = nn.Sequential(
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
                                     )
         self.state_linear_        = nn.Sequential(
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
                                         nn.Linear(self.feature_size, self.state_size, bias=self.bias)
                                     )
 
