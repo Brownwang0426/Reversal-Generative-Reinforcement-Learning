@@ -66,9 +66,9 @@ class custom_attn(nn.Module):
         
 
         if mask != None:
-            attn_scores += mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
+            attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
-            attn_scores += 0
+            pass
 
         attn_probs = torch.softmax(attn_scores, dim=-1) 
         attn_probs = self.attn_dropout (attn_probs)
@@ -337,8 +337,8 @@ class build_model(nn.Module):
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
             start       = copy.deepcopy(end) 
             
-        future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
-        future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
+        future_r = torch.cat(future_r_list, dim=1) 
+        future_s = torch.cat(future_s_list, dim=1)
     
         return future_r, future_s
 

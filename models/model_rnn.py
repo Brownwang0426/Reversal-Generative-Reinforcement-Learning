@@ -82,11 +82,20 @@ class build_model(nn.Module):
         self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
         self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
 
-        self.state_linear         = nn.Linear(self.state_size  , self.feature_size, bias=self.bias)
-        self.action_linear        = nn.Linear(self.action_size , self.feature_size, bias=self.bias)
+        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+
+        self.state_linear         = nn.Sequential(
+                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias)
+                                    )
+        self.action_linear        = nn.Sequential(
+                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias)
+                                    )
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
-        self.dropout_0            = nn.Dropout(self.drop_rate)
+
+        self.dropout              = nn.Dropout(self.drop_rate)
 
         neural_types = {
             'rnn': nn.RNN,
@@ -96,9 +105,12 @@ class build_model(nn.Module):
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
-        self.dropout_1            = nn.Dropout(self.drop_rate)
-        self.reward_linear        = nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
-        self.state_linear_        = nn.Linear(self.feature_size, self.state_size , bias=self.bias)
+        self.reward_linear        = nn.Sequential(
+                                        nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+                                    )
+        self.state_linear_        = nn.Sequential(
+                                        nn.Linear(self.feature_size, self.state_size, bias=self.bias)
+                                    )
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -137,19 +149,16 @@ class build_model(nn.Module):
             history_s = self.state_norm (self.state_linear (history_s              ))
             present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
             future_a  = self.action_norm(self.action_linear(future_a               ))
-            history_s = history_s + self.state_type
-            present_s = present_s + self.state_type
-            future_a  = future_a  + self.action_type
+            history_s = history_s + self.history_type + self.state_type
+            present_s = present_s + self.present_type + self.state_type
+            future_a  = future_a  + self.future_type  + self.action_type
             h = torch.cat([history_s, present_s, future_a], dim=1)
         else:
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1)))
-            future_a  = self.action_norm(self.action_linear(future_a              ))
-            present_s = present_s + self.state_type
-            future_a  = future_a  + self.action_type
+            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
+            future_a  = self.action_norm(self.action_linear(future_a               ))
+            present_s = present_s + self.present_type + self.state_type
+            future_a  = future_a  + self.future_type  + self.action_type
             h = torch.cat([present_s, future_a], dim=1)
-
-        h = F.gelu(h)  # typical layer norm -> gelu
-        h = self.dropout_0(h)
 
         """
         Transformer decoder
@@ -159,11 +168,11 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h = self.dropout_1(h)
+        h = h[:, -future_a.size(1): , :]
         r = self.reward_linear(h)
         r = torch.tanh(r)  
 
-        future_r = r[:, -future_a.size(1): , :]
+        future_r = r
         future_s = torch.zeros((future_a.size(0), future_a.size(1), self.state_size), device=future_a.device, dtype=future_a.dtype)
 
         return future_r, future_s
