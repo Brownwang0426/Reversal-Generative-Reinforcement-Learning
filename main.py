@@ -234,7 +234,7 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.00
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -244,7 +244,7 @@ min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
 
-beta = 0.1
+beta = 0.01
 min_itrtn_for_planning = 1           #⚠️
 max_itrtn_for_planning = 100         #⚠️     
 min_param_for_planning = 0           #⚠️
