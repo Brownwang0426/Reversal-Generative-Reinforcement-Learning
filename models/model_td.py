@@ -140,13 +140,6 @@ class build_model(nn.Module):
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
 
-        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
-        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
         self.state_linear         = nn.Sequential(
                                         nn.Linear(self.state_size, self.feature_size, bias=self.bias)
                                     )
@@ -155,13 +148,17 @@ class build_model(nn.Module):
                                     )
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.memory_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
 
         self.dropout              = nn.Dropout(self.drop_rate)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
+        self.memory_positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1, self.feature_size ), requires_grad=False)
+        self.action_positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.future_size     , self.feature_size ), requires_grad=False)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
+                nn.LayerNorm(self.feature_size, elementwise_affine=True),
+                custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
@@ -174,7 +171,7 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size), float("-inf"))
+        mask                      = torch.full((1, 1, self.future_size, self.future_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 
@@ -219,35 +216,33 @@ class build_model(nn.Module):
     def forward(self, history_s, history_a, present_s, future_s, future_a):
 
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s              ))
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            history_s = history_s + self.history_type + self.state_type
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([history_s, present_s, future_a], dim=1)
+            history_s = self.state_norm(self.state_linear(history_s))
+            present_s = self.state_norm(self.state_linear(present_s.unsqueeze(1)))
+            m         = torch.cat([history_s, present_s], dim=1)
+            m         = m + self.memory_positional_encoding[:, :, :]
+            m         = self.memory_norm(m)
         else:
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([present_s, future_a], dim=1)
+            m         = self.state_norm(self.state_linear(present_s.unsqueeze(1)))
+            m         = m + self.memory_positional_encoding[:, :, :]
+            m         = self.memory_norm(m)
+
+        h  = self.action_norm(self.action_linear(future_a))
+        h  = h + self.action_positional_encoding[:, :, :]
 
         """
         Transformer decoder
         """
         long = h.size(1)
-        HS = self.history_size
-        FT = self.future_size
-        h[:, :HS, :]          = h[:, :HS, :]          + self.positional_encoding[:, :HS, :]
-        h[:, HS:HS+1, :]      = h[:, HS:HS+1, :]      + self.positional_encoding[:, :1,  :]
-        h[:, HS+1:HS+1+FT, :] = h[:, HS+1:HS+1+FT, :] + self.positional_encoding[:, :FT, :]
         for layer in self.transformer_layers:
-            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+            attention_norm, attention_linear, cross_attention_norm, cross_attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_ = attention_norm(h)
             h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
             h_ = self.dropout(h_)
             h  = h + h_ # typical pre-norm style
+            h_ = cross_attention_norm(h)
+            h_ = cross_attention_linear(h_, m, m, None, None)[0]
+            h_ = self.dropout(h_)
+            h  = h + h_ # typical pre-norm style    
             h_ = fully_connected_norm(h)
             h_ = fully_connected_linear(h_)
             h_ = self.dropout(h_)
@@ -257,7 +252,6 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h = h[:, -future_a.size(1): , :]
         r = self.reward_linear(h)
         r = torch.tanh(r)  
 
