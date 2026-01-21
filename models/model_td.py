@@ -65,7 +65,6 @@ class custom_attn(nn.Module):
         K_T = K.transpose(-2, -1).contiguous()
         attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
         
-
         if mask != None:
             attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
@@ -96,6 +95,47 @@ class custom_attn(nn.Module):
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         output      = self.W_o(self.combine_heads(attn_output))
         return output, kv_cache
+
+
+
+
+class moe_ffn(nn.Module):
+    def __init__(self, feature_size, num_experts=4, top_k=2, bias=False):
+        super(moe_ffn, self).__init__()
+        self.num_experts = num_experts
+        self.top_k       = top_k
+        self.bias        = bias
+        self.experts     = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(feature_size, feature_size, bias=self.bias),
+                nn.GELU(),
+                nn.Linear(feature_size, feature_size, bias=self.bias)
+            ) for _ in range(num_experts)
+        ])
+        self.gate = nn.Linear(feature_size, num_experts)
+
+    def forward(self, x):
+    
+        # caculate gate scores
+        gate_scores        = self.gate(x)   # [batch, seq_len, dim] -> [batch, seq_len, num_experts]
+        topk_val, topk_idx = torch.topk(gate_scores, self.top_k, dim=-1)  # [batch, seq_len, top_k]
+    
+        # build mask
+        mask = F.softmax(topk_val, dim=-1)  # [batch, seq_len, top_k]
+    
+        # get top-k in each token
+        out = torch.zeros_like(x)
+        for i in range(self.top_k):
+            expert_idx    = topk_idx[..., i].unsqueeze(-1)             # [batch, seq_len, 1]
+            expert_weight = mask[..., i].unsqueeze(-1)                 # [batch, seq_len, 1]
+            
+            # slow but understandable
+            for b in range(x.size(0)):
+                for t in range(x.size(1)):
+                    e            = int(expert_idx[b, t])
+                    out[b, t, :] = out[b, t, :] + self.experts[e](x[b, t, :]) * expert_weight[b, t]
+    
+        return out
 
 
 
@@ -170,6 +210,7 @@ class build_model(nn.Module):
                     nn.GELU(),
                     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                 )
+                # moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])

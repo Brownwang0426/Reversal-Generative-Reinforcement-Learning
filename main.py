@@ -212,6 +212,10 @@ buffer_limit = 100000
 render_for_human = False
 
 
+
+
+
+
 # -----------------------
 
 
@@ -258,6 +262,8 @@ buffer_limit = 100000
 render_for_human = False
 
 
+
+
 # -----------------------
 
 game_name = "LunarLander-v3"         #⚠️
@@ -301,8 +307,6 @@ episode_for_validation = 10
 episode_for_averaging = 50
 buffer_limit = 100000
 render_for_human = False
-
-
 
 # -----------------------
 
