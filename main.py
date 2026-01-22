@@ -229,7 +229,7 @@ action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
 history_size = 30                    #⚠️
-future_size = 20                     #⚠️ 
+future_size = 15                     #⚠️ 
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
 num_layers = 5                       #⚠️
@@ -251,7 +251,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 100         #⚠️     
+max_itrtn_for_planning = 50          #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
