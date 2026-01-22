@@ -215,21 +215,21 @@ class build_model(nn.Module):
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
-        self.dropout              = nn.Dropout(self.drop_rate)
-
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
+
+        self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                # nn.Sequential(
-                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                #     nn.GELU(),
-                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                # )
-                moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
+                nn.Sequential(
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                    nn.GELU(),
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                )
+                # moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
@@ -309,7 +309,7 @@ class build_model(nn.Module):
             for layer in self.transformer_layers:
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h) 
-                h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+                h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None)[0]
                 h_  = self.dropout(h_)
                 h   = h + h_ # typical pre-norm style
                 h_  = fully_connected_norm(h)
@@ -444,7 +444,7 @@ class build_model(nn.Module):
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_  = attention_norm(h)
-            h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], None)[0]
+            h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None)[0]
             h_  = self.dropout(h_)
             h   = h + h_
             h_  = fully_connected_norm(h)

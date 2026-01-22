@@ -89,7 +89,6 @@ class build_model(nn.Module):
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
         self.dropout              = nn.Dropout(self.drop_rate)
-
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,

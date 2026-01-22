@@ -79,13 +79,6 @@ class build_model(nn.Module):
         self.L2_lambda            = L2_lambda
         self.grad_clip_value      = grad_clip_value
 
-        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
-        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
         self.state_linear         = nn.Sequential(
                                         nn.Linear(self.state_size, self.feature_size, bias=self.bias)
                                     )
@@ -95,8 +88,14 @@ class build_model(nn.Module):
         self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
         self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
 
-        self.dropout              = nn.Dropout(self.drop_rate)
+        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
 
+        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+
+        self.dropout              = nn.Dropout(self.drop_rate)
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,
@@ -107,9 +106,6 @@ class build_model(nn.Module):
 
         self.reward_linear        = nn.Sequential(
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
-                                    )
-        self.state_linear_        = nn.Sequential(
-                                        nn.Linear(self.feature_size, self.state_size, bias=self.bias)
                                     )
 
         # Initialize weights for fully connected layers
