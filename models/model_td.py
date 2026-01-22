@@ -115,25 +115,51 @@ class moe_ffn(nn.Module):
         self.gate = nn.Linear(feature_size, num_experts)
 
     def forward(self, x):
-    
+        
+        # get shape
+        B, T, D = x.shape
+
         # caculate gate scores
-        gate_scores        = self.gate(x)   # [batch, seq_len, dim] -> [batch, seq_len, num_experts]
-        topk_val, topk_idx = torch.topk(gate_scores, self.top_k, dim=-1)  # [batch, seq_len, top_k]
+        gate_scores        = self.gate(x)      # [B, T, D] -> [B, T, num_experts]
+        topk_val, topk_idx = torch.topk(gate_scores, self.top_k, dim=-1)  # [B, T, top_k]
     
-        # build mask
-        mask = F.softmax(topk_val, dim=-1)  # [batch, seq_len, top_k]
+        # build weights
+        weights = F.softmax(topk_val, dim=-1)  # [B*T, top_k]
     
         # get top-k in each token
-        out = torch.zeros_like(x)
-        for i in range(self.top_k):
-            expert_idx    = topk_idx[..., i].unsqueeze(-1)             # [batch, seq_len, 1]
-            expert_weight = mask[..., i].unsqueeze(-1)                 # [batch, seq_len, 1]
-            
-            # slow but understandable
-            for b in range(x.size(0)):
-                for t in range(x.size(1)):
-                    e            = int(expert_idx[b, t])
-                    out[b, t, :] = out[b, t, :] + self.experts[e](x[b, t, :]) * expert_weight[b, t]
+        out = torch.zeros_like(x)              # [B, T, D]
+
+        # flatten token dimension
+        x_flat        = x.view(-1, D)                      # [B*T, D    ]
+        topk_idx_flat = topk_idx.view(-1, self.top_k)      # [B*T, top_k]
+        weights_flat  = weights.view(-1, self.top_k)       # [B*T, top_k]
+
+        # forward per expert
+        for e in range(self.num_experts):
+
+            mask = (topk_idx_flat == e)              # [B*T, top_k] with True or False
+            if not mask.any():
+                continue
+
+            token_idx, slot_idx = mask.nonzero(as_tuple=True)
+
+            x_e = x_flat[token_idx]                  # [N, D] where N <= B*T
+            w_e = weights_flat[token_idx, slot_idx]  # [N]
+
+            y_e = self.experts[e](x_e) * w_e.unsqueeze(-1)
+
+            out.view(-1, D)[token_idx] += y_e
+
+        # # slow but understandable
+        # for i in range(self.top_k):
+        #     expert_idx    = topk_idx[..., i].unsqueeze(-1)             # [batch, seq_len, 1]
+        #     expert_weight = weights [..., i].unsqueeze(-1)             # [batch, seq_len, 1]
+        #     
+        #     # slow but understandable
+        #     for b in range(x.size(0)):
+        #         for t in range(x.size(1)):
+        #             e            = int(expert_idx[b, t])
+        #             out[b, t, :] = out[b, t, :] + self.experts[e](x[b, t, :]) * expert_weight[b, t]
     
         return out
 
@@ -205,12 +231,12 @@ class build_model(nn.Module):
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Sequential(
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                )
-                # moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
+                # nn.Sequential(
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                #     nn.GELU(),
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                # )
+                moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
