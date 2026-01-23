@@ -103,9 +103,6 @@ class build_model(nn.Module):
         self.state_linear_        = nn.Sequential(
                                         nn.Linear(self.feature_size, self.state_size, bias=self.bias)
                                     )
-        
-        self.reward_norm          = nn.LayerNorm(self.reward_size, elementwise_affine=True)
-        self.state_norm_          = nn.LayerNorm(self.state_size, elementwise_affine=True)
 
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
@@ -172,9 +169,12 @@ class build_model(nn.Module):
             """
 
             r = self.reward_linear(h[:, -1:, :])
-            r = self.reward_norm(r)
+            r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
-            s = self.state_norm_(s)
+            """
+            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
+            """
+            s = s
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -226,9 +226,9 @@ class build_model(nn.Module):
     
             h = h[:, -1:, :]
             r = self.reward_linear(h)
-            r = self.reward_norm(r)
+            r = torch.tanh(r) 
             s = self.state_linear_(h)
-            s = self.state_norm_(s)
+            s = s
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -278,9 +278,9 @@ class build_model(nn.Module):
         """
 
         r = self.reward_linear(h)
-        r = self.reward_norm(r)
+        r = torch.tanh(r)  
         s = self.state_linear_(h)
-        s = self.state_norm_(s)
+        s = s 
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 
