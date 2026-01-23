@@ -171,10 +171,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h[:, -1:, :])
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
-            """
-            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
-            """
-            s = s
+            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -228,7 +225,7 @@ class build_model(nn.Module):
             r = self.reward_linear(h)
             r = torch.tanh(r) 
             s = self.state_linear_(h)
-            s = s
+            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -280,7 +277,7 @@ class build_model(nn.Module):
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
-        s = s 
+        s = torch.tanh(s)
 
         future_r = r[:, -future_a.size(1):, :]
         future_s = s[:, -future_a.size(1):, :] 
