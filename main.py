@@ -88,7 +88,7 @@ history_size = 30                    #⚠️
 future_size = 20                     #⚠️
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
+num_layers = 12                      #⚠️
 num_heads = 10                       #⚠️
 
 init = "xavier_normal"
@@ -137,7 +137,7 @@ history_size = 50                    #⚠️
 future_size = 20                     #⚠️
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
+num_layers = 12                      #⚠️
 num_heads = 10                       #⚠️
 
 init = "xavier_normal"
@@ -189,7 +189,7 @@ history_size = 30                    #⚠️
 future_size = 15                     #⚠️ 
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
+num_layers = 12                      #⚠️
 num_heads = 10                       #⚠️
 
 init = "xavier_normal"
@@ -238,7 +238,7 @@ history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
+num_layers = 12                      #⚠️
 num_heads = 10                       #⚠️
 
 init = "xavier_normal"

@@ -172,7 +172,7 @@ class build_model(nn.Module):
             r = torch.tanh(r)  
             s = self.state_linear_(h[:, -1:, :])
             """
-            [ADDITIONAL] To avoid vanishing gradient descent, we use linear activation here
+            To avoid vanishing gradient descent, we use linear activation for state here
             """
             s = s
 
@@ -298,7 +298,7 @@ class build_model(nn.Module):
             'glorot_normal': nn.init.xavier_normal_,
             'xavier_uniform': nn.init.xavier_uniform_,
             'xavier_normal': nn.init.xavier_normal_,
-            'kaiming_uniform': nn.init.kaiming_uniform_, # since we are using nn.linear -> norm layer -> gelu , we don't really need kaiming for gelu
+            'kaiming_uniform': nn.init.kaiming_uniform_, 
             'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
