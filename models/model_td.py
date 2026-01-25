@@ -177,6 +177,8 @@ class build_model(nn.Module):
                  neural_type,
                  num_layers,
                  num_heads,
+                 num_experts,
+                 moe_top_k,
                  init,
                  opti,
                  loss,
@@ -197,6 +199,8 @@ class build_model(nn.Module):
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
+        self.num_experts          = num_experts
+        self.moe_top_k            = moe_top_k
         self.init                 = init
         self.opti                 = opti
         self.loss                 = loss
@@ -231,12 +235,12 @@ class build_model(nn.Module):
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Sequential(
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                )
-                # moe_ffn(self.feature_size, num_experts=4, top_k=2, bias=self.bias)
+                # nn.Sequential(
+                #     # nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                #     # nn.GELU(),
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                # )
+                moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])

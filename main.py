@@ -84,20 +84,20 @@ state_size =  220                    #⚠️
 action_size = 3                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 300                   #⚠️
-history_size = 30                    #⚠️
+history_size = 50                    #⚠️
 future_size = 20                     #⚠️
-skip = 5                             #⚠️ 
+skip = 3                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 2                       #⚠️
+num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
-num_experts = 4                      #⚠️
-moe_top_k = 2                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.001
+drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -115,9 +115,11 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 50
+episode_for_averaging = 100
 buffer_limit = 100000
 render_for_human = False
+
+
 
 
 
@@ -135,20 +137,20 @@ state_size =  460                    #⚠️
 action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size = 50                    #⚠️
+history_size = 100                   #⚠️
 future_size = 20                     #⚠️
-skip = 5                             #⚠️ 
+skip = 3                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 2                       #⚠️
+num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
-num_experts = 4                      #⚠️
-moe_top_k = 2                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.001
+drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -166,9 +168,10 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 50
+episode_for_averaging = 100
 buffer_limit = 100000
 render_for_human = False
+
 
 
 
@@ -190,19 +193,19 @@ action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 1000                  #⚠️
 history_size = 30                    #⚠️
-future_size = 15                     #⚠️ 
-skip = 5                             #⚠️ 
+future_size = 20                     #⚠️ 
+skip = 3                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 2                       #⚠️
+num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
-num_experts = 4                      #⚠️
-moe_top_k = 2                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.001
+drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -220,7 +223,7 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 50
+episode_for_averaging = 100
 buffer_limit = 100000
 render_for_human = False
 
@@ -244,7 +247,7 @@ history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 2                       #⚠️
+num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
@@ -253,7 +256,7 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.001
+drop_rate = 0.00
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -271,7 +274,7 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 50
+episode_for_averaging = 100
 buffer_limit = 100000
 render_for_human = False
 
