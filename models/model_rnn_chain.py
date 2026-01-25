@@ -50,6 +50,8 @@ class build_model(nn.Module):
                  neural_type,
                  num_layers,
                  num_heads,
+                 num_experts,
+                 moe_top_k,
                  init,
                  opti,
                  loss,
@@ -70,6 +72,8 @@ class build_model(nn.Module):
         self.neural_type          = neural_type
         self.num_layers           = num_layers
         self.num_heads            = num_heads
+        self.num_experts          = num_experts
+        self.moe_top_k            = moe_top_k
         self.init                 = init
         self.opti                 = opti
         self.loss                 = loss

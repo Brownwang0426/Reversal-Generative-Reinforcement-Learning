@@ -88,14 +88,16 @@ history_size = 30                    #⚠️
 future_size = 20                     #⚠️
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 12                      #⚠️
+num_layers = 2                       #⚠️
 num_heads = 10                       #⚠️
+num_experts = 4                      #⚠️
+moe_top_k = 2                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.001
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -129,7 +131,7 @@ max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  260                    #⚠️
+state_size =  460                    #⚠️
 action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
@@ -137,14 +139,16 @@ history_size = 50                    #⚠️
 future_size = 20                     #⚠️
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 12                      #⚠️
+num_layers = 2                       #⚠️
 num_heads = 10                       #⚠️
+num_experts = 4                      #⚠️
+moe_top_k = 2                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.001
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -181,22 +185,24 @@ max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
-state_size =  500                    #⚠️
+state_size =  900                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
+feature_size = 1000                  #⚠️
 history_size = 30                    #⚠️
 future_size = 15                     #⚠️ 
 skip = 5                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 12                      #⚠️
+num_layers = 2                       #⚠️
 num_heads = 10                       #⚠️
+num_experts = 4                      #⚠️
+moe_top_k = 2                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.001
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -238,14 +244,16 @@ history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 12                      #⚠️
+num_layers = 2                       #⚠️
 num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
 
 init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.001
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
@@ -358,6 +366,8 @@ for _ in range(ensemble_size):
                         neural_type,
                         num_layers,
                         num_heads,
+                        num_experts,
+                        moe_top_k,
                         init,
                         opti,
                         loss,
