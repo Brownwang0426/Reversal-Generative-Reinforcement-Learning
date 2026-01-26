@@ -115,7 +115,7 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 100
+episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
 
@@ -168,9 +168,11 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 100
+episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
+
+
 
 
 
@@ -223,10 +225,9 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 100
+episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -274,10 +275,9 @@ max_param_for_planning = 0           #⚠️
 
 episode_for_training = 100000
 episode_for_validation = 10
-episode_for_averaging = 100
+episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -481,9 +481,6 @@ for training_episode in tqdm(range(episode_for_training)):
         """
         """
         [ADDITIONAL] We let agent took some history states into consideration.
-        """
-        """
-        [ADDITIONAL] The final desired reward is factually the last time step in desired reward.
         """
         # initializing and updating action by desired reward
         history_state, \
