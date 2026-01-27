@@ -109,7 +109,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 150         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
@@ -162,7 +162,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 150         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
@@ -219,7 +219,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 150         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
@@ -269,7 +269,7 @@ PER = False
 
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 150         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
