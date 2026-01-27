@@ -63,7 +63,6 @@ class custom_attn(nn.Module):
         # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         K_T = K.transpose(-2, -1).contiguous()
         attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
-        
 
         if mask != None:
             attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
@@ -74,7 +73,7 @@ class custom_attn(nn.Module):
         attn_probs = self.attn_dropout (attn_probs)
         # output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         output     = attn_probs @ V
-        return output                             # (batch_size, num_heads, sequence_size, head_size)
+        return output                               # (batch_size, num_heads, sequence_size, head_size)
 
     def combine_heads(self, x):
         batch_size, num_heads, sequence_size, head_size = x.size()
@@ -107,8 +106,8 @@ class moe_ffn(nn.Module):
         self.bias        = bias
         self.experts     = nn.ModuleList([
             nn.Sequential(
-                # nn.Linear(feature_size, feature_size, bias=self.bias),
-                # nn.GELU(),
+                nn.Linear(feature_size, feature_size, bias=self.bias),
+                nn.GELU(),
                 nn.Linear(feature_size, feature_size, bias=self.bias)
             ) for _ in range(num_experts)
         ])
@@ -151,11 +150,13 @@ class moe_ffn(nn.Module):
             out.view(-1, D)[token_idx] += y_e
 
         # # slow but understandable
+        # gate_scores        = self.gate(x)      # [B, T, D] -> [B, T, num_experts]
+        # topk_val, topk_idx = torch.topk(gate_scores, self.top_k, dim=-1)  # [B, T, top_k]
+        # # build weights
+        # weights = F.softmax(topk_val, dim=-1)  # [B*T, top_k]
         # for i in range(self.top_k):
         #     expert_idx    = topk_idx[..., i].unsqueeze(-1)             # [batch, seq_len, 1]
         #     expert_weight = weights [..., i].unsqueeze(-1)             # [batch, seq_len, 1]
-        #     
-        #     # slow but understandable
         #     for b in range(x.size(0)):
         #         for t in range(x.size(1)):
         #             e            = int(expert_idx[b, t])
@@ -226,14 +227,14 @@ class build_model(nn.Module):
         nn.ModuleList([
             nn.ModuleList([
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                custom_attn(self.feature_size, self.num_heads, self.bias, 0),
+                custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Sequential(
-                    # nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    # nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                )
-                # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+                # nn.Sequential(
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                #     nn.GELU(),
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                # )
+                moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
@@ -325,16 +326,16 @@ class build_model(nn.Module):
             We utilize the last idx in h to derive the latest reward and state.
             """
 
-            r = self.reward_linear(h[:, -1:, :])
+            h = h[:, -1:, :]
+            r = self.reward_linear(h)
             r = torch.tanh(r)  
-            s = self.state_linear_(h[:, -1:, :])
+            s = self.state_linear_(h)
             s = torch.tanh(s)  
 
             future_r_list.append(r)
             future_s_list.append(s)
 
-            present_s = s
-            present_s = self.state_norm(self.state_linear(present_s)) 
+            present_s = self.state_norm(self.state_linear(s)) 
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
@@ -399,9 +400,8 @@ class build_model(nn.Module):
 
             future_r_list.append(r)
             future_s_list.append(s)
-    
-            present_s = s[:, -1:, :]
-            present_s = self.state_norm(self.state_linear(present_s)) 
+
+            present_s = self.state_norm(self.state_linear(s)) 
 
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
             start       = copy.deepcopy(end) 
@@ -457,13 +457,14 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
+        h = h[:, -future_a.size(1):, :]
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
         s = torch.tanh(s)   
 
-        future_r = r[:, -future_a.size(1):, :]
-        future_s = s[:, -future_a.size(1):, :] 
+        future_r = r
+        future_s = s
 
         return future_r, future_s
 
@@ -491,8 +492,15 @@ class build_model(nn.Module):
             'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
-        for module in self.modules():
+        for name, module in self.named_modules():
             if isinstance(module, nn.Linear):
                 initializer(module.weight)     # module.weight and module.bias are parameters
                 if module.bias is not None:   
                     nn.init.zeros_(module.bias)
+                # if "reward_linear" in name:
+                #     if module.bias is not None:
+                #         nn.init.constant_(module.bias, 2.0)  # ★ key to make agent optimisitc and explore
+                # else:
+                #     initializer(module.weight)     # module.weight and module.bias are parameters
+                #     if module.bias is not None:   
+                #         nn.init.zeros_(module.bias)

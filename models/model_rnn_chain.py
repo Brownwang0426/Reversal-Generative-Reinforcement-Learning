@@ -172,16 +172,16 @@ class build_model(nn.Module):
             RNN, GRU, LSTM
             """
 
-            r = self.reward_linear(h[:, -1:, :])
+            h = h[:, -1:, :]
+            r = self.reward_linear(h)
             r = torch.tanh(r)  
-            s = self.state_linear_(h[:, -1:, :])
-            s = torch.tanh(s) 
+            s = self.state_linear_(h)
+            s = torch.tanh(s)  
 
             future_r_list.append(r)
             future_s_list.append(s)
 
-            present_s = s
-            present_s = self.state_norm(self.state_linear(present_s)) 
+            present_s = self.state_norm(self.state_linear(s)) 
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
         future_s = torch.cat(future_s_list, dim=1) # future_s becomes [batch_size, sequence_size, state_size ]
@@ -233,9 +233,8 @@ class build_model(nn.Module):
 
             future_r_list.append(r)
             future_s_list.append(s)
-    
-            present_s = s[:, -1:, :]
-            present_s = self.state_norm(self.state_linear(present_s)) 
+
+            present_s = self.state_norm(self.state_linear(s)) 
 
             history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
             
@@ -278,13 +277,14 @@ class build_model(nn.Module):
         RNN, GRU, LSTM
         """
 
+        h = h[:, -future_a.size(1):, :]
         r = self.reward_linear(h)
         r = torch.tanh(r)  
         s = self.state_linear_(h)
-        s = torch.tanh(s) 
+        s = torch.tanh(s)   
 
-        future_r = r[:, -future_a.size(1):, :]
-        future_s = s[:, -future_a.size(1):, :] 
+        future_r = r
+        future_s = s
 
         return future_r, future_s
     
@@ -303,11 +303,18 @@ class build_model(nn.Module):
             'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
-        for module in self.modules():
+        for name, module in self.named_modules():
             if isinstance(module, nn.Linear):
                 initializer(module.weight)     # module.weight and module.bias are parameters
                 if module.bias is not None:   
                     nn.init.zeros_(module.bias)
+                # if "reward_linear" in name:
+                #     if module.bias is not None:
+                #         nn.init.constant_(module.bias, 2.0)  # ★ key to make agent optimisitc and explore
+                # else:
+                #     initializer(module.weight)     # module.weight and module.bias are parameters
+                #     if module.bias is not None:   
+                #         nn.init.zeros_(module.bias)
 
 
 
