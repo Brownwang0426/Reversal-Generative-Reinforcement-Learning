@@ -118,28 +118,28 @@ def update_future_action(itrtn_for_planning,
     future_action  = future_action.to(device)
     desired_reward = desired_reward.to(device)
 
+    future_action      = torch.nn.Parameter(future_action)
+    selected_optimizer = torch.optim.SGD([future_action], lr=beta)
+    # selected_optimizer = torch.optim.Adam([future_action],lr=beta)
+
     for _ in range(itrtn_for_planning):
 
         model              = random.choice(model_list)
 
-        _future_action     = future_action.clone().detach().requires_grad_(True)
-        future_action_     = torch.tanh(_future_action)
-
         model.train()
-        selected_optimizer = model.selected_optimizer
+        for p in model.parameters():
+            p.requires_grad_(False)
         selected_optimizer.zero_grad()
         
         loss_function      = model.loss_function
         envisaged_reward, \
-        envisaged_state    = model._forward(history_state, history_action, present_state, None, future_action_)
-        total_loss         = loss_function(envisaged_reward[:, :, :], desired_reward[:, :, :])
+        envisaged_state    = model._forward(history_state, history_action, present_state, None, torch.tanh(future_action))
+        total_loss         = loss_function(envisaged_reward, desired_reward)
         total_loss.backward() 
 
-        grad = _future_action.grad
+        selected_optimizer.step()
 
-        future_action = future_action - beta * grad
-
-    future_action = future_action.to(device_, non_blocking=True)
+    future_action = future_action.detach().to(device_, non_blocking=True)
 
     return future_action
 
@@ -284,6 +284,8 @@ def obtain_priority_probability(model, dataset, batch_size, PER_epsilon, PER_exp
         future_state   = future_state  .to(device)
 
         model.train()
+        for p in model.parameters():
+            p.requires_grad_(True)
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
@@ -326,6 +328,8 @@ def update_model_per(itrtn_for_learning,
         future_state   = torch.stack(future_state  ).to(device)
 
         model.train()
+        for p in model.parameters():
+            p.requires_grad_(True)
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
@@ -427,6 +431,8 @@ def update_model(itrtn_for_learning,
         future_state   = torch.stack(future_state  ).to(device)
 
         model.train()
+        for p in model.parameters():
+            p.requires_grad_(True)
         selected_optimizer = model.selected_optimizer
         selected_optimizer.zero_grad()
 
