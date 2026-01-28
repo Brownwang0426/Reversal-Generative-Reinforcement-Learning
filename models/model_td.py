@@ -53,7 +53,6 @@ class custom_attn(nn.Module):
         self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(self.drop_rate)
-        self.resid_dropout = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
@@ -64,7 +63,7 @@ class custom_attn(nn.Module):
         # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         K_T = K.transpose(-2, -1).contiguous()
         attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
-        
+
         if mask != None:
             attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
@@ -74,7 +73,7 @@ class custom_attn(nn.Module):
         attn_probs = self.attn_dropout (attn_probs)
         # output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         output     = attn_probs @ V
-        return output                             # (batch_size, num_heads, sequence_size, head_size)
+        return output                               # (batch_size, num_heads, sequence_size, head_size)
 
     def combine_heads(self, x):
         batch_size, num_heads, sequence_size, head_size = x.size()
@@ -151,11 +150,13 @@ class moe_ffn(nn.Module):
             out.view(-1, D)[token_idx] += y_e
 
         # # slow but understandable
+        # gate_scores        = self.gate(x)      # [B, T, D] -> [B, T, num_experts]
+        # topk_val, topk_idx = torch.topk(gate_scores, self.top_k, dim=-1)  # [B, T, top_k]
+        # # build weights
+        # weights = F.softmax(topk_val, dim=-1)  # [B*T, top_k]
         # for i in range(self.top_k):
         #     expert_idx    = topk_idx[..., i].unsqueeze(-1)             # [batch, seq_len, 1]
         #     expert_weight = weights [..., i].unsqueeze(-1)             # [batch, seq_len, 1]
-        #     
-        #     # slow but understandable
         #     for b in range(x.size(0)):
         #         for t in range(x.size(1)):
         #             e            = int(expert_idx[b, t])
@@ -235,12 +236,12 @@ class build_model(nn.Module):
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 nn.LayerNorm(self.feature_size, elementwise_affine=True),
-                nn.Sequential(
-                    # nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    # nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                )
-                # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+                # nn.Sequential(
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                #     nn.GELU(),
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                # )
+                moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
