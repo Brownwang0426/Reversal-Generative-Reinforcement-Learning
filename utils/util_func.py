@@ -65,15 +65,41 @@ def load_buffer_from_pickle(filename):
 
 
 
+def sample_indices(seq_len: int, num_steps: int, skip: int, reverse: bool = False):
+
+    indices = []
+
+    if reverse:
+        idx = seq_len - 1
+        for _ in range(num_steps):
+            indices.append(idx)
+            jump = random.randint(1, skip)
+            idx  = max(0, idx - jump)
+    else:
+        idx = 0
+        for _ in range(num_steps):
+            indices.append(idx)
+            jump = random.randint(1, skip)
+            idx  = min(seq_len - 1, idx + jump)
+
+    return indices
+
+
 def retrieve_history(state_list, action_list, history_size, skip, device):
     if history_size != 0:
-        history_size     *= skip
-        history_state     = torch.stack(state_list [-history_size-1:-1: skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_action    = torch.stack(action_list[-history_size  :  : skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        indices = sample_indices(
+            seq_len=len(state_list),
+            num_steps=history_size,
+            skip=skip,
+            reverse=True,
+        )
+        history_state  = torch.stack([state_list[i]  for i in indices], dim=0).unsqueeze(0).to(device)
+        history_action = torch.stack([action_list[i] for i in indices], dim=0).unsqueeze(0).to(device)
     else:
         history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
         history_action    = torch.empty(0, 0, 0).to(device, non_blocking=True)
     return history_state, history_action
+
 
 
 
@@ -102,18 +128,18 @@ def initialize_desired_reward(shape, device):
 
 def update_future_action(itrtn_for_planning,
                          model_list,
-                         history_state,
-                         history_action,
+                         state_list,
+                         action_list,
+                         history_size,
+                         skip,
                          present_state,
                          future_action,
                          desired_reward,
                          beta):
 
     device = next(model_list[0].parameters()).device
-    device_ = history_state.device
+    device_ = present_state.device
 
-    history_state  = history_state.to(device)
-    history_action = history_action.to(device)
     present_state  = present_state.to(device)
     future_action  = future_action.to(device)
     desired_reward = desired_reward.to(device)
@@ -124,7 +150,10 @@ def update_future_action(itrtn_for_planning,
 
     for _ in range(itrtn_for_planning):
 
-        model              = random.choice(model_list)
+        history_state, \
+        history_action = retrieve_history(state_list, action_list, history_size, skip)
+
+        model          = random.choice(model_list)
 
         model.train()
         for p in model.parameters():

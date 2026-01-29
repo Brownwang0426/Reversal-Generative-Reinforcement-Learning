@@ -483,15 +483,15 @@ for training_episode in tqdm(range(episode_for_training)):
         [ADDITIONAL] We let agent took some history states into consideration.
         """
         # initializing and updating action by desired reward
-        history_state, \
-        history_action  = retrieve_history(state_list, action_list, history_size, skip, device_)
         present_state   = retrieve_present(state_list, device_)
         future_action   = initialize_future_action ((1, future_size, action_size), device_, std = param_for_planning)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
-        future_action   = update_future_action(itrtn_for_planning ,
+        future_action   = update_future_action(itrtn_for_planning,
                                                model_list,
-                                               history_state,
-                                               history_action,
+                                               state_list,
+                                               action_list,
+                                               history_size,
+                                               skip,
                                                present_state,
                                                future_action,
                                                desired_reward,
