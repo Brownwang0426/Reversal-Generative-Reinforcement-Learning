@@ -39,6 +39,26 @@ import hashlib
 
 
 
+class rms_norm(nn.Module):
+    def __init__(self, dim, elementwise_affine=True, eps=1e-8):
+        super().__init__()
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        if elementwise_affine:
+            self.weight = nn.Parameter(torch.ones(dim))
+        else:
+            self.register_parameter('weight', None)
+
+    def forward(self, x):
+        rms = torch.sqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
+        x = x / rms
+        if self.weight is not None:
+            x = x * self.weight
+        return x
+    
+
+
+
 class build_model(nn.Module):
     def __init__(self,
                  state_size,
@@ -89,8 +109,8 @@ class build_model(nn.Module):
         self.action_linear        = nn.Sequential(
                                         nn.Linear(self.action_size, self.feature_size, bias=self.bias)
                                     )
-        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
-        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         neural_types = {

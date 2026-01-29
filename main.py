@@ -477,7 +477,7 @@ for training_episode in tqdm(range(episode_for_training)):
     while not done_truncated_flag:
 
         """
-        [ADDITIONAL] We added frame skipping.
+        [ADDITIONAL] We added jitter frame skipping.
         """
         """
         [ADDITIONAL] We let agent took some history states into consideration.
@@ -490,7 +490,7 @@ for training_episode in tqdm(range(episode_for_training)):
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
         future_action   = update_future_action(itrtn_for_planning ,
                                                model_list,
-                                               history_state ,
+                                               history_state,
                                                history_action,
                                                present_state,
                                                future_action,

@@ -36,8 +36,25 @@ warnings.filterwarnings('ignore')
 import concurrent.futures
 import hashlib
 
+"""
 
+--- check list for modern transformer's basic architecture, [O] means included in this repo, [X] means not yet included ---
+[O] Pre-RMSNorm
+[O] RoPE
+[O] causal mask
+[O] GQA or MHA
+[X] Flash / SDPA Attention 
+[O] KV Cache
+[O] SwiGLU FFN
+[O] MoE
+[X] MOE router loss 
 
+--- optional ---
+[X] Residual scaling
+[X] AdamW
+[X] Weight tying
+
+"""
 
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
@@ -57,7 +74,38 @@ class custom_attn(nn.Module):
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
         return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
+    
+    def apply_rope(self, x, seq_positions):
+        """
+        x            : [batch, num_heads, seq_len, head_size]
+        seq_positions: [seq_len] or [batch, seq_len] 
+        """
+        B, H, L, D = x.shape
+        device = x.device
 
+        d_half = D // 2
+        x1 = x[..., 0::2]
+        x2 = x[..., 1::2]
+
+        # --- auto generate seq_positions if None ---
+        if seq_positions is None:
+            seq_positions = torch.arange(L, device=device)  # [L]
+
+        freqs = 1.0 / (10000 ** (torch.arange(0, d_half, device=device) / d_half))
+        if seq_positions.dim() == 1:
+            theta = seq_positions[:, None] * freqs[None, :]  # [L, D/2]
+        else:
+            theta = seq_positions[:, :, None] * freqs[None, None, :]  # [B, L, D/2]
+        
+        # reshape broadcast
+        theta = theta  # [B, 1, L, D/2] or [1, 1, L, D/2]
+
+        # rotation
+        x_rot = torch.zeros_like(x)
+        x_rot[..., 0::2] = x1 * torch.cos(theta) - x2 * torch.sin(theta)
+        x_rot[..., 1::2] = x1 * torch.sin(theta) + x2 * torch.cos(theta)
+        return x_rot
+    
     def scaled_dot_product_attention(self, Q, K, V, mask):
 
         # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
@@ -79,12 +127,17 @@ class custom_attn(nn.Module):
         batch_size, num_heads, sequence_size, head_size = x.size()
         return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
 
-    def forward(self, Q, K, V, mask=None, kv_cache=None):
+    def forward(self, Q, K, V, mask=None, kv_cache=None, seq_positions=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
         Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
         K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
         V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+
+        # RoPE
+        Q = self.apply_rope(Q, seq_positions)
+        K = self.apply_rope(K, seq_positions)
+
         if kv_cache is not None:
             if 'k' in kv_cache and 'v' in kv_cache:
                 K = torch.cat([kv_cache['k'], K], dim=2)
@@ -98,6 +151,38 @@ class custom_attn(nn.Module):
 
 
 
+class rms_norm(nn.Module):
+    def __init__(self, dim, elementwise_affine=True, eps=1e-8):
+        super().__init__()
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        if elementwise_affine:
+            self.weight = nn.Parameter(torch.ones(dim))
+        else:
+            self.register_parameter('weight', None)
+
+    def forward(self, x):
+        rms = torch.sqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
+        x = x / rms
+        if self.weight is not None:
+            x = x * self.weight
+        return x
+    
+
+
+
+class swiss_glu_ffn(nn.Module):
+    def __init__(self, feature_size, bias=True):
+        super().__init__()
+        self.w_gate  = nn.Linear(feature_size, feature_size, bias=bias)
+        self.w_value = nn.Linear(feature_size, feature_size, bias=bias)
+        self.w_out   = nn.Linear(feature_size, feature_size, bias=bias)
+
+    def forward(self, x):
+        return self.w_out(
+            F.silu(self.w_gate(x)) * self.w_value(x)
+        )
+    
 class moe_ffn(nn.Module):
     def __init__(self, feature_size, num_experts=4, top_k=2, bias=False):
         super(moe_ffn, self).__init__()
@@ -105,11 +190,8 @@ class moe_ffn(nn.Module):
         self.top_k       = top_k
         self.bias        = bias
         self.experts     = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(feature_size, feature_size, bias=self.bias),
-                nn.GELU(),
-                nn.Linear(feature_size, feature_size, bias=self.bias)
-            ) for _ in range(num_experts)
+            swiss_glu_ffn(feature_size, bias=self.bias)
+            for _ in range(num_experts)
         ])
         self.gate = nn.Linear(feature_size, num_experts)
 
@@ -217,8 +299,8 @@ class build_model(nn.Module):
         self.action_linear        = nn.Sequential(
                                         nn.Linear(self.action_size, self.feature_size, bias=self.bias)
                                     )
-        self.state_norm           = nn.LayerNorm(self.feature_size, elementwise_affine=True)
-        self.action_norm          = nn.LayerNorm(self.feature_size, elementwise_affine=True)
+        self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
         self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
         self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
@@ -227,15 +309,15 @@ class build_model(nn.Module):
         self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
         self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
+        # self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
         nn.ModuleList([
             nn.ModuleList([
-                nn.LayerNorm(self.feature_size, elementwise_affine=True),
+                rms_norm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
-                nn.LayerNorm(self.feature_size, elementwise_affine=True),
+                rms_norm(self.feature_size, elementwise_affine=True),
                 # nn.Sequential(
                 #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
                 #     nn.GELU(),
@@ -245,7 +327,7 @@ class build_model(nn.Module):
             ])
             for _ in range(self.num_layers)
         ])
-        self.transformer_norm     = nn.LayerNorm(self.feature_size, elementwise_affine=True) 
+        self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
         mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
@@ -308,13 +390,13 @@ class build_model(nn.Module):
         long = h.size(1)
         HS = self.history_size
         FT = self.future_size
-        h[:, :HS, :]          = h[:, :HS, :]          + self.positional_encoding[:, :HS, :]
-        h[:, HS:HS+1, :]      = h[:, HS:HS+1, :]      + self.positional_encoding[:, :1,  :]
-        h[:, HS+1:HS+1+FT, :] = h[:, HS+1:HS+1+FT, :] + self.positional_encoding[:, :FT, :]
+        # h[:, :HS, :]          = h[:, :HS, :]          + self.positional_encoding[:, :HS, :]
+        # h[:, HS:HS+1, :]      = h[:, HS:HS+1, :]      + self.positional_encoding[:, :1,  :]
+        # h[:, HS+1:HS+1+FT, :] = h[:, HS+1:HS+1+FT, :] + self.positional_encoding[:, :FT, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_ = attention_norm(h)
-            h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None)[0]
+            h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
             h_ = self.dropout(h_)
             h  = h + h_ # typical pre-norm style
             h_ = fully_connected_norm(h)
