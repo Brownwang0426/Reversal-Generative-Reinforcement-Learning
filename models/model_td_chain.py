@@ -321,7 +321,7 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, 9999, 9999), float("-inf"))
+        mask                      = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
         self.register_buffer('mask', mask)  
 

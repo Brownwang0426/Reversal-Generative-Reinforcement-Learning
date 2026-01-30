@@ -75,29 +75,31 @@ def sample_indices(seq_len: int, num_steps: int, skip: int, reverse: bool = Fals
             indices.append(idx)
             jump = random.randint(1, skip)
             idx  = max(0, idx - jump)
+        return indices[::-1]
     else:
         idx = 0
         for _ in range(num_steps):
             indices.append(idx)
             jump = random.randint(1, skip)
             idx  = min(seq_len - 1, idx + jump)
+        return indices
 
-    return indices
+
 
 
 def retrieve_history(state_list, action_list, history_size, skip, device):
     if history_size != 0:
         indices = sample_indices(
-            seq_len=len(state_list),
+            seq_len=len(action_list),
             num_steps=history_size,
             skip=skip,
-            reverse=True,
+            reverse=True
         )
-        history_state  = torch.stack([state_list[i]  for i in indices], dim=0).unsqueeze(0).to(device)
-        history_action = torch.stack([action_list[i] for i in indices], dim=0).unsqueeze(0).to(device)
+        history_state  = torch.stack([state_list[:-1][j] for j in indices], dim=0).unsqueeze(0).to(device)
+        history_action = torch.stack([action_list [:][j] for j in indices], dim=0).unsqueeze(0).to(device)
     else:
-        history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
-        history_action    = torch.empty(0, 0, 0).to(device, non_blocking=True)
+        history_state  = torch.empty(0, 0, 0).to(device, non_blocking=True)
+        history_action = torch.empty(0, 0, 0).to(device, non_blocking=True)
     return history_state, history_action
 
 
@@ -151,7 +153,7 @@ def update_future_action(itrtn_for_planning,
     for _ in range(itrtn_for_planning):
 
         history_state, \
-        history_action = retrieve_history(state_list, action_list, history_size, skip)
+        history_action = retrieve_history(state_list, action_list, history_size, skip, device)
 
         model          = random.choice(model_list)
 
@@ -187,34 +189,41 @@ def sequentialize(state_list, action_list, reward_list, history_size, future_siz
     future_reward_list  = []
     future_state_list   = []
 
-    if history_size > 0:
+    for i in range(len(reward_list[:-history_size*skip-future_size*skip + 1])):
+        
+        node  = i + history_size*skip
 
-        history_size *= skip
-        future_size  *= skip
+        if history_size > 0:
+            indices = sample_indices(
+                seq_len=len(state_list[ i : node]),
+                num_steps=history_size,
+                skip=skip,
+                reverse=True
+            )
+            history_state  = torch.stack([state_list [ i : node][j] for j in indices], dim=0)
+            history_action = torch.stack([action_list[ i : node][j] for j in indices], dim=0)
+        else:
+            history_state  = torch_empty
+            history_action = torch_empty
 
-        for i in range(len(reward_list[:-history_size-future_size + 1])):
+        present_state = state_list [node]   
+        
+        indices = sample_indices(
+            seq_len=len(state_list[node : node + future_size*skip + skip ]),
+            num_steps=future_size+1,
+            skip=skip,
+            reverse=False
+        )
+        future_action = torch.stack([action_list [ node           : node + future_size*skip + skip      ][j] for j in indices[:-1]], dim=0)
+        future_reward = torch.stack([reward_list [ node           : node + future_size*skip + skip      ][j] for j in indices[:-1]], dim=0)
+        future_state  = torch.stack([state_list  [ node           : node + future_size*skip + skip      ][j] for j in indices[1: ]], dim=0)
 
-            node  = i + history_size
-            
-            history_state_list.append (      torch.stack(state_list [ i : node                                            :  skip  ], dim=0)          )
-            history_action_list.append(      torch.stack(action_list[ i : node                                            :  skip  ], dim=0)          )
-            present_state_list.append (                  state_list [     node                                                     ]                  )
-            future_action_list.append (      torch.stack(action_list[     node            : node + future_size            :  skip  ], dim=0)          )
-            future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size            :  skip  ], dim=0)          )
-            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
-
-    else:
-
-        for i in range(len(reward_list[:-history_size-future_size + 1])):
-
-            node = i + history_size
-
-            history_state_list.append (                  torch_empty                                                                                  )
-            history_action_list.append(                  torch_empty                                                                                  )
-            present_state_list.append (                  state_list [     node                                                     ]                  )
-            future_action_list.append (      torch.stack(action_list[     node            : node + future_size            :  skip  ], dim=0)          )
-            future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size            :  skip  ], dim=0)          )
-            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
+        history_state_list.append (      history_state        )
+        history_action_list.append(      history_action       )
+        present_state_list.append (      present_state        )
+        future_action_list.append (      future_action        )
+        future_reward_list.append (      future_reward        )
+        future_state_list.append  (      future_state         )
 
     return history_state_list, history_action_list, present_state_list, future_action_list, future_reward_list, future_state_list
 
