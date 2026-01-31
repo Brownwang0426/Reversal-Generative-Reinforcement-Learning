@@ -388,8 +388,8 @@ class build_model(nn.Module):
         Transformer decoder
         """
         long = h.size(1)
-        HS = self.history_size
-        FT = self.future_size
+        # HS = self.history_size
+        # FT = self.future_size
         # h[:, :HS, :]          = h[:, :HS, :]          + self.positional_encoding[:, :HS, :]
         # h[:, HS:HS+1, :]      = h[:, HS:HS+1, :]      + self.positional_encoding[:, :1,  :]
         # h[:, HS+1:HS+1+FT, :] = h[:, HS+1:HS+1+FT, :] + self.positional_encoding[:, :FT, :]
