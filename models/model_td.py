@@ -330,6 +330,7 @@ class build_model(nn.Module):
         self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
         mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size), float("-inf"))
         mask                      = torch.triu(mask , diagonal=1)
+        mask[:, :, :, :self.history_size + 1] = 0
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
