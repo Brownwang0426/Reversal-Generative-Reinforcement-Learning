@@ -224,7 +224,7 @@ class build_model(nn.Module):
             history_a   = self.action_norm(self.action_linear(history_a) )
             history_s_a = history_s + history_a 
         else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
                 
 
         present_s = self.state_norm (self.state_linear (present_s))
@@ -256,7 +256,7 @@ class build_model(nn.Module):
 
             present_s = self.state_norm(self.state_linear(s)) 
 
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
             
         future_r = torch.cat(future_r_list, dim=1) 
         future_s = torch.cat(future_s_list, dim=1)
@@ -277,7 +277,7 @@ class build_model(nn.Module):
             history_a   = self.action_norm(self.action_linear(history_a) )
             history_s_a = history_s + history_a
         else:
-            history_s_a = torch.empty((present_s.size(0), 0, present_s.size(2)), device=present_s.device, dtype=present_s.dtype)
+            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
 
 
         present_s  = self.state_norm (self.state_linear (present_s))
