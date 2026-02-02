@@ -122,6 +122,8 @@ class build_model(nn.Module):
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
         self.reward_linear        = nn.Sequential(
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
                                     )
         self.state_linear_        = nn.Sequential(

@@ -326,6 +326,8 @@ class build_model(nn.Module):
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
                                     )
         self.state_linear_        = nn.Sequential(
