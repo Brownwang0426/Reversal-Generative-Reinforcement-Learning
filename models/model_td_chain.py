@@ -73,7 +73,7 @@ class custom_attn(nn.Module):
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
-        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
+        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).contiguous().transpose(1, 2).contiguous()
     
     def apply_rope(self, x, seq_positions):
         """
@@ -124,16 +124,21 @@ class custom_attn(nn.Module):
         return output                               # (batch_size, num_heads, sequence_size, head_size)
     
     def scaled_dot_product_attention(self, Q, K, V, mask): # faster official api
-        return F.scaled_dot_product_attention(
-            Q, K, V,
-            attn_mask=None,
-            dropout_p=self.drop_rate,
-            is_causal=True
-        )
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=True,
+            enable_math=True,
+            enable_mem_efficient=True
+        ):
+            return F.scaled_dot_product_attention(
+                Q, K, V,
+                attn_mask=None,
+                dropout_p=self.drop_rate,
+                is_causal=True
+            )
 
     def combine_heads(self, x):
         batch_size, num_heads, sequence_size, head_size = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
+        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size).contiguous()
 
     def forward(self, Q, K, V, mask=None, kv_cache=None, seq_positions=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
@@ -219,9 +224,9 @@ class moe_ffn(nn.Module):
         out = torch.zeros_like(x)              # [B, T, D]
 
         # flatten token dimension
-        x_flat        = x.view(-1, D)                      # [B*T, D    ]
-        topk_idx_flat = topk_idx.view(-1, self.top_k)      # [B*T, top_k]
-        weights_flat  = weights.view(-1, self.top_k)       # [B*T, top_k]
+        x_flat        = x.view(-1, D).contiguous()                      # [B*T, D    ]
+        topk_idx_flat = topk_idx.view(-1, self.top_k).contiguous()      # [B*T, top_k]
+        weights_flat  = weights.view(-1, self.top_k).contiguous()       # [B*T, top_k]
 
         # forward per expert
         for e in range(self.num_experts):
@@ -237,7 +242,7 @@ class moe_ffn(nn.Module):
 
             y_e = self.experts[e](x_e) * w_e.unsqueeze(-1)
 
-            out.view(-1, D)[token_idx] += y_e
+            out.view(-1, D).contiguous()[token_idx] += y_e
 
         # # slow but understandable
         # gate_scores        = self.gate(x)      # [B, T, D] -> [B, T, num_experts]
