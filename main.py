@@ -184,52 +184,6 @@ render_for_human = False
 
 
 
-# -----------------------
-
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-skip = 1                             #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 3                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.1
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-min_itrtn_for_learning = 500         #⚠️
-max_itrtn_for_learning = 500         #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 150         #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
 
 
 
@@ -253,7 +207,7 @@ history_size = 250                   #⚠️
 future_size = 30                     #⚠️
 skip = 1                             #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 1                       #⚠️
+num_layers = 3                       #⚠️
 num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
@@ -286,6 +240,52 @@ render_for_human = False
 
 
 
+# -----------------------
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+skip = 1                             #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       #⚠️
+num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.1
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+min_itrtn_for_learning = 500         #⚠️
+max_itrtn_for_learning = 500         #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 20          #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
 
 
 

@@ -133,7 +133,7 @@ def update_future_action(itrtn_for_planning,
         
         loss_function      = model.loss_function
         envisaged_reward, \
-        envisaged_state    = model._forward(history_state, history_action, present_state, None, torch.tanh(future_action))
+        envisaged_state    = model.forward(history_state, history_action, present_state, None, torch.tanh(future_action))
         total_loss         = loss_function(envisaged_reward, desired_reward)
         total_loss.backward() 
 
@@ -596,7 +596,7 @@ def save_buffer_to_pickle(filename, *list):
 # 
 #         loss_function                 = model.loss_function_
 #         envisaged_reward, \
-#         envisaged_state               = model.latent_forward(latent, future_action)
+#         envisaged_state               = model.latentforward(latent, future_action)
 #         total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1, 2)) + \
 #                                         torch.sum(torch.abs(loss_function(envisaged_state [:, :, :], future_state [:, :, :]) ), dim=(1, 2))
 #         TD_error_list.append(total_loss.detach())  

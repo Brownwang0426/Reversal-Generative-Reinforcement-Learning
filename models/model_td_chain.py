@@ -106,13 +106,13 @@ class custom_attn(nn.Module):
         x_rot[..., 1::2] = x1 * torch.sin(theta) + x2 * torch.cos(theta)
         return x_rot
     
-    def scaled_dot_product_attention(self, Q, K, V, mask):
+    def scaled_dot_product_attention_(self, Q, K, V, mask):
 
         # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         K_T = K.transpose(-2, -1).contiguous()
         attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
 
-        if mask != None:
+        if mask is not None:
             attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             pass
@@ -122,6 +122,14 @@ class custom_attn(nn.Module):
         # output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         output     = attn_probs @ V
         return output                               # (batch_size, num_heads, sequence_size, head_size)
+    
+    def scaled_dot_product_attention(self, Q, K, V, mask): # faster official api
+        return F.scaled_dot_product_attention(
+            Q, K, V,
+            attn_mask=None,
+            dropout_p=self.drop_rate,
+            is_causal=True
+        )
 
     def combine_heads(self, x):
         batch_size, num_heads, sequence_size, head_size = x.size()
@@ -326,8 +334,6 @@ class build_model(nn.Module):
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
                                     )
         self.state_linear_        = nn.Sequential(
@@ -398,7 +404,7 @@ class build_model(nn.Module):
             for layer in self.transformer_layers:
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h) 
-                h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
+                h_  = attention_linear(h_, h_, h_, mask=self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
                 h_  = self.dropout(h_)
                 h   = h + h_ # typical pre-norm style
                 h_  = fully_connected_norm(h)
@@ -465,7 +471,7 @@ class build_model(nn.Module):
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h)
                 seq_positions = torch.arange(start, end, device=h.device) # [seq_len]
-                h_, kv_caches[j] = attention_linear(h_, h_, h_, self.mask[:, :, start : end, : end], kv_cache=kv_caches[j], seq_positions=seq_positions)
+                h_, kv_caches[j] = attention_linear(h_, h_, h_, mask=self.mask[:, :, start : end, : end], kv_cache=kv_caches[j], seq_positions=seq_positions)
                 h_  = self.dropout(h_)
                 h   = h + h_
                 h_  = fully_connected_norm(h)
@@ -530,7 +536,7 @@ class build_model(nn.Module):
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_  = attention_norm(h)
-            h_  = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
+            h_  = attention_linear(h_, h_, h_, mask=self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
             h_  = self.dropout(h_)
             h   = h + h_
             h_  = fully_connected_norm(h)
