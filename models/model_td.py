@@ -73,7 +73,7 @@ class custom_attn(nn.Module):
 
     def split_heads(self, x):
         batch_size, sequence_size, feature_size = x.size()
-        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).transpose(1, 2)
+        return x.view(batch_size, sequence_size, self.num_heads, self.head_size).contiguous().transpose(1, 2).contiguous()
     
     def apply_rope(self, x, seq_positions):
         """
@@ -112,7 +112,7 @@ class custom_attn(nn.Module):
         K_T = K.transpose(-2, -1).contiguous()
         attn_scores = (Q @ K_T) / (self.head_size ** 0.5)
 
-        if mask != None:
+        if mask is not None:
             attn_scores = attn_scores + mask                   # (batch_size, num_heads, sequence_size, sequence_size) += (batch_size, 1, sequence_size, sequence_size)
         else:
             pass
@@ -122,10 +122,23 @@ class custom_attn(nn.Module):
         # output     = torch.matmul(attn_probs, V)  # (batch_size, num_heads, sequence_size, sequence_size) @ (batch_size, num_heads, sequence_size, head_size ) 
         output     = attn_probs @ V
         return output                               # (batch_size, num_heads, sequence_size, head_size)
+    
+    def scaled_dot_product_attention_(self, Q, K, V, mask): # faster official api
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=True,
+            enable_math=True,
+            enable_mem_efficient=True
+        ):
+            return F.scaled_dot_product_attention(
+                Q, K, V,
+                attn_mask=None,
+                dropout_p=self.drop_rate,
+                is_causal=True
+            )
 
     def combine_heads(self, x):
         batch_size, num_heads, sequence_size, head_size = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size)
+        return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size).contiguous()
 
     def forward(self, Q, K, V, mask=None, kv_cache=None, seq_positions=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
@@ -135,8 +148,8 @@ class custom_attn(nn.Module):
         V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
 
         # RoPE
-        Q = self.apply_rope(Q, seq_positions)
-        K = self.apply_rope(K, seq_positions)
+        # Q = self.apply_rope(Q, seq_positions)
+        # K = self.apply_rope(K, seq_positions)
 
         if kv_cache is not None:
             if 'k' in kv_cache and 'v' in kv_cache:
@@ -167,7 +180,7 @@ class rms_norm(nn.Module):
         if self.weight is not None:
             x = x * self.weight
         return x
-    
+
 
 
 
@@ -211,9 +224,9 @@ class moe_ffn(nn.Module):
         out = torch.zeros_like(x)              # [B, T, D]
 
         # flatten token dimension
-        x_flat        = x.view(-1, D)                      # [B*T, D    ]
-        topk_idx_flat = topk_idx.view(-1, self.top_k)      # [B*T, top_k]
-        weights_flat  = weights.view(-1, self.top_k)       # [B*T, top_k]
+        x_flat        = x.view(-1, D).contiguous()                      # [B*T, D    ]
+        topk_idx_flat = topk_idx.view(-1, self.top_k).contiguous()      # [B*T, top_k]
+        weights_flat  = weights.view(-1, self.top_k).contiguous()       # [B*T, top_k]
 
         # forward per expert
         for e in range(self.num_experts):
@@ -229,7 +242,7 @@ class moe_ffn(nn.Module):
 
             y_e = self.experts[e](x_e) * w_e.unsqueeze(-1)
 
-            out.view(-1, D)[token_idx] += y_e
+            out.view(-1, D).contiguous()[token_idx] += y_e
 
         # # slow but understandable
         # gate_scores        = self.gate(x)      # [B, T, D] -> [B, T, num_experts]
@@ -294,22 +307,26 @@ class build_model(nn.Module):
         self.grad_clip_value      = grad_clip_value
 
         self.state_linear         = nn.Sequential(
-                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
         self.action_linear        = nn.Sequential(
-                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
         self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
         self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
-        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        # self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        # self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+# 
+        # self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        # self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        # self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
 
-        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
-        # self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
@@ -327,10 +344,11 @@ class build_model(nn.Module):
             ])
             for _ in range(self.num_layers)
         ])
-        self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size), float("-inf"))
-        mask                      = torch.triu(mask , diagonal=1)
-        mask[:, :, :, :self.history_size + 1] = 0
+        self.transformer_norm = rms_norm(self.feature_size, elementwise_affine=True) 
+        future_mask           = torch.full((1, 1, self.future_size, self.future_size),float("-inf"))
+        future_mask           = torch.triu(future_mask, diagonal=1)
+        past_mask             = torch.zeros((1, 1, self.future_size, self.history_size + 1))
+        mask                  = torch.cat([past_mask, future_mask], dim=-1)
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
@@ -371,24 +389,25 @@ class build_model(nn.Module):
     def forward(self, history_s, history_a, present_s, future_s, future_a):
 
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s              ))
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            history_s = history_s + self.history_type + self.state_type
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([history_s, present_s, future_a], dim=1)
+            history_s = self.state_norm (self.state_linear (history_s ))
         else:
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([present_s, future_a], dim=1)
+            history_s = torch.empty((present_s.size(0), 0, self.state_size), device=present_s.device, dtype=present_s.dtype)
+        present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
+        h_sa      = torch.cat([history_s, present_s], dim=1)
+        h_sa      = h_sa + self.positional_encoding[:, :self.history_size + 1, :]
+
+        h         = self.action_norm(self.action_linear(future_a               ))
+        h         = h    + self.positional_encoding[:, self.history_size + 1:, :]
+
+        # history_s = history_s + self.history_type + self.state_type
+        # present_s = present_s + self.present_type + self.state_type
+        # future_a  = future_a  + self.future_type  + self.action_type
+        # h = torch.cat([history_s, present_s, future_a], dim=1)
 
         """
         Transformer decoder
         """
-        long = h.size(1)
+        # long = h.size(1)
         # HS = self.history_size
         # FT = self.future_size
         # h[:, :HS, :]          = h[:, :HS, :]          + self.positional_encoding[:, :HS, :]
@@ -397,7 +416,8 @@ class build_model(nn.Module):
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_ = attention_norm(h)
-            h_ = attention_linear(h_, h_, h_, self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
+            KV = torch.cat([h_sa, h_], dim=1)
+            h_ = attention_linear(h_, KV, KV, mask=self.mask, kv_cache=None, seq_positions=None)[0]
             h_ = self.dropout(h_)
             h  = h + h_ # typical pre-norm style
             h_ = fully_connected_norm(h)
@@ -409,7 +429,7 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h = h[:, -future_a.size(1): , :]
+        # h = h[:, -future_a.size(1): , :]
         r = self.reward_linear(h)
         r = torch.tanh(r)  
 
@@ -450,12 +470,19 @@ class build_model(nn.Module):
             'glorot_normal': nn.init.xavier_normal_,
             'xavier_uniform': nn.init.xavier_uniform_,
             'xavier_normal': nn.init.xavier_normal_,
-            'kaiming_uniform': nn.init.kaiming_uniform_, # since we are using nn.linear -> norm layer -> gelu , we don't really need kaiming for gelu
+            'kaiming_uniform': nn.init.kaiming_uniform_, 
             'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
-        for module in self.modules():
+        for name, module in self.named_modules():
             if isinstance(module, nn.Linear):
                 initializer(module.weight)     # module.weight and module.bias are parameters
                 if module.bias is not None:   
                     nn.init.zeros_(module.bias)
+                # if "reward_linear" in name:
+                #     if module.bias is not None:
+                #         nn.init.constant_(module.bias, 2.0)  # ★ key to make agent optimisitc and explore
+                # else:
+                #     initializer(module.weight)     # module.weight and module.bias are parameters
+                #     if module.bias is not None:   
+                #         nn.init.zeros_(module.bias)
