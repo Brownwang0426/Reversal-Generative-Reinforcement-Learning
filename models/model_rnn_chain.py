@@ -114,9 +114,9 @@ class build_model(nn.Module):
 
         self.dropout              = nn.Dropout(self.drop_rate)
         neural_types = {
-            'rnn': nn.RNN,
-            'gru': nn.GRU,
-            'lstm': nn.LSTM
+            'rnn_chain': nn.RNN,
+            'gru_chain': nn.GRU,
+            'lstm_chain': nn.LSTM
         }
         self.bidirectional        = False
         self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
