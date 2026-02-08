@@ -40,7 +40,7 @@ import hashlib
 
 --- check list for modern transformer's basic architecture, [O] means included in this repo, [X] means not yet included ---
 [O] Pre-RMSNorm
-[O] RoPE
+[X] RoPE
 [O] causal mask
 [O] GQA or MHA
 [X] Flash / SDPA Attention 
@@ -147,9 +147,9 @@ class custom_attn(nn.Module):
         K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
         V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
 
-        # RoPE
-        Q = self.apply_rope(Q, seq_positions)
-        K = self.apply_rope(K, seq_positions)
+        # # RoPE
+        # Q = self.apply_rope(Q, seq_positions)
+        # K = self.apply_rope(K, seq_positions)
 
         if kv_cache is not None:
             if 'k' in kv_cache and 'v' in kv_cache:
@@ -315,7 +315,7 @@ class build_model(nn.Module):
         self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
         self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
-        # self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
@@ -376,7 +376,7 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, history_a, present_s, future_s, future_a):
+    def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
 
         future_r_list = list()
         future_s_list = list()
@@ -395,6 +395,8 @@ class build_model(nn.Module):
         present_s = self.state_norm (self.state_linear (present_s))
         future_a  = self.action_norm(self.action_linear(future_a ))
 
+        positional_encoding = torch.cat([ self.positional_encoding[:, :self.history_size, :], self.positional_encoding[:, self.history_size::pos_skip, :]], dim=1)
+
 
         for i in range(future_a.size(1)):
 
@@ -405,7 +407,7 @@ class build_model(nn.Module):
             Transformer decoder with pre-norm style without gelu
             """
             long = h.size(1)
-            # h    = h + self.positional_encoding[:, :long, :]
+            h    = h + positional_encoding[:, :long, :]
             for layer in self.transformer_layers:
                 attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
                 h_  = attention_norm(h) 
@@ -440,72 +442,72 @@ class build_model(nn.Module):
 
 
 
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
-    
-        future_r_list = list()
-        future_s_list = list()
-
-        present_s = present_s.unsqueeze(1)
-    
-
-        if history_s.size(1) > 0:
-            history_s   = self.state_norm (self.state_linear (history_s) )
-            history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a 
-        else:
-            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
-                
-
-        present_s = self.state_norm (self.state_linear (present_s))
-        future_a  = self.action_norm(self.action_linear(future_a ))
-    
-
-        kv_caches = [dict() for _ in self.transformer_layers]
-        start     = 0
-    
-        for i in range(int(future_a.size(1))):
-    
-            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
-    
-            """
-            Transformer decoder
-            """
-            end  = start + history_s_a.size(1) + 1
-            # h    = h + self.positional_encoding[:, start : end , :]
-            for j, layer in enumerate(self.transformer_layers):
-                attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-                h_  = attention_norm(h)
-                seq_positions = torch.arange(start, end, device=h.device) # [seq_len]
-                h_, kv_caches[j] = attention_linear(h_, h_, h_, mask=self.mask[:, :, start : end, : end], kv_cache=kv_caches[j], seq_positions=seq_positions)
-                h_  = self.dropout(h_)
-                h   = h + h_
-                h_  = fully_connected_norm(h)
-                h_  = fully_connected_linear(h_)
-                h_  = self.dropout(h_)
-                h   = h + h_
-            h = self.transformer_norm(h)
-            """
-            Transformer decoder
-            """
-    
-            h = h[:, -1:, :]
-            r = self.reward_linear(h)
-            r = torch.tanh(r)  
-            s = self.state_linear_(h)
-            s = torch.tanh(s)  
-
-            future_r_list.append(r)
-            future_s_list.append(s)
-
-            present_s = self.state_norm(self.state_linear(s)) 
-
-            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
-            start       = copy.deepcopy(end) 
-            
-        future_r = torch.cat(future_r_list, dim=1) 
-        future_s = torch.cat(future_s_list, dim=1)
-    
-        return future_r, future_s
+    # def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    # 
+    #     future_r_list = list()
+    #     future_s_list = list()
+    # 
+    #     present_s = present_s.unsqueeze(1)
+    # 
+    # 
+    #     if history_s.size(1) > 0:
+    #         history_s   = self.state_norm (self.state_linear (history_s) )
+    #         history_a   = self.action_norm(self.action_linear(history_a) )
+    #         history_s_a = history_s + history_a 
+    #     else:
+    #         history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
+    #             
+    # 
+    #     present_s = self.state_norm (self.state_linear (present_s))
+    #     future_a  = self.action_norm(self.action_linear(future_a ))
+    # 
+    # 
+    #     kv_caches = [dict() for _ in self.transformer_layers]
+    #     start     = 0
+    # 
+    #     for i in range(int(future_a.size(1))):
+    # 
+    #         h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
+    # 
+    #         """
+    #         Transformer decoder
+    #         """
+    #         end  = start + history_s_a.size(1) + 1
+    #         h    = h + self.positional_encoding[:, start : end , :] # [todo]
+    #         for j, layer in enumerate(self.transformer_layers):
+    #             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+    #             h_  = attention_norm(h)
+    #             seq_positions = torch.arange(start, end, device=h.device) # [seq_len]
+    #             h_, kv_caches[j] = attention_linear(h_, h_, h_, mask=self.mask[:, :, start : end, : end], kv_cache=kv_caches[j], seq_positions=seq_positions)
+    #             h_  = self.dropout(h_)
+    #             h   = h + h_
+    #             h_  = fully_connected_norm(h)
+    #             h_  = fully_connected_linear(h_)
+    #             h_  = self.dropout(h_)
+    #             h   = h + h_
+    #         h = self.transformer_norm(h)
+    #         """
+    #         Transformer decoder
+    #         """
+    # 
+    #         h = h[:, -1:, :]
+    #         r = self.reward_linear(h)
+    #         r = torch.tanh(r)  
+    #         s = self.state_linear_(h)
+    #         s = torch.tanh(s)  
+    # 
+    #         future_r_list.append(r)
+    #         future_s_list.append(s)
+    # 
+    #         present_s = self.state_norm(self.state_linear(s)) 
+    # 
+    #         history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
+    #         start       = copy.deepcopy(end) 
+    #         
+    #     future_r = torch.cat(future_r_list, dim=1) 
+    #     future_s = torch.cat(future_s_list, dim=1)
+    # 
+    #     return future_r, future_s
 
     
 
@@ -537,7 +539,7 @@ class build_model(nn.Module):
         Transformer decoder
         """
         long = h.size(1)
-        # h = h + self.positional_encoding[:, :long, :]
+        h = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
             h_  = attention_norm(h)

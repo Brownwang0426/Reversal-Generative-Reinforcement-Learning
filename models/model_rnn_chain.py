@@ -159,7 +159,7 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, history_a, present_s, future_s, future_a):
+    def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
 
         future_r_list = list()
         future_s_list = list()
@@ -211,57 +211,57 @@ class build_model(nn.Module):
 
 
 
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
-    
-        future_r_list = list()
-        future_s_list = list()
-
-        present_s = present_s.unsqueeze(1)
-    
-
-        if history_s.size(1) > 0:
-            history_s   = self.state_norm (self.state_linear (history_s) )
-            history_a   = self.action_norm(self.action_linear(history_a) )
-            history_s_a = history_s + history_a 
-        else:
-            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
-                
-
-        present_s = self.state_norm (self.state_linear (present_s))
-        future_a  = self.action_norm(self.action_linear(future_a ))
-    
-
-        hidden_cache = None
-    
-        for i in range(int(future_a.size(1))):
-    
-            h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
-    
-            """
-            Transformer decoder
-            """
-            h, hidden_cache = self.recurrent_layers(h, hidden_cache)
-            """
-            Transformer decoder
-            """
-    
-            h = h[:, -1:, :]
-            r = self.reward_linear(h)
-            r = torch.tanh(r) 
-            s = self.state_linear_(h)
-            s = torch.tanh(s) 
-
-            future_r_list.append(r)
-            future_s_list.append(s)
-
-            present_s = self.state_norm(self.state_linear(s)) 
-
-            history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
-            
-        future_r = torch.cat(future_r_list, dim=1) 
-        future_s = torch.cat(future_s_list, dim=1)
-    
-        return future_r, future_s
+    # def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    # 
+    #     future_r_list = list()
+    #     future_s_list = list()
+    # 
+    #     present_s = present_s.unsqueeze(1)
+    # 
+    # 
+    #     if history_s.size(1) > 0:
+    #         history_s   = self.state_norm (self.state_linear (history_s) )
+    #         history_a   = self.action_norm(self.action_linear(history_a) )
+    #         history_s_a = history_s + history_a 
+    #     else:
+    #         history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
+    #             
+    # 
+    #     present_s = self.state_norm (self.state_linear (present_s))
+    #     future_a  = self.action_norm(self.action_linear(future_a ))
+    # 
+    # 
+    #     hidden_cache = None
+    # 
+    #     for i in range(int(future_a.size(1))):
+    # 
+    #         h = torch.cat([history_s_a, present_s + future_a[:, i:i+1]], dim=1)
+    # 
+    #         """
+    #         Transformer decoder
+    #         """
+    #         h, hidden_cache = self.recurrent_layers(h, hidden_cache)
+    #         """
+    #         Transformer decoder
+    #         """
+    # 
+    #         h = h[:, -1:, :]
+    #         r = self.reward_linear(h)
+    #         r = torch.tanh(r) 
+    #         s = self.state_linear_(h)
+    #         s = torch.tanh(s) 
+    # 
+    #         future_r_list.append(r)
+    #         future_s_list.append(s)
+    # 
+    #         present_s = self.state_norm(self.state_linear(s)) 
+    # 
+    #         history_s_a = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
+    #         
+    #     future_r = torch.cat(future_r_list, dim=1) 
+    #     future_s = torch.cat(future_s_list, dim=1)
+    # 
+    #     return future_r, future_s
 
 
 

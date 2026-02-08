@@ -107,7 +107,8 @@ def update_future_action(itrtn_for_planning,
                          present_state,
                          future_action,
                          desired_reward,
-                         beta):
+                         beta,
+                         pos_skip):
 
     device = next(model_list[0].parameters()).device
     device_ = history_state.device
@@ -133,7 +134,7 @@ def update_future_action(itrtn_for_planning,
         
         loss_function      = model.loss_function
         envisaged_reward, \
-        envisaged_state    = model.forward(history_state, history_action, present_state, None, torch.tanh(future_action))
+        envisaged_state    = model.forward(history_state, history_action, present_state, None, torch.tanh(future_action), pos_skip)
         total_loss         = loss_function(envisaged_reward, desired_reward)
         total_loss.backward() 
 
