@@ -104,20 +104,22 @@ class build_model(nn.Module):
         self.grad_clip_value      = grad_clip_value
 
         self.state_linear         = nn.Sequential(
-                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.state_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
         self.action_linear        = nn.Sequential(
-                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias)
+                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
-        self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
-        self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
-
-        self.state_type           = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.action_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
-
-        self.history_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.present_type         = nn.Parameter(torch.randn(1, 1, self.feature_size))
-        self.future_type          = nn.Parameter(torch.randn(1, 1, self.feature_size))
+        self.action_linear_       = nn.Sequential(
+                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                                    )
+        self.history_norm         = rms_norm(self.feature_size, elementwise_affine=True)
+        self.future_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         neural_types = {
@@ -163,22 +165,19 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, history_a, present_s, future_s, future_a):
+    def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
 
         if history_s.size(1) > 0:
-            history_s = self.state_norm (self.state_linear (history_s              ))
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            history_s = history_s + self.history_type + self.state_type
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([history_s, present_s, future_a], dim=1)
+            history = self.state_linear(history_s) + self.action_linear(history_a)
+            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
+            history = torch.cat([history, present], dim=1)
+            history = self.history_norm(history)
         else:
-            present_s = self.state_norm (self.state_linear (present_s.unsqueeze(1) ))
-            future_a  = self.action_norm(self.action_linear(future_a               ))
-            present_s = present_s + self.present_type + self.state_type
-            future_a  = future_a  + self.future_type  + self.action_type
-            h = torch.cat([present_s, future_a], dim=1)
+            history = torch.empty((present_s.size(0), 0, self.featuer_size), device=present_s.device, dtype=present_s.dtype)
+            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
+            history = torch.cat([history, present], dim=1)
+            history = self.history_norm(history)
+        future      = self.future_norm(self.action_linear_(future_a[:, 1:, :]))
 
         """
         Transformer decoder
@@ -188,9 +187,9 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h = h[:, -future_a.size(1): , :]
-        r = self.reward_linear(h)
-        r = torch.tanh(r)  
+        hf = hf[:, self.history_size:, :]
+        r  = self.reward_linear(hf)
+        r  = torch.tanh(r)  
 
         future_r = r
         future_s = torch.zeros((future_a.size(0), future_a.size(1), self.state_size), device=future_a.device, dtype=future_a.dtype)
@@ -200,26 +199,17 @@ class build_model(nn.Module):
 
 
 
-    def _forward(self, history_s, history_a, present_s, future_s, future_a):
-        return self.forward(history_s, history_a, present_s, future_s, future_a)
+    # def _forward(self, history_s, history_a, present_s, future_s, future_a):
+    #     return self.forward(history_s, history_a, present_s, future_s, future_a)
 
     
 
 
     def forward_(self, history_s, history_a, present_s, future_s, future_a):
-        return self.forward(history_s, history_a, present_s, future_s, future_a)
+        return self.forward(history_s, history_a, present_s, future_s, future_a, None)
 
 
 
-
-    def generate_positional_encoding(self, sequence_size, feature_size):
-        pe = torch.zeros(sequence_size,feature_size)
-        for pos in range(sequence_size):
-            for i in range(0,feature_size,2):
-                pe[pos, i] = math.sin(pos / (10000 ** ((2 * i)/feature_size)))
-                if i + 1 < feature_size:
-                    pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * i)/feature_size)))
-        return pe.unsqueeze(0)  # Shape: (1, sequence_size, feature_size)
 
     def initialize_weights(self, initializer):
         initializers = {
@@ -229,12 +219,19 @@ class build_model(nn.Module):
             'glorot_normal': nn.init.xavier_normal_,
             'xavier_uniform': nn.init.xavier_uniform_,
             'xavier_normal': nn.init.xavier_normal_,
-            'kaiming_uniform': nn.init.kaiming_uniform_, # since we are using nn.linear -> norm layer -> gelu , we don't really need kaiming for gelu
+            'kaiming_uniform': nn.init.kaiming_uniform_, 
             'kaiming_normal': nn.init.kaiming_normal_
         }
         initializer = initializers[initializer.lower()]
-        for module in self.modules():
+        for name, module in self.named_modules():
             if isinstance(module, nn.Linear):
                 initializer(module.weight)     # module.weight and module.bias are parameters
                 if module.bias is not None:   
                     nn.init.zeros_(module.bias)
+                # if "reward_linear" in name:
+                #     if module.bias is not None:
+                #         nn.init.constant_(module.bias, 2.0)  # ★ key to make agent optimisitc and explore
+                # else:
+                #     initializer(module.weight)     # module.weight and module.bias are parameters
+                #     if module.bias is not None:   
+                #         nn.init.zeros_(module.bias)

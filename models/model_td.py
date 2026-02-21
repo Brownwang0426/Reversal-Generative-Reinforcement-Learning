@@ -437,12 +437,12 @@ class build_model(nn.Module):
             f_  = hf_[:, self.history_size + 1:, :]
             h   = h + h_
             f   = f + f_
-            h_ = fully_connected_norm_h(h)
-            f_ = fully_connected_norm_f(f)
-            h_ = fully_connected_linear_h(h_)
-            f_ = fully_connected_linear_f(f_)
-            h_ = self.dropout(h_)
-            f_ = self.dropout(f_)
+            h_  = fully_connected_norm_h(h)
+            f_  = fully_connected_norm_f(f)
+            h_  = fully_connected_linear_h(h_)
+            f_  = fully_connected_linear_f(f_)
+            h_  = self.dropout(h_)
+            f_  = self.dropout(f_)
             h   = h + h_
             f   = f + f_
         hf = torch.cat([h, f], dim=1)
@@ -463,8 +463,8 @@ class build_model(nn.Module):
 
 
 
-    def _forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
-        return self.forward(history_s, history_a, present_s, future_s, future_a, pos_skip)
+    # def _forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
+    #     return self.forward(history_s, history_a, present_s, future_s, future_a, pos_skip)
 
     
 

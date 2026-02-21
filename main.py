@@ -87,8 +87,8 @@ feature_size = 300                   #⚠️
 history_size = 150                   #⚠️
 future_size = 75                     #⚠️
 frame_skip = 1                       #⚠️ 
-pos_skip = 5                         #⚠️
-neural_type = 'td_chain'             #⚠️
+pos_skip = 1                         #⚠️
+neural_type = 'td'                   #⚠️
 num_layers = 5                       #⚠️
 num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
@@ -98,19 +98,18 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
+magnitude_for_learning = 5           #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
 
-beta = 0.1
+beta = 0.01
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 100         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
@@ -137,113 +136,6 @@ render_for_human = False
 
 
 
-
-
-
-
-
-
-# -----------------------
-
-
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size =  460                    #⚠️
-action_size = 2                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size = 250                   #⚠️
-future_size = 50                     #⚠️
-frame_skip = 1                       #⚠️ 
-pos_skip = 5                         #⚠️
-neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
-
-
-
-
-
-
-# -----------------------
-
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-frame_skip = 1                       #⚠️ 
-pos_skip = 3                         #⚠️
-neural_type = 'td_chain'             #⚠️
-num_layers = 5                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-min_itrtn_for_learning = 150        #⚠️
-min_itrtn_for_learning = 150        #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
 
 
 
@@ -262,8 +154,8 @@ feature_size = 1000                  #⚠️
 history_size = 150                   #⚠️
 future_size = 100                    #⚠️ 
 frame_skip = 1                       #⚠️ 
-pos_skip = 10                        #⚠️
-neural_type = 'td_chain'             #⚠️
+pos_skip = 1                         #⚠️
+neural_type = 'td'                   #⚠️
 num_layers = 5                       #⚠️
 num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
@@ -273,19 +165,18 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.01
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-min_itrtn_for_learning = 2500        #⚠️
-max_itrtn_for_learning = 2500        #⚠️
+magnitude_for_learning = 5           #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
 
-beta = 0.1
+beta = 0.01
 min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
+max_itrtn_for_planning = 100         #⚠️     
 min_param_for_planning = 0           #⚠️
 max_param_for_planning = 0           #⚠️
 
@@ -294,6 +185,112 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
+
+
+# -----------------------
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+frame_skip = 1                       #⚠️ 
+pos_skip = 1                         #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 5                       #⚠️
+num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.1
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+magnitude_for_learning = 5           #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+PER = False
+
+beta = 0.01
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 100         #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
+
+
+
+
+
+# -----------------------
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+state_size =  460                    #⚠️
+action_size = 2                      #⚠️
+reward_size = 100                    #⚠️
+feature_size = 500                   #⚠️
+history_size = 1000                  #⚠️
+future_size = 100                    #⚠️
+frame_skip = 1                       #⚠️ 
+pos_skip = 1                         #⚠️
+neural_type = 'td'                   #⚠️
+num_layers = 5                       #⚠️
+num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.1
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+magnitude_for_learning = 5           #⚠️
+min_batch_size_for_learning = 1
+max_batch_size_for_learning = 1
+PER = False
+
+beta = 0.01
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 100         #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
+
+
+
+
+
 
 
 # -----------------------
@@ -625,7 +622,6 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        itrtn_for_learning = min_itrtn_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_learning - min_itrtn_for_learning, episode_for_averaging)
         batch_size_for_learning = min_batch_size_for_learning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_batch_size_for_learning - min_batch_size_for_learning, episode_for_averaging)
 
 
@@ -638,6 +634,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_action_stack,
                                         future_reward_stack,
                                         future_state_stack  )
+        itrtn_for_learning = int(len(dataset) * magnitude_for_learning)
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
