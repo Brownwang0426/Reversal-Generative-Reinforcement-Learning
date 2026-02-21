@@ -128,7 +128,8 @@ class build_model(nn.Module):
             'lstm': nn.LSTM
         }
         self.bidirectional        = False
-        self.recurrent_layers     = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
+        self.recurrent_layers_h   = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
+        self.recurrent_layers_f   = neural_types[self.neural_type.lower()](self.feature_size, self.feature_size, num_layers=self.num_layers, batch_first=True, bias=self.bias, dropout=self.drop_rate, bidirectional=self.bidirectional)
 
         self.reward_linear        = nn.Sequential(
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
@@ -182,7 +183,9 @@ class build_model(nn.Module):
         """
         Transformer decoder
         """
-        h, _ = self.recurrent_layers(h)
+        h, hidden_h  = self.recurrent_layers_h(history)
+        f, hidden_f  = self.recurrent_layers_f(future, hidden_h)
+        hf = torch.cat([h, f], dim=1)
         """
         Transformer decoder
         """

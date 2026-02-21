@@ -65,14 +65,14 @@ class custom_attn(nn.Module):
         self.head_size     = feature_size // num_heads
         self.bias          = bias
         self.drop_rate     = drop_rate
-        self.W_q_s         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_k_s         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_v_s         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_o_s         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_q_a         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_k_a         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_v_a         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_o_a         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_q_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_q_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
@@ -148,17 +148,17 @@ class custom_attn(nn.Module):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
 
-        Q_s  = self.W_q_s(Q[:, :h_size, :])
-        K_s  = self.W_k_s(K[:, :h_size, :])
-        V_s  = self.W_v_s(V[:, :h_size, :])
+        Q_h  = self.W_q_h(Q[:, :h_size, :])
+        K_h  = self.W_k_h(K[:, :h_size, :])
+        V_h  = self.W_v_h(V[:, :h_size, :])
 
-        Q_a  = self.W_q_a(Q[:, h_size:, :])
-        K_a  = self.W_k_a(K[:, h_size:, :])
-        V_a  = self.W_v_a(V[:, h_size:, :])
+        Q_f  = self.W_q_f(Q[:, h_size:, :])
+        K_f  = self.W_k_f(K[:, h_size:, :])
+        V_f  = self.W_v_f(V[:, h_size:, :])
 
-        Q    = torch.cat([Q_s, Q_a], dim=1)
-        K    = torch.cat([K_s, K_a], dim=1)
-        V    = torch.cat([V_s, V_a], dim=1)
+        Q    = torch.cat([Q_h, Q_f], dim=1)
+        K    = torch.cat([K_h, K_f], dim=1)
+        V    = torch.cat([V_h, V_f], dim=1)
 
         Q    = self.split_heads(Q)  # Shape: (batch_size, num_heads, sequence_size, head_size )
         K    = self.split_heads(K)  # Shape: (batch_size, num_heads, sequence_size, head_size )
@@ -176,9 +176,9 @@ class custom_attn(nn.Module):
             kv_cache['v'] = V
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
         attn_output = self.combine_heads(attn_output)
-        output_s    = self.W_o_s(attn_output[:, :h_size, :])
-        output_a    = self.W_o_a(attn_output[:, h_size:, :])
-        output      = torch.cat([output_s, output_a], dim=1)
+        output_h    = self.W_o_h(attn_output[:, :h_size, :])
+        output_f    = self.W_o_f(attn_output[:, h_size:, :])
+        output      = torch.cat([output_h, output_f], dim=1)
         return output, kv_cache
 
 
