@@ -395,18 +395,18 @@ for _ in range(ensemble_size):
     model_list.append(model)
 
 # creating space for storing tensors as OLD experience replay buffer
-history_state_stack        = torch.empty(0).to(device_, non_blocking=True)
-history_action_stack       = torch.empty(0).to(device_, non_blocking=True)
-present_state_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_action_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_reward_stack        = torch.empty(0).to(device_, non_blocking=True)
-future_state_stack         = torch.empty(0).to(device_, non_blocking=True)
-history_state_hash_set     = set()
-history_action_hash_set    = set()
-present_state_hash_set     = set()
-future_action_hash_set     = set()
-future_reward_hash_set     = set()
-future_state_hash_set      = set()
+old_history_state_stack        = torch.empty(0).to(device_, non_blocking=True)
+old_history_action_stack       = torch.empty(0).to(device_, non_blocking=True)
+old_present_state_stack        = torch.empty(0).to(device_, non_blocking=True)
+old_future_action_stack        = torch.empty(0).to(device_, non_blocking=True)
+old_future_reward_stack        = torch.empty(0).to(device_, non_blocking=True)
+old_future_state_stack         = torch.empty(0).to(device_, non_blocking=True)
+old_history_state_hash_set     = set()
+old_history_action_hash_set    = set()
+old_present_state_hash_set     = set()
+old_future_action_hash_set     = set()
+old_future_reward_hash_set     = set()
+old_future_state_hash_set      = set()
 
 # creating space for storing tensors as NEW experience replay buffer
 new_history_state_stack        = torch.empty(0).to(device_, non_blocking=True)
@@ -428,24 +428,24 @@ if load_pretrained_model == True:
         model_dict = torch.load(model_directory)
         for i, model in enumerate(model_list):
             model.load_state_dict(model_dict[f'model_{i}'])
-        history_state_stack, \
-        history_action_stack,\
-        present_state_stack, \
-        future_action_stack, \
-        future_reward_stack, \
-        future_state_stack,  \
-        history_state_hash_set , \
-        history_action_hash_set , \
-        present_state_hash_set , \
-        future_action_hash_set , \
-        future_reward_hash_set , \
-        future_state_hash_set  = load_buffer_from_pickle(buffer_directory)
-        history_state_stack    = history_state_stack.to (device_) 
-        history_action_stack   = history_action_stack.to(device_) 
-        present_state_stack    = present_state_stack.to (device_) 
-        future_action_stack    = future_action_stack.to (device_) 
-        future_reward_stack    = future_reward_stack.to (device_) 
-        future_state_stack     = future_state_stack .to (device_) 
+        old_history_state_stack, \
+        old_history_action_stack,\
+        old_present_state_stack, \
+        old_future_action_stack, \
+        old_future_reward_stack, \
+        old_future_state_stack,  \
+        old_history_state_hash_set , \
+        old_history_action_hash_set , \
+        old_present_state_hash_set , \
+        old_future_action_hash_set , \
+        old_future_reward_hash_set , \
+        old_future_state_hash_set  = load_buffer_from_pickle(buffer_directory)
+        old_history_state_stack    = old_history_state_stack.to (device_) 
+        old_history_action_stack   = old_history_action_stack.to(device_) 
+        old_present_state_stack    = old_present_state_stack.to (device_) 
+        old_future_action_stack    = old_future_action_stack.to (device_) 
+        old_future_reward_stack    = old_future_reward_stack.to (device_) 
+        old_future_state_stack     = old_future_state_stack .to (device_) 
         performance_log        = load_performance_from_csv(performance_directory)
         last_episode           = performance_log[-1][0] if len(performance_log) > 0 else 0
         print('Loaded pre-trained models.')
@@ -633,12 +633,12 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # dual-buffer training: iterations scale with NEW buffer size only
-        old_dataset = TensorDataset(history_state_stack,
-                                    history_action_stack,
-                                    present_state_stack,
-                                    future_action_stack,
-                                    future_reward_stack,
-                                    future_state_stack  ) if len(present_state_stack) > 0 else []
+        old_dataset = TensorDataset(old_history_state_stack,
+                                    old_history_action_stack,
+                                    old_present_state_stack,
+                                    old_future_action_stack,
+                                    old_future_reward_stack,
+                                    old_future_state_stack  ) if len(old_present_state_stack) > 0 else []
         new_dataset = TensorDataset(new_history_state_stack,
                                     new_history_action_stack,
                                     new_present_state_stack,
@@ -656,29 +656,29 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # merge new buffer into old buffer after training
-        history_state_stack, \
-        history_action_stack, \
-        present_state_stack, \
-        future_action_stack, \
-        future_reward_stack, \
-        future_state_stack, \
-        history_state_hash_set   , \
-        history_action_hash_set   , \
-        present_state_hash_set   , \
-        future_action_hash_set   , \
-        future_reward_hash_set   , \
-        future_state_hash_set    = merge_buffers(history_state_stack,
-                                                 history_action_stack,
-                                                 present_state_stack,
-                                                 future_action_stack,
-                                                 future_reward_stack,
-                                                 future_state_stack ,
-                                                 history_state_hash_set   ,
-                                                 history_action_hash_set   ,
-                                                 present_state_hash_set   ,
-                                                 future_action_hash_set   ,
-                                                 future_reward_hash_set   ,
-                                                 future_state_hash_set    ,
+        old_history_state_stack, \
+        old_history_action_stack, \
+        old_present_state_stack, \
+        old_future_action_stack, \
+        old_future_reward_stack, \
+        old_future_state_stack, \
+        old_history_state_hash_set   , \
+        old_history_action_hash_set   , \
+        old_present_state_hash_set   , \
+        old_future_action_hash_set   , \
+        old_future_reward_hash_set   , \
+        old_future_state_hash_set    = merge_buffers(old_history_state_stack,
+                                                 old_history_action_stack,
+                                                 old_present_state_stack,
+                                                 old_future_action_stack,
+                                                 old_future_reward_stack,
+                                                 old_future_state_stack ,
+                                                 old_history_state_hash_set   ,
+                                                 old_history_action_hash_set   ,
+                                                 old_present_state_hash_set   ,
+                                                 old_future_action_hash_set   ,
+                                                 old_future_reward_hash_set   ,
+                                                 old_future_state_hash_set    ,
                                                  new_history_state_stack,
                                                  new_history_action_stack,
                                                  new_present_state_stack,
@@ -713,29 +713,29 @@ for training_episode in tqdm(range(episode_for_training)):
         [ADDITIONAL] We limit buffer to save vram.
         """
         # limit_buffer
-        history_state_stack, \
-        history_action_stack, \
-        present_state_stack, \
-        future_action_stack, \
-        future_reward_stack, \
-        future_state_stack , \
-        history_state_hash_set   , \
-        history_action_hash_set   , \
-        present_state_hash_set   , \
-        future_action_hash_set   , \
-        future_reward_hash_set   , \
-        future_state_hash_set    = limit_buffer(history_state_stack,
-                                                history_action_stack,
-                                                present_state_stack,
-                                                future_action_stack,
-                                                future_reward_stack,
-                                                future_state_stack ,
-                                                history_state_hash_set   ,
-                                                history_action_hash_set   ,
-                                                present_state_hash_set   ,
-                                                future_action_hash_set   ,
-                                                future_reward_hash_set   ,
-                                                future_state_hash_set  ,
+        old_history_state_stack, \
+        old_history_action_stack, \
+        old_present_state_stack, \
+        old_future_action_stack, \
+        old_future_reward_stack, \
+        old_future_state_stack , \
+        old_history_state_hash_set   , \
+        old_history_action_hash_set   , \
+        old_present_state_hash_set   , \
+        old_future_action_hash_set   , \
+        old_future_reward_hash_set   , \
+        old_future_state_hash_set    = limit_buffer(old_history_state_stack,
+                                                old_history_action_stack,
+                                                old_present_state_stack,
+                                                old_future_action_stack,
+                                                old_future_reward_stack,
+                                                old_future_state_stack ,
+                                                old_history_state_hash_set   ,
+                                                old_history_action_hash_set   ,
+                                                old_present_state_hash_set   ,
+                                                old_future_action_hash_set   ,
+                                                old_future_reward_hash_set   ,
+                                                old_future_state_hash_set  ,
                                                 buffer_limit  )
 
 
@@ -752,18 +752,18 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # saving long term experience replay buffer
         save_buffer_to_pickle(buffer_directory,
-                              history_state_stack,
-                              history_action_stack,
-                              present_state_stack,
-                              future_action_stack,
-                              future_reward_stack,
-                              future_state_stack,
-                              history_state_hash_set ,
-                              history_action_hash_set ,
-                              present_state_hash_set ,
-                              future_action_hash_set ,
-                              future_reward_hash_set ,
-                              future_state_hash_set )
+                              old_history_state_stack,
+                              old_history_action_stack,
+                              old_present_state_stack,
+                              old_future_action_stack,
+                              old_future_reward_stack,
+                              old_future_state_stack,
+                              old_history_state_hash_set ,
+                              old_history_action_hash_set ,
+                              old_present_state_hash_set ,
+                              old_future_action_hash_set ,
+                              old_future_reward_hash_set ,
+                              old_future_state_hash_set )
 
 
 
