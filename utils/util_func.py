@@ -473,6 +473,132 @@ def update_model_list(itrtn_for_learning,
 
 
 
+def update_model_dual_buffer(itrtn_for_learning,
+                             old_dataset,
+                             new_dataset,
+                             model,
+                             batch_size_old):
+    """
+    Dual-buffer training: old buffer is treated as ONE item in a pool of (len(new) + 1).
+    Each iteration uniformly picks one item from this pool:
+    - If old buffer is picked (probability 1/(len(new)+1)): sample batch_size_old experiences from old buffer without replacement
+    - If a new experience is picked (probability len(new)/(len(new)+1)): use that single experience
+    - If old buffer is empty, always sample from new buffer.
+    """
+    device  = next(model.parameters()).device
+    has_old = len(old_dataset) > 0
+    # total pool size: new experiences + 1 (old buffer as a whole)
+    pool_size = len(new_dataset) + (1 if has_old else 0)
+
+    for _ in range(itrtn_for_learning):
+
+        # uniformly pick one item from the pool
+        pick = random.randint(0, pool_size - 1)
+
+        if has_old and pick == pool_size - 1:
+            # picked the old buffer -> sample batch_size_old experiences without replacement
+            final_indices  = random.sample(range(len(old_dataset)), k=min(batch_size_old, len(old_dataset)))
+            batch_samples  = [old_dataset[i] for i in final_indices]
+            loss_scale     = len(new_dataset)
+        else:
+            # picked a new experience -> use that single experience
+            final_indice   = pick
+            batch_samples  = [new_dataset[final_indice]]
+            loss_scale     = 1
+
+        history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
+
+        history_state  = torch.stack(history_state ).to(device)
+        history_action = torch.stack(history_action).to(device)
+        present_state  = torch.stack(present_state ).to(device)
+        future_action  = torch.stack(future_action ).to(device)
+        future_reward  = torch.stack(future_reward ).to(device)
+        future_state   = torch.stack(future_state  ).to(device)
+
+        model.train()
+        for p in model.parameters():
+            p.requires_grad_(True)
+        selected_optimizer = model.selected_optimizer
+        selected_optimizer.zero_grad()
+
+        loss_function               = model.loss_function
+        envisaged_reward, \
+        envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
+        total_loss                  = (loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )) * loss_scale
+        total_loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
+        selected_optimizer.step()
+
+    return model
+
+
+
+
+def update_model_list_dual_buffer(itrtn_for_learning,
+                                  old_dataset,
+                                  new_dataset,
+                                  model_list,
+                                  batch_size_old):
+    for i, model in enumerate(tqdm(model_list, desc="Updating models (dual buffer)")):
+        model_list[i] = update_model_dual_buffer(itrtn_for_learning,
+                                                  old_dataset,
+                                                  new_dataset,
+                                                  model,
+                                                  batch_size_old)
+    return model_list
+
+
+
+
+def merge_buffers(old_history_state_stack,  old_history_action_stack,
+                  old_present_state_stack,  old_future_action_stack,
+                  old_future_reward_stack,  old_future_state_stack,
+                  old_history_state_hash_set,  old_history_action_hash_set,
+                  old_present_state_hash_set,  old_future_action_hash_set,
+                  old_future_reward_hash_set,  old_future_state_hash_set,
+                  new_history_state_stack,  new_history_action_stack,
+                  new_present_state_stack,  new_future_action_stack,
+                  new_future_reward_stack,  new_future_state_stack,
+                  new_history_state_hash_set,  new_history_action_hash_set,
+                  new_present_state_hash_set,  new_future_action_hash_set,
+                  new_future_reward_hash_set,  new_future_state_hash_set):
+    """
+    Merge new buffer into old buffer by concatenating tensors and unioning hash sets.
+    """
+    if len(new_present_state_stack) > 0:
+        if len(old_present_state_stack) > 0:
+            old_history_state_stack  = torch.cat([old_history_state_stack,  new_history_state_stack ], dim=0)
+            old_history_action_stack = torch.cat([old_history_action_stack, new_history_action_stack], dim=0)
+            old_present_state_stack  = torch.cat([old_present_state_stack,  new_present_state_stack ], dim=0)
+            old_future_action_stack  = torch.cat([old_future_action_stack,  new_future_action_stack ], dim=0)
+            old_future_reward_stack  = torch.cat([old_future_reward_stack,  new_future_reward_stack ], dim=0)
+            old_future_state_stack   = torch.cat([old_future_state_stack,   new_future_state_stack  ], dim=0)
+        else:
+            old_history_state_stack  = new_history_state_stack.clone()
+            old_history_action_stack = new_history_action_stack.clone()
+            old_present_state_stack  = new_present_state_stack.clone()
+            old_future_action_stack  = new_future_action_stack.clone()
+            old_future_reward_stack  = new_future_reward_stack.clone()
+            old_future_state_stack   = new_future_state_stack.clone()
+
+        old_history_state_hash_set  = old_history_state_hash_set  | new_history_state_hash_set
+        old_history_action_hash_set = old_history_action_hash_set | new_history_action_hash_set
+        old_present_state_hash_set  = old_present_state_hash_set  | new_present_state_hash_set
+        old_future_action_hash_set  = old_future_action_hash_set  | new_future_action_hash_set
+        old_future_reward_hash_set  = old_future_reward_hash_set  | new_future_reward_hash_set
+        old_future_state_hash_set   = old_future_state_hash_set   | new_future_state_hash_set
+
+    return old_history_state_stack, old_history_action_stack, \
+           old_present_state_stack, old_future_action_stack, \
+           old_future_reward_stack, old_future_state_stack, \
+           old_history_state_hash_set, old_history_action_hash_set, \
+           old_present_state_hash_set, old_future_action_hash_set, \
+           old_future_reward_hash_set, old_future_state_hash_set
+
+
+
+
 def limit_buffer(history_state_stack, 
                  history_action_stack,
                  present_state_stack, 
