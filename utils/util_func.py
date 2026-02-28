@@ -485,8 +485,8 @@ def update_model_dual_buffer(itrtn_for_learning,
     - If a new experience is picked (probability len(new)/(len(new)+1)): use that single experience
     - If old buffer is empty, always sample from new buffer.
     """
-    device  = next(model.parameters()).device
-    has_old = len(old_dataset) > 0
+    device    = next(model.parameters()).device
+    has_old   = len(old_dataset) > 0
     # total pool size: new experiences + 1 (old buffer as a whole)
     pool_size = len(new_dataset) + (1 if has_old else 0)
 
