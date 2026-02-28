@@ -103,7 +103,7 @@ alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
 magnitude_for_learning = 5           #⚠️
-batch_size_old = 1000                #⚠️ 
+batch_size_old = 25                  #⚠️ 
 PER = False
 
 beta = 0.01
@@ -115,7 +115,6 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -165,7 +164,7 @@ alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
 magnitude_for_learning = 5           #⚠️
-batch_size_old = 1000                #⚠️ 
+batch_size_old = 25                  #⚠️ 
 PER = False
 
 beta = 0.01
@@ -269,7 +268,7 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-magnitude_for_learning = 2           #⚠️
+magnitude_for_learning = 5           #⚠️
 batch_size_old = 25                  #⚠️ 
 PER = False
 
