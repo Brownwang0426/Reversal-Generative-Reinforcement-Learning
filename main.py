@@ -79,7 +79,7 @@ game_name =  'MountainCar-v0'        #⚠️
 max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  220                    #⚠️
 action_size = 3                      #⚠️
 reward_size = 100                    #⚠️
@@ -98,11 +98,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.1
+drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-magnitude_for_learning = 5           #⚠️
+itrtn_for_learning = 2500            #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
@@ -118,7 +118,6 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -145,7 +144,7 @@ game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_s
 max_steps_for_each_episode = 10      #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                    #◀️
 state_size = 36                      #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
@@ -164,11 +163,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.1
+drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-magnitude_for_learning = 5           #⚠️
+itrtn_for_learning = 500             #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
@@ -188,8 +187,6 @@ render_for_human = False
 
 
 
-
-
 # -----------------------
 
 
@@ -197,12 +194,12 @@ game_name = 'CartPole-v1'            #⚠️
 max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  460                    #⚠️
 action_size = 2                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
-history_size = 1000                  #⚠️
+history_size = 500                   #⚠️
 future_size = 100                    #⚠️
 frame_skip = 1                       #⚠️ 
 pos_skip = 1                         #⚠️
@@ -216,11 +213,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.1
+drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-magnitude_for_learning = 5           #⚠️
+itrtn_for_learning = 2500            #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
@@ -241,20 +238,19 @@ render_for_human = False
 
 
 
-
 # -----------------------
 
 game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
-ensemble_size = 10                   #◀️
+ensemble_size = 5                    #◀️
 state_size =  900                    #⚠️
 action_size = 4                      #⚠️
 reward_size = 100                    #⚠️
 feature_size = 1000                  #⚠️
-history_size = 200                   #⚠️
-future_size = 150                    #⚠️ 
+history_size = 150                   #⚠️
+future_size = 100                    #⚠️ 
 frame_skip = 1                       #⚠️ 
 pos_skip = 1                         #⚠️
 neural_type = 'td'                   #⚠️
@@ -267,11 +263,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.1
+drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-magnitude_for_learning = 5           #⚠️
+itrtn_for_learning = 2500            #⚠️
 min_batch_size_for_learning = 1
 max_batch_size_for_learning = 1
 PER = False
@@ -447,7 +443,6 @@ if load_pretrained_model == True:
 if len(performance_log) > 0:
     itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
     param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
-
 else:
     itrtn_for_planning = min_itrtn_for_planning
     param_for_planning = max_param_for_planning
@@ -634,7 +629,6 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_action_stack,
                                         future_reward_stack,
                                         future_state_stack  )
-        itrtn_for_learning = int(len(dataset) * magnitude_for_learning)
         model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
@@ -706,6 +700,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # retreive highest reward
         itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
+        param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
 
 
 

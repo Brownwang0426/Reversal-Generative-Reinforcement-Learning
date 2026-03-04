@@ -58,9 +58,7 @@ def load_performance_from_csv(filename='performance_log.csv'):
 
 
 def load_buffer_from_pickle(filename):
-    with open(filename, 'rb') as file:
-        list = dill.load(file)
-    return list
+    return torch.load(filename)
 
 
 
@@ -536,8 +534,7 @@ def save_performance_to_csv(performance_log, filename='performance_log.csv'):
 
 
 def save_buffer_to_pickle(filename, *list):
-    with open(filename, 'wb') as file:
-        dill.dump(list, file)
+    torch.save(list, filename)
 
 
 
