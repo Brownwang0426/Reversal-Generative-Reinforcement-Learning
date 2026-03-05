@@ -45,8 +45,8 @@ import hashlib
 [O] GQA or MHA
 [X] Flash / SDPA Attention 
 [O] KV Cache
-[O] SwiGLU FFN
-[O] MoE
+[x] SwiGLU FFN
+[x] MoE
 [X] MOE router loss 
 
 --- optional ---
@@ -349,22 +349,25 @@ class build_model(nn.Module):
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
         nn.ModuleList([
-            rms_norm(self.feature_size, elementwise_affine=True),
-            rms_norm(self.feature_size, elementwise_affine=True),
-            custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
-            rms_norm(self.feature_size, elementwise_affine=True),
-            rms_norm(self.feature_size, elementwise_affine=True),
-            nn.Sequential(
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                nn.GELU(),
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-            ),
-            nn.Sequential(
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                nn.GELU(),
-                nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-            )
-            # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+                nn.ModuleList([
+                rms_norm(self.feature_size, elementwise_affine=True),
+                rms_norm(self.feature_size, elementwise_affine=True),
+                custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
+                rms_norm(self.feature_size, elementwise_affine=True),
+                rms_norm(self.feature_size, elementwise_affine=True),
+                nn.Sequential(
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                    nn.GELU(),
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                ),
+                nn.Sequential(
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                    nn.GELU(),
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                )
+                # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+            ])
+            for _ in range(self.num_layers)
         ])
         self.transformer_norm = rms_norm(self.feature_size, elementwise_affine=True) 
         mask           = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size),float("-inf"))
@@ -420,14 +423,13 @@ class build_model(nn.Module):
             history = self.history_norm(history)
         future      = self.future_norm(self.action_linear_(future_a[:, 1:, :]))
 
-        h = history + self.positional_encoding[:, :self.history_size + 1, :]
-        f = future  + self.positional_encoding[:, self.history_size + 1:, :]
-
         """
         Transformer decoder
         """
-        attention_norm_h, attention_norm_f, attention_linear, fully_connected_norm_h, fully_connected_norm_f, fully_connected_linear_h, fully_connected_linear_f = self.transformer_layers
-        for _ in self.transformer_layers:
+        h = history + self.positional_encoding[:, :self.history_size + 1, :]
+        f = future  + self.positional_encoding[:, self.history_size + 1:, :]
+        for layer in self.transformer_layers:
+            attention_norm_h, attention_norm_f, attention_linear, fully_connected_norm_h, fully_connected_norm_f, fully_connected_linear_h, fully_connected_linear_f = layer
             h_  = attention_norm_h(h)
             f_  = attention_norm_f(f)
             hf_ = torch.cat([h_, f_], dim=1)
