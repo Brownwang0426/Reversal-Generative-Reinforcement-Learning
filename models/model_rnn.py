@@ -113,15 +113,11 @@ class build_model(nn.Module):
                                         nn.GELU(),
                                         nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
-        self.action_linear_       = nn.Sequential(
-                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                                    )
-        self.history_norm         = rms_norm(self.feature_size, elementwise_affine=True)
-        self.future_norm          = rms_norm(self.feature_size, elementwise_affine=True)
+        self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
-        self.dropout              = nn.Dropout(self.drop_rate)
+        self.state_pad            = nn.Parameter(torch.zeros(1, 1, self.feature_size))
+
         neural_types = {
             'rnn': nn.RNN,
             'gru': nn.GRU,
@@ -168,30 +164,22 @@ class build_model(nn.Module):
 
     def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
 
-        if history_s.size(1) > 0:
-            history = self.state_linear(history_s) + self.action_linear(history_a)
-            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
-            history = torch.cat([history, present], dim=1)
-            history = self.history_norm(history)
-        else:
-            history = torch.empty((present_s.size(0), 0, self.featuer_size), device=present_s.device, dtype=present_s.dtype)
-            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
-            history = torch.cat([history, present], dim=1)
-            history = self.history_norm(history)
-        future      = self.future_norm(self.action_linear_(future_a[:, 1:, :]))
+        history = self.state_norm (self.state_linear  (history_s             )) + self.action_norm(self.action_linear(history_a         ))
+        present = self.state_norm (self.state_linear  (present_s.unsqueeze(1))) + self.action_norm(self.action_linear(future_a[:, :1, :]))
+        future  = self.action_norm(self.action_linear (future_a[:, 1:, :]))
+        future  = self.state_pad.expand(future.size(0), future.size(1), -1) + future
+        h       = torch.cat([history, present, future], dim=1)
 
         """
         Transformer decoder
         """
-        h, hidden_h  = self.recurrent_layers_h(history)
-        f, hidden_f  = self.recurrent_layers_f(future, hidden_h)
-        hf = torch.cat([h, f], dim=1)
+        h, _ = self.recurrent_layers(h)
         """
         Transformer decoder
         """
 
-        hf = hf[:, self.history_size:, :]
-        r  = self.reward_linear(hf)
+        h  = h[:, -self.future_size:, :]
+        r  = self.reward_linear(h)
         r  = torch.tanh(r)  
 
         future_r = r

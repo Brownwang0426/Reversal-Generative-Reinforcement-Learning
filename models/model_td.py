@@ -43,11 +43,11 @@ import hashlib
 [X] RoPE
 [O] causal mask
 [O] GQA or MHA
-[X] Flash / SDPA Attention 
+[O] Flash / SDPA Attention 
 [O] KV Cache
-[x] SwiGLU FFN
-[x] MoE
-[X] MOE router loss 
+[O] SwiGLU FFN
+[O] MoE
+[x] MoE router loss 
 
 --- optional ---
 [X] Residual scaling
@@ -55,6 +55,7 @@ import hashlib
 [X] Weight tying
 
 """
+
 
 class custom_attn(nn.Module):
     def __init__(self, feature_size, num_heads, bias, drop_rate):
@@ -65,14 +66,10 @@ class custom_attn(nn.Module):
         self.head_size     = feature_size // num_heads
         self.bias          = bias
         self.drop_rate     = drop_rate
-        self.W_q_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_k_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_v_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_o_h         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_q_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_k_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_v_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
-        self.W_o_f         = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_q           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_k           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_v           = nn.Linear(feature_size, feature_size, bias=self.bias)
+        self.W_o           = nn.Linear(feature_size, feature_size, bias=self.bias)
         self.attn_dropout  = nn.Dropout(self.drop_rate)
 
     def split_heads(self, x):
@@ -110,7 +107,7 @@ class custom_attn(nn.Module):
         x_rot[..., 1::2] = x1 * torch.sin(theta) + x2 * torch.cos(theta)
         return x_rot
     
-    def scaled_dot_product_attention(self, Q, K, V, mask):
+    def scaled_dot_product_attention_(self, Q, K, V, mask):
 
         # attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_size ** 0.5) #  (batch_size, num_heads, sequence_size, head_size) @ (batch_size, num_heads, head_size, sequence_size ) 
         K_T = K.transpose(-2, -1).contiguous()
@@ -127,7 +124,7 @@ class custom_attn(nn.Module):
         output     = attn_probs @ V
         return output                               # (batch_size, num_heads, sequence_size, head_size)
     
-    def scaled_dot_product_attention_(self, Q, K, V, mask): # faster official api
+    def scaled_dot_product_attention(self, Q, K, V, mask): # faster official api
         with torch.backends.cuda.sdp_kernel(
             enable_flash=True,
             enable_math=True,
@@ -144,25 +141,12 @@ class custom_attn(nn.Module):
         batch_size, num_heads, sequence_size, head_size = x.size()
         return x.transpose(1, 2).contiguous().view(batch_size, sequence_size, self.feature_size).contiguous()
 
-    def forward(self, Q, K, V, h_size, mask=None, kv_cache=None, seq_positions=None):
+    def forward(self, Q, K, V, mask=None, kv_cache=None, seq_positions=None):
         # mask Shape: (batch_size, 1, sequence_size, sequence_size)
         # Q    Shape: (batch_size,    sequence_size, feature_size )
-
-        Q_h  = self.W_q_h(Q[:, :h_size, :])
-        K_h  = self.W_k_h(K[:, :h_size, :])
-        V_h  = self.W_v_h(V[:, :h_size, :])
-
-        Q_f  = self.W_q_f(Q[:, h_size:, :])
-        K_f  = self.W_k_f(K[:, h_size:, :])
-        V_f  = self.W_v_f(V[:, h_size:, :])
-
-        Q    = torch.cat([Q_h, Q_f], dim=1)
-        K    = torch.cat([K_h, K_f], dim=1)
-        V    = torch.cat([V_h, V_f], dim=1)
-
-        Q    = self.split_heads(Q)  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        K    = self.split_heads(K)  # Shape: (batch_size, num_heads, sequence_size, head_size )
-        V    = self.split_heads(V)  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        Q    = self.split_heads(self.W_q(Q))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        K    = self.split_heads(self.W_k(K))  # Shape: (batch_size, num_heads, sequence_size, head_size )
+        V    = self.split_heads(self.W_v(V))  # Shape: (batch_size, num_heads, sequence_size, head_size )
 
         # # RoPE
         # Q = self.apply_rope(Q, seq_positions)
@@ -175,10 +159,7 @@ class custom_attn(nn.Module):
             kv_cache['k'] = K
             kv_cache['v'] = V
         attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
-        attn_output = self.combine_heads(attn_output)
-        output_h    = self.W_o_h(attn_output[:, :h_size, :])
-        output_f    = self.W_o_f(attn_output[:, h_size:, :])
-        output      = torch.cat([output_h, output_f], dim=1)
+        output      = self.W_o(self.combine_heads(attn_output))
         return output, kv_cache
 
 
@@ -336,42 +317,31 @@ class build_model(nn.Module):
                                         nn.GELU(),
                                         nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
-        self.action_linear_       = nn.Sequential(
-                                        nn.Linear(self.action_size, self.feature_size, bias=self.bias),
-                                        nn.GELU(),
-                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                                    )
-        self.history_norm         = rms_norm(self.feature_size, elementwise_affine=True)
-        self.future_norm          = rms_norm(self.feature_size, elementwise_affine=True)
+        self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
+        self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
+
+        self.state_pad            = nn.Parameter(torch.zeros(1, 1, self.feature_size))
 
         self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
-
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
         nn.ModuleList([
-                nn.ModuleList([
-                rms_norm(self.feature_size, elementwise_affine=True),
+            nn.ModuleList([
                 rms_norm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 rms_norm(self.feature_size, elementwise_affine=True),
-                rms_norm(self.feature_size, elementwise_affine=True),
-                nn.Sequential(
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                ),
-                nn.Sequential(
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                    nn.GELU(),
-                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                )
-                # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+                # nn.Sequential(
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                #     nn.GELU(),
+                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                # )
+                moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
-        self.transformer_norm = rms_norm(self.feature_size, elementwise_affine=True) 
-        mask           = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size),float("-inf"))
-        mask           = torch.triu(mask, diagonal=1)
+        self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
+        mask                      = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size),float("-inf"))
+        mask                      = torch.triu(mask, diagonal=1)
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
@@ -411,50 +381,35 @@ class build_model(nn.Module):
 
     def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
 
-        if history_s.size(1) > 0:
-            history = self.state_linear(history_s) + self.action_linear(history_a)
-            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
-            history = torch.cat([history, present], dim=1)
-            history = self.history_norm(history)
-        else:
-            history = torch.empty((present_s.size(0), 0, self.featuer_size), device=present_s.device, dtype=present_s.dtype)
-            present = self.state_linear(present_s.unsqueeze(1)) + self.action_linear(future_a[:, :1, :])
-            history = torch.cat([history, present], dim=1)
-            history = self.history_norm(history)
-        future      = self.future_norm(self.action_linear_(future_a[:, 1:, :]))
+        history = self.state_norm (self.state_linear  (history_s             )) + self.action_norm(self.action_linear(history_a         ))
+        present = self.state_norm (self.state_linear  (present_s.unsqueeze(1))) + self.action_norm(self.action_linear(future_a[:, :1, :]))
+        future  = self.action_norm(self.action_linear (future_a[:, 1:, :]))
+        future  = self.state_pad.expand(future.size(0), future.size(1), -1) + future
+        h       = torch.cat([history, present, future], dim=1)
 
         """
         Transformer decoder
         """
-        h = history + self.positional_encoding[:, :self.history_size + 1, :]
-        f = future  + self.positional_encoding[:, self.history_size + 1:, :]
+        positional_encoding = torch.cat([ self.positional_encoding[:, :self.history_size, :], self.positional_encoding[:, self.history_size::pos_skip, :]], dim=1)
+        long = h.size(1)
+        h    = h + positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
-            attention_norm_h, attention_norm_f, attention_linear, fully_connected_norm_h, fully_connected_norm_f, fully_connected_linear_h, fully_connected_linear_f = layer
-            h_  = attention_norm_h(h)
-            f_  = attention_norm_f(f)
-            hf_ = torch.cat([h_, f_], dim=1)
-            hf_ = attention_linear(hf_, hf_, hf_, self.history_size + 1, mask=self.mask, kv_cache=None, seq_positions=None)[0]
-            hf_ = self.dropout(hf_)
-            h_  = hf_[:, :self.history_size + 1, :]
-            f_  = hf_[:, self.history_size + 1:, :]
-            h   = h + h_
-            f   = f + f_
-            h_  = fully_connected_norm_h(h)
-            f_  = fully_connected_norm_f(f)
-            h_  = fully_connected_linear_h(h_)
-            f_  = fully_connected_linear_f(f_)
+            attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
+            h_  = attention_norm(h) 
+            h_  = attention_linear(h_, h_, h_, mask=self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
             h_  = self.dropout(h_)
-            f_  = self.dropout(f_)
-            h   = h + h_
-            f   = f + f_
-        hf = torch.cat([h, f], dim=1)
-        hf = self.transformer_norm(hf) 
+            h   = h + h_ # typical pre-norm style
+            h_  = fully_connected_norm(h)
+            h_  = fully_connected_linear(h_)
+            h_  = self.dropout(h_)
+            h   = h + h_ # typical pre-norm style
+        h  = self.transformer_norm(h)
         """
         Transformer decoder
         """
 
-        hf = hf[:, self.history_size:, :]
-        r  = self.reward_linear(hf)
+        h  = h[:, -self.future_size:, :]
+        r  = self.reward_linear(h)
         r  = torch.tanh(r)  
 
         future_r = r
