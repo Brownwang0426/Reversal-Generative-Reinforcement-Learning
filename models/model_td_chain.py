@@ -43,11 +43,11 @@ import hashlib
 [X] RoPE
 [O] causal mask
 [O] GQA or MHA
-[X] Flash / SDPA Attention 
+[O] Flash / SDPA Attention 
 [O] KV Cache
 [O] SwiGLU FFN
 [O] MoE
-[X] MOE router loss 
+[X] MoE router loss 
 
 --- optional ---
 [X] Residual scaling
