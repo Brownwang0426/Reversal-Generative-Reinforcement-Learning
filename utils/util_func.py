@@ -81,7 +81,7 @@ def retrieve_present(state_list, device):
 
 
 
-def initialize_future_action(shape, device, mean=0.0, std=0.01):
+def initialize_future_action(shape, device, mean=0.0, std=0.0):
     return torch.normal(
         mean=mean,
         std=std,
