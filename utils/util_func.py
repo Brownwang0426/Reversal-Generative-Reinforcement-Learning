@@ -174,36 +174,39 @@ def sequentialize(state_list, action_list, reward_list, history_size, future_siz
         history_size *= skip
         future_size  *= skip
 
-        for i in range(max(0, len(reward_list) - history_size - future_size - skip + 1)):
+        for i in range(len(reward_list[:-history_size-1-future_size + 1])):
 
             node  = i + history_size
 
-            history_reward_list.append(      torch.stack(reward_list[ i : node                                            :  skip  ], dim=0)          )
             history_state_list.append (      torch.stack(state_list [ i : node                                            :  skip  ], dim=0)          )
             history_action_list.append(      torch.stack(action_list[ i : node                                            :  skip  ], dim=0)          )
-            present_reward_list.append(                  reward_list[     node                                                     ].unsqueeze(0)      )
-            present_state_list.append (                  state_list [     node                                                     ].unsqueeze(0)      )
-            present_action_list.append(                  action_list[     node                                                     ].unsqueeze(0)      )
-            future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size     + skip :  skip  ], dim=0)          )
-            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size + 2 * skip :  skip  ], dim=0)          )
+            history_reward_list.append(      torch.stack(reward_list[ i : node                                            :  skip  ], dim=0)          )
+            present_reward_list.append(                  reward_list[     node                                                     ].unsqueeze(0)     )
+            present_state_list.append (                  state_list [     node                                                     ].unsqueeze(0)     )
+            present_action_list.append(                  action_list[     node                                                     ].unsqueeze(0)     )
+            future_reward_list.append (      torch.stack(reward_list[     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
+            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
             future_action_list.append (      torch.stack(action_list[     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
-
+            
     else:
 
-        for i in range(max(0, len(reward_list) - future_size - skip + 1)):
+        history_size *= skip
+        future_size  *= skip
 
-            node = i
+        for i in range(len(reward_list[:-history_size-1-future_size + 1])):
 
-            history_reward_list.append(                  torch_empty                                                                                   )
-            history_state_list.append (                  torch_empty                                                                                   )
-            history_action_list.append(                  torch_empty                                                                                   )
-            present_reward_list.append(                 (reward_list[     node - 1                                                 ] if node > 0 else torch.zeros_like(reward_list[0]).fill_(-1)).unsqueeze(0) )
-            present_state_list.append (                  state_list [     node                                                     ].unsqueeze(0)      )
-            present_action_list.append(                  action_list[     node                                                     ].unsqueeze(0)      )
-            future_reward_list.append (      torch.stack(reward_list[     node            : node + future_size     + skip :  skip  ], dim=0)          )
-            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size + 2 * skip :  skip  ], dim=0)          )
+            node = i + history_size
+
+            history_state_list.append (                  torch_empty                                                                                  )
+            history_action_list.append(                  torch_empty                                                                                  )
+            history_reward_list.append(                  torch_empty                                                                                  )
+            present_reward_list.append(                  reward_list[     node                                                     ].unsqueeze(0)     )
+            present_state_list.append (                  state_list [     node                                                     ].unsqueeze(0)     )
+            present_action_list.append(                  action_list[     node                                                     ].unsqueeze(0)     )
+            future_reward_list.append (      torch.stack(reward_list[     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
+            future_state_list.append  (      torch.stack(state_list [     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
             future_action_list.append (      torch.stack(action_list[     node     + skip : node + future_size     + skip :  skip  ], dim=0)          )
-
+            
     return history_reward_list, history_state_list, history_action_list, \
            present_reward_list, present_state_list, present_action_list, \
            future_reward_list, future_state_list, future_action_list
