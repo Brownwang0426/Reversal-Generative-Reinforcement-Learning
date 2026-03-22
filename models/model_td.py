@@ -317,12 +317,22 @@ class build_model(nn.Module):
                                         nn.GELU(),
                                         nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
                                     )
+        self.reward_linear_in     = nn.Sequential(
+                                        nn.Linear(self.reward_size, self.feature_size, bias=self.bias),
+                                        nn.GELU(),
+                                        nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                                    )
         self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
         self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
+        self.reward_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
-        self.state_pad            = nn.Parameter(torch.zeros(1, 1, self.feature_size))
+        self.state_pad_bank       = nn.Parameter(torch.zeros(1, self.future_size, self.feature_size))
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + self.future_size , self.feature_size ), requires_grad=False)
+        self.type_embed_history   = nn.Parameter(torch.zeros(1, 1, self.feature_size))
+        self.type_embed_present   = nn.Parameter(torch.zeros(1, 1, self.feature_size))
+        self.type_embed_future    = nn.Parameter(torch.zeros(1, 1, self.feature_size))
+
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding(self.history_size + 1 + self.future_size , self.feature_size ), requires_grad=False)
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
         nn.ModuleList([
@@ -340,12 +350,15 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
-        mask                      = torch.full((1, 1, self.history_size + self.future_size, self.history_size + self.future_size),float("-inf"))
+        mask                      = torch.full((1, 1, self.history_size + 1 + self.future_size, self.history_size + 1 + self.future_size),float("-inf"))
         mask                      = torch.triu(mask, diagonal=1)
         self.register_buffer('mask', mask)  
 
         self.reward_linear        = nn.Sequential(
                                         nn.Linear(self.feature_size, self.reward_size, bias=self.bias)
+                                    )
+        self.state_linear_        = nn.Sequential(
+                                        nn.Linear(self.feature_size, self.state_size, bias=self.bias)
                                     )
 
         # Initialize weights for fully connected layers
@@ -379,23 +392,25 @@ class build_model(nn.Module):
 
 
 
-    def forward(self, history_s, history_a, present_s, future_s, future_a, pos_skip):
+    def forward(self, history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a):
 
-        history = self.state_norm (self.state_linear  (history_s             )) + self.action_norm(self.action_linear(history_a         ))
-        present = self.state_norm (self.state_linear  (present_s.unsqueeze(1))) + self.action_norm(self.action_linear(future_a[:, :1, :]))
-        future  = self.action_norm(self.action_linear (future_a[:, 1:, :]))
-        future  = self.state_pad.expand(future.size(0), future.size(1), -1) + future
+        history = self.reward_norm(self.reward_linear_in(history_r)) + self.state_norm(self.state_linear(history_s)) + self.action_norm(self.action_linear(history_a))
+        present = self.reward_norm(self.reward_linear_in(present_r.unsqueeze(1))) + self.state_norm(self.state_linear(present_s.unsqueeze(1))) + self.action_norm(self.action_linear(present_a.unsqueeze(1)))
+        future  = self.action_norm(self.action_linear(future_a))
+        future  = self.state_pad_bank[:, :future.size(1), :] + future
+        history = history + self.type_embed_history
+        present = present + self.type_embed_present
+        future  = future  + self.type_embed_future
         h       = torch.cat([history, present, future], dim=1)
 
         """
         Transformer decoder
         """
-        positional_encoding = torch.cat([ self.positional_encoding[:, :self.history_size, :], self.positional_encoding[:, self.history_size::pos_skip, :]], dim=1)
         long = h.size(1)
-        h    = h + positional_encoding[:, :long, :]
+        h    = h + self.positional_encoding[:, :long, :]
         for layer in self.transformer_layers:
             attention_norm, attention_linear, fully_connected_norm, fully_connected_linear = layer
-            h_  = attention_norm(h) 
+            h_  = attention_norm(h)
             h_  = attention_linear(h_, h_, h_, mask=self.mask[:, :, :long, :long], kv_cache=None, seq_positions=None)[0]
             h_  = self.dropout(h_)
             h   = h + h_ # typical pre-norm style
@@ -408,12 +423,12 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h  = h[:, -self.future_size:, :]
+        h  = h[:, -(1 + future_a.size(1)):, :]
         r  = self.reward_linear(h)
-        r  = torch.tanh(r)  
+        r  = torch.tanh(r)
 
         future_r = r
-        future_s = torch.zeros((future_a.size(0), future_a.size(1), self.state_size), device=future_a.device, dtype=future_a.dtype)
+        future_s = torch.zeros((h.size(0), h.size(1), self.state_size), device=h.device, dtype=h.dtype)
 
         return future_r, future_s
 
@@ -426,8 +441,8 @@ class build_model(nn.Module):
     
 
 
-    def forward_(self, history_s, history_a, present_s, future_s, future_a):
-        return self.forward(history_s, history_a, present_s, future_s, future_a, None)
+    def forward_(self, history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a):
+        return self.forward(history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a)
 
 
 
