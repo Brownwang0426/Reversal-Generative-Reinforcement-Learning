@@ -564,6 +564,9 @@ for training_episode in tqdm(range(episode_for_training)):
             total_step += 1
             print(f'\rStep: {total_step}\r', end='', flush=True)
 
+    # padding state
+    state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
+
     # closing env
     env.close()
 

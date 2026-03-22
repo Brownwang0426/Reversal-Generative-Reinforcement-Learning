@@ -396,7 +396,7 @@ class build_model(nn.Module):
         present_s = self.state_norm (self.state_linear  (present_s))
         present_a = self.action_norm(self.action_linear (present_a))
 
-        for i in range(1 + future_a.size(1)):
+        for i in range(future_a.size(1)):
 
             window_list.append(present_r + present_s + present_a)
             h = torch.cat(window_list, dim=1)
@@ -527,7 +527,7 @@ class build_model(nn.Module):
 
         future_r    = self.reward_norm(self.reward_linear(future_r[:, :-1, :]) )
         future_s    = self.state_norm (self.state_linear (future_s[:, :-1, :]) )
-        future_a    = self.action_norm(self.action_linear(future_a) )
+        future_a    = self.action_norm(self.action_linear(future_a[:, :-1, :]) )
         future      = future_r + future_s + future_a
 
         h = torch.cat([history, present, future], dim=1)

@@ -63,12 +63,12 @@ def load_buffer_from_pickle(filename):
 
 
 
-def retrieve_history_and_present(state_list, action_list, reward_list, history_size, skip, device):
+def retrieve_history_and_present(state_list, action_list, reward_list, history_size, frame_skip, device):
     if history_size != 0:
-        history_size     *= skip
-        history_reward    = torch.stack(reward_list[-history_size  :  : skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_state     = torch.stack(state_list [-history_size-1:-1: skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_action    = torch.stack(action_list[-history_size  :  : skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_size     *= frame_skip
+        history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_state     = torch.stack(state_list [-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_action    = torch.stack(action_list[-history_size  :  : frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
     else:
         history_reward    = torch.empty(0, 0, 0).to(device, non_blocking=True)
         history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
