@@ -273,7 +273,7 @@ PER = False
 beta = 0.1
 min_itrtn_for_planning = 1           #⚠️
 max_itrtn_for_planning = 100         #⚠️     
-min_param_for_planning = 1           #⚠️
+min_param_for_planning = 0.1         #⚠️
 max_param_for_planning = 0           #⚠️
 
 episode_for_training = 50000
@@ -337,8 +337,7 @@ else:
 
 from utils.util_func  import load_performance_from_csv,\
                              load_buffer_from_pickle,\
-                             retrieve_history_and_present,\
-                             initialize_action, \
+                             retrieve_history_present_future,\
                              initialize_desired_reward,\
                              update_future_action, \
                              sequentialize, \
@@ -504,9 +503,9 @@ for training_episode in tqdm(range(episode_for_training)):
         history_state,  \
         history_action, \
         present_reward, \
-        present_state   = retrieve_history_and_present(reward_list, state_list, action_list, history_size, frame_skip, device_)
-        present_action  = initialize_action ((1, 1, action_size), device_, std = param_for_planning)
-        future_action   = initialize_action ((1, future_size, action_size), device_, std = param_for_planning)
+        present_state,  \
+        present_action, \
+        future_action   = retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device_, std = param_for_planning)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
         present_action, \
         future_action   = update_future_action(itrtn_for_planning ,

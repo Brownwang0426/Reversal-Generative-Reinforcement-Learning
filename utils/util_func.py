@@ -63,7 +63,7 @@ def load_buffer_from_pickle(filename):
 
 
 
-def retrieve_history_and_present(reward_list, state_list, action_list, history_size, frame_skip, device):
+def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, std=0.0):
     if history_size != 0:
         history_size     *= frame_skip
         history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
@@ -75,18 +75,9 @@ def retrieve_history_and_present(reward_list, state_list, action_list, history_s
         history_action    = torch.empty(0, 0, 0).to(device, non_blocking=True)
     present_reward    = reward_list[-1].unsqueeze(0).unsqueeze(0).to(device, non_blocking=True)
     present_state     = state_list [-1].unsqueeze(0).unsqueeze(0).to(device, non_blocking=True)
-    return history_reward, history_state, history_action, present_reward, present_state
-
-
-
-
-def initialize_action(shape, device, mean=0.0, std=0.0):
-    return torch.normal(
-        mean=mean,
-        std=std,
-        size=shape,
-        device=device
-    )
+    present_action    = torch.normal(mean=0.0, std=std, size=(1, 1, action_size), device=device)
+    future_action     = torch.normal(mean=0.0, std=std, size=(1, future_size, action_size), device=device)
+    return history_reward, history_state, history_action, present_reward, present_state, present_action, future_action
 
 
 
