@@ -80,9 +80,9 @@ max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
 state_size =  220                    #⚠️
 action_size = 3                      #⚠️
-reward_size = 100                    #⚠️
 feature_size = 300                   #⚠️
 history_size = 100                   #⚠️
 future_size = 50                     #⚠️
@@ -102,8 +102,6 @@ alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
 itrtn_for_learning = 2500            #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
 PER = False
 
 beta = 0.1
@@ -142,9 +140,9 @@ max_steps_for_each_episode = 1000    #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
 state_size =  460                    #⚠️
 action_size = 2                      #⚠️
-reward_size = 100                    #⚠️
 feature_size = 500                   #⚠️
 history_size = 200                   #⚠️
 future_size = 50                     #⚠️
@@ -164,8 +162,6 @@ alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
 itrtn_for_learning = 2500            #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
 PER = False
 
 beta = 0.1
@@ -195,52 +191,6 @@ render_for_human = False
 
 
 
-
-# -----------------------
-
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
-feature_size = 500                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 3                       #⚠️
-num_heads = 5                        #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 500             #⚠️
-min_batch_size_for_learning = 1
-max_batch_size_for_learning = 1
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 25          #⚠️     
-min_param_for_planning = 1           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 50000
-episode_for_validation = 5
-episode_for_averaging = 25
-buffer_limit = 100000
-render_for_human = False
 
 
 
@@ -251,9 +201,9 @@ max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
 state_size =  900                    #⚠️
 action_size = 4                      #⚠️
-reward_size = 100                    #⚠️
 feature_size = 1000                  #⚠️
 history_size = 100                   #⚠️
 future_size = 50                     #⚠️ 
@@ -291,6 +241,50 @@ render_for_human = False
 # -----------------------
 
 
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+feature_size = 500                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 3                       #⚠️
+num_heads = 5                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+itrtn_for_learning = 500             #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 100         #⚠️     
+min_param_for_planning = 1           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 50000
+episode_for_validation = 5
+episode_for_averaging = 25
+buffer_limit = 100000
+render_for_human = False
+
+# -----------------------
+
+
 
 
 
@@ -316,10 +310,10 @@ game_modules = {
     'MiniGrid-DoorKey-5x5-v0': 'envs.env_doorkey'
 }
 if game_name in game_modules:
-    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_state', 'vectorizing_action', 'vectorizing_reward', 'itrtn_by_averaging_reward', 'randomizer'])
+    game_module = __import__(game_modules[game_name], fromlist=['vectorizing_reward', 'vectorizing_state', 'vectorizing_action', 'itrtn_by_averaging_reward', 'randomizer'])
+    vectorizing_reward  = game_module.vectorizing_reward
     vectorizing_state   = game_module.vectorizing_state
     vectorizing_action  = game_module.vectorizing_action
-    vectorizing_reward  = game_module.vectorizing_reward
     itrtn_by_averaging_reward = game_module.itrtn_by_averaging_reward
     randomizer          = game_module.randomizer
 else:
@@ -366,9 +360,9 @@ last_episode = 0
 # creating model list
 model_list = []
 for _ in range(ensemble_size):
-    model = build_model(state_size,
+    model = build_model(reward_size,
+                        state_size,
                         action_size,
-                        reward_size,
                         feature_size,
                         history_size,
                         future_size,
@@ -468,13 +462,13 @@ for training_episode in tqdm(range(episode_for_training)):
     summed_reward  = 0
 
     # initializing short term experience replay buffer
+    reward_list = []
     state_list  = []
     action_list = []
-    reward_list = []
     for _ in range(history_size * frame_skip):
+        reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
         state_list .append(torch.zeros(state_size  ).to(device_, non_blocking=True) - 1 )
         action_list.append(torch.zeros(action_size ).to(device_, non_blocking=True) - 1 )
-        reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
 
     # initializing environment
     if game_name == 'FrozenLake-v1'  :
@@ -485,10 +479,12 @@ for training_episode in tqdm(range(episode_for_training)):
     if render_for_human == True:
         env.render()
 
+    # initializing reward
+    reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )   
+
     # observing state
     state          = vectorizing_state(state, False, False, device_)
     state_list.append(state)
-    reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True) - 1 )
 
     # starting each step
     post_done_truncated_counter = 0
@@ -508,7 +504,7 @@ for training_episode in tqdm(range(episode_for_training)):
         history_state,  \
         history_action, \
         present_reward, \
-        present_state   = retrieve_history_and_present(state_list, action_list, reward_list, history_size, frame_skip, device_)
+        present_state   = retrieve_history_and_present(reward_list, state_list, action_list, history_size, frame_skip, device_)
         present_action  = initialize_action ((1, 1, action_size), device_, std = param_for_planning)
         future_action   = initialize_action ((1, future_size, action_size), device_, std = param_for_planning)
         desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
@@ -589,9 +585,9 @@ for training_episode in tqdm(range(episode_for_training)):
     present_action_list  ,\
     future_reward_list   ,\
     future_state_list    ,\
-    future_action_list   = sequentialize(state_list  ,
+    future_action_list   = sequentialize(reward_list ,
+                                         state_list  ,
                                          action_list ,
-                                         reward_list ,
                                          history_size,
                                          future_size,
                                          frame_skip)

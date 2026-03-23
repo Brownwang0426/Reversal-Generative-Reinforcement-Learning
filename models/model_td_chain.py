@@ -264,9 +264,9 @@ class moe_ffn(nn.Module):
 
 class build_model(nn.Module):
     def __init__(self,
+                 reward_size,
                  state_size,
                  action_size,
-                 reward_size,
                  feature_size,
                  history_size,
                  future_size,
@@ -286,9 +286,9 @@ class build_model(nn.Module):
 
         super(build_model, self).__init__()
 
+        self.reward_size          = reward_size
         self.state_size           = state_size
         self.action_size          = action_size
-        self.reward_size          = reward_size
         self.feature_size         = feature_size
         self.history_size         = history_size
         self.future_size          = future_size
