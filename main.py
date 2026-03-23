@@ -253,7 +253,7 @@ feature_size = 500                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
+neural_type = 'td_chain_slim'             #⚠️
 num_layers = 3                       #⚠️
 num_heads = 5                        #⚠️
 num_experts = 1                      #⚠️
@@ -325,6 +325,7 @@ model_modules = {
     'gru': 'models.model_rnn',
     'lstm': 'models.model_rnn',
     'td_chain': 'models.model_td_chain',
+    'td_chain_slim': 'models.model_td_chain_slim',
     'rnn_chain': 'models.model_rnn_chain',
     'gru_chain': 'models.model_rnn_chain',
     'lstm_chain': 'models.model_rnn_chain'
