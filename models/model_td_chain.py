@@ -319,7 +319,7 @@ class build_model(nn.Module):
         self.state_norm           = rms_norm(self.feature_size, elementwise_affine=True)
         self.action_norm          = rms_norm(self.feature_size, elementwise_affine=True)
 
-        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding((self.history_size + 1 + self.future_size) * 3, self.feature_size ), requires_grad=False)
+        self.positional_encoding  = nn.Parameter(self.generate_positional_encoding((self.history_size + 1 + self.future_size) * 1, self.feature_size ), requires_grad=False)
 
         self.dropout              = nn.Dropout(self.drop_rate)
         self.transformer_layers   = \
@@ -338,8 +338,8 @@ class build_model(nn.Module):
             for _ in range(self.num_layers)
         ])
         self.transformer_norm     = rms_norm(self.feature_size, elementwise_affine=True) 
-        seq_len                   = (self.history_size + 1 + self.future_size) * 3
-        group_idx                 = torch.arange(seq_len) // 3
+        seq_len                   = (self.history_size + 1 + self.future_size) * 1
+        group_idx                 = torch.arange(seq_len) // 1
         mask                      = torch.where(group_idx.unsqueeze(0) > group_idx.unsqueeze(1), float("-inf"), 0.0)
         mask                      = mask.unsqueeze(0).unsqueeze(0)
         self.register_buffer('mask', mask)  
@@ -381,6 +381,7 @@ class build_model(nn.Module):
 
 
 
+
     def forward(self, history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a):
 
         future_r_list = list()
@@ -388,23 +389,17 @@ class build_model(nn.Module):
 
         window_list   = list()
         if history_s.size(1) > 0:
-            history_r = self.reward_norm(self.reward_linear(history_r) )
-            history_s = self.state_norm (self.state_linear (history_s) )
-            history_a = self.action_norm(self.action_linear(history_a) )
+            history_s = self.state_norm  (self.state_linear  (history_s) )
+            history_a = self.action_norm (self.action_linear (history_a) )
             for i in range(history_s.size(1)):
-                window_list.append(history_r[:, i:i+1])
-                window_list.append(history_s[:, i:i+1])
-                window_list.append(history_a[:, i:i+1])
+                window_list.append(history_s[:, i:i+1] + history_a[:, i:i+1])
 
-        present_r = self.reward_norm(self.reward_linear (present_r))
         present_s = self.state_norm (self.state_linear  (present_s))
         present_a = self.action_norm(self.action_linear (present_a))
 
         for i in range(future_a.size(1)):
 
-            window_list.append(present_r)
-            window_list.append(present_s)
-            window_list.append(present_a)
+            window_list.append(present_s + present_a)
             h = torch.cat(window_list, dim=1)
             
             """
@@ -427,15 +422,15 @@ class build_model(nn.Module):
             We utilize the last idx in h to derive the latest reward and state.
             """
 
-            r = h[:, -3:-2, :]
-            r = self.reward_linear_(r)
-            s = h[:, -2:-1, :]
-            s = self.state_linear_(s)
+            h = h[:, -1:, :]
+            r = self.reward_linear_(h)
+            r = torch.tanh(r)
+            s = self.state_linear_(h)
+            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
 
-            present_r = self.reward_norm(self.reward_linear(r))
             present_s = self.state_norm(self.state_linear(s))
             present_a = self.action_norm(self.action_linear(future_a[:, i:i+1]))  
 
@@ -520,22 +515,19 @@ class build_model(nn.Module):
     def forward_(self, history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a):
 
         if history_s.size(1) > 0:
-            history_r   = self.reward_norm(self.reward_linear(history_r) )
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history     = torch.stack([history_r, history_s, history_a], dim=2).reshape(history_r.size(0), -1, self.feature_size)
+            history     = torch.stack([history_s + history_a], dim=2).reshape(history_s.size(0), -1, self.feature_size)
         else:
             history     = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
 
-        present_r   = self.reward_norm(self.reward_linear(present_r) )
         present_s   = self.state_norm (self.state_linear (present_s) )
         present_a   = self.action_norm(self.action_linear(present_a) )
-        present     = torch.cat([present_r, present_s, present_a], dim=1)
+        present     = torch.cat([present_s + present_a], dim=1)
 
-        future_r    = self.reward_norm(self.reward_linear(future_r[:, :-1, :]) )
         future_s    = self.state_norm (self.state_linear (future_s[:, :-1, :]) )
         future_a    = self.action_norm(self.action_linear(future_a[:, :-1, :]) )
-        future      = torch.stack([future_r, future_s, future_a], dim=2).reshape(future_r.size(0), -1, self.feature_size)
+        future      = torch.stack([future_s + future_a], dim=2).reshape(future_s.size(0), -1, self.feature_size)
 
         h = torch.cat([history, present, future], dim=1)
 
@@ -559,10 +551,11 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        num_groups = 1 + future_r.size(1)
-        h = h[:, -(num_groups * 3):, :]
-        r = self.reward_linear_(h[:, 0::3, :])
-        s = self.state_linear_ (h[:, 1::3, :])
+        h = h[:, future_r.size(1):, :]
+        r = self.reward_linear_(h)
+        r = torch.tanh(r)
+        s = self.state_linear_ (h)
+        s = torch.tanh(s)
 
         future_r = r
         future_s = s
