@@ -379,7 +379,7 @@ class build_model(nn.Module):
             for i in range(history_s.size(1)):
                 window_list.append(history_r[:, i:i+1] + history_s[:, i:i+1] + history_a[:, i:i+1])
 
-        present_r = self.reward_norm (self.reward_linear (present_r))
+        present_r = self.reward_norm(self.reward_linear (present_r))
         present_s = self.state_norm (self.state_linear  (present_s))
         present_a = self.action_norm(self.action_linear (present_a))
 
@@ -418,7 +418,7 @@ class build_model(nn.Module):
             future_s_list.append(s)
 
             present_r = self.reward_norm(self.reward_linear(r))
-            present_s = self.state_norm(self.state_linear(s))
+            present_s = self.state_norm (self.state_linear (s))
             present_a = self.action_norm(self.action_linear(future_a[:, i:i+1]))  
 
         future_r = torch.cat(future_r_list, dim=1) # future_r becomes [batch_size, sequence_size, reward_size]
@@ -502,22 +502,22 @@ class build_model(nn.Module):
     def forward_(self, history_r, history_s, history_a, present_r, present_s, present_a, future_r, future_s, future_a):
 
         if history_s.size(1) > 0:
-            history_r   = self.reward_norm (self.reward_linear (history_r) )
+            history_r   = self.reward_norm(self.reward_linear(history_r) )
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history     = torch.stack([history_r + history_s + history_a], dim=2).reshape(history_s.size(0), -1, self.feature_size)
+            history     = history_r + history_s + history_a
         else:
             history     = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
 
         present_r   = self.reward_norm(self.reward_linear(present_r) )
         present_s   = self.state_norm (self.state_linear (present_s) )
         present_a   = self.action_norm(self.action_linear(present_a) )
-        present     = torch.cat([present_r + present_s + present_a], dim=1)
+        present     = present_r + present_s + present_a
 
         future_r    = self.reward_norm(self.reward_linear(future_r[:, :-1, :]) )
         future_s    = self.state_norm (self.state_linear (future_s[:, :-1, :]) )
         future_a    = self.action_norm(self.action_linear(future_a[:, :-1, :]) )
-        future      = torch.stack([future_r + future_s + future_a], dim=2).reshape(future_s.size(0), -1, self.feature_size)
+        future      = future_r + future_s + future_a
 
         h = torch.cat([history, present, future], dim=1)
 
