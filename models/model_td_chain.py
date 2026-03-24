@@ -551,7 +551,7 @@ class build_model(nn.Module):
         Transformer decoder
         """
 
-        h = h[:, future_r.size(1):, :]
+        h = h[:, -future_r.size(1):, :]
         r = self.reward_linear_(h)
         r = torch.tanh(r)
         s = self.state_linear_ (h)
