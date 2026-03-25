@@ -426,7 +426,6 @@ class build_model(nn.Module):
             r = self.reward_linear_(h)
             r = torch.tanh(r)
             s = self.state_linear_(h)
-            s = torch.tanh(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -517,17 +516,17 @@ class build_model(nn.Module):
         if history_s.size(1) > 0:
             history_s   = self.state_norm (self.state_linear (history_s) )
             history_a   = self.action_norm(self.action_linear(history_a) )
-            history     = torch.stack([history_s + history_a], dim=2).reshape(history_s.size(0), -1, self.feature_size)
+            history     = history_s + history_a
         else:
             history     = torch.empty((present_s.size(0), 0, self.feature_size), device=present_s.device, dtype=present_s.dtype)
 
         present_s   = self.state_norm (self.state_linear (present_s) )
         present_a   = self.action_norm(self.action_linear(present_a) )
-        present     = torch.cat([present_s + present_a], dim=1)
+        present     = present_s + present_a
 
         future_s    = self.state_norm (self.state_linear (future_s[:, :-1, :]) )
         future_a    = self.action_norm(self.action_linear(future_a[:, :-1, :]) )
-        future      = torch.stack([future_s + future_a], dim=2).reshape(future_s.size(0), -1, self.feature_size)
+        future      = future_s + future_a
 
         h = torch.cat([history, present, future], dim=1)
 
@@ -555,7 +554,6 @@ class build_model(nn.Module):
         r = self.reward_linear_(h)
         r = torch.tanh(r)
         s = self.state_linear_ (h)
-        s = torch.tanh(s)
 
         future_r = r
         future_s = s

@@ -135,56 +135,6 @@ render_for_human = False
 
 # -----------------------
 
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-reward_size = 100                    #⚠️
-state_size = 36                      #⚠️
-action_size = 4                      #⚠️
-feature_size = 150                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain_r'           #⚠️
-num_layers = 3                       #⚠️
-num_heads = 5                        #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 500             #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 100         #⚠️     
-min_param_for_planning = 0.00        #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 50000
-episode_for_validation = 5
-episode_for_averaging = 25
-buffer_limit = 100000
-render_for_human = False
-
-
-
-
-
-
-
-# -----------------------
-
 game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
@@ -276,6 +226,56 @@ render_for_human = False
 
 
 
+# -----------------------
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size = 36                      #⚠️
+action_size = 4                      #⚠️
+feature_size = 150                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain_slim'           #⚠️
+num_layers = 3                       #⚠️
+num_heads = 5                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+itrtn_for_learning = 500             #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 100         #⚠️     
+min_param_for_planning = 0.00        #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 50000
+episode_for_validation = 5
+episode_for_averaging = 25
+buffer_limit = 100000
+render_for_human = False
+
+
+
+
+
+
+
 
 
 
@@ -325,7 +325,7 @@ model_modules = {
     'gru': 'models.model_rnn',
     'lstm': 'models.model_rnn',
     'td_chain': 'models.model_td_chain',
-    'td_chain_r': 'models.model_td_chain_r',
+    'td_chain_double': 'models.model_td_chain_double',
     'rnn_chain': 'models.model_rnn_chain',
     'gru_chain': 'models.model_rnn_chain',
     'lstm_chain': 'models.model_rnn_chain'

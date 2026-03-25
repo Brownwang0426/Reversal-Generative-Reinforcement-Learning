@@ -425,7 +425,6 @@ class build_model(nn.Module):
 
             s = h[:, -2:-1, :]
             s = self.state_linear_(s)
-            s = torch.tanh(s)
             r = h[:, -1:  , :]
             r = self.reward_linear_(r)
             r = torch.tanh(r)
@@ -556,7 +555,6 @@ class build_model(nn.Module):
         num_groups = 1 + future_s.size(1)
         h = h[:, -(num_groups * 2):, :]
         s = self.state_linear_ (h[:, 0::2, :])
-        s = torch.tanh(s)
         r = self.reward_linear_(h[:, 1::2, :])
         r = torch.tanh(r)
 
