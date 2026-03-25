@@ -43,11 +43,11 @@ import hashlib
 [X] RoPE
 [O] causal mask
 [O] GQA or MHA
-[O] Flash / SDPA Attention 
-[O] KV Cache
-[O] SwiGLU FFN
-[O] MoE
-[X] MoE router loss 
+[X] Flash / SDPA Attention
+[X] KV Cache
+[X] SwiGLU FFN
+[X] MoE
+[X] MoE router loss
 
 --- optional ---
 [X] Residual scaling
@@ -157,7 +157,7 @@ class custom_attn(nn.Module):
                 V = torch.cat([kv_cache['v'], V], dim=2)
             kv_cache['k'] = K
             kv_cache['v'] = V
-        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        attn_output = self.scaled_dot_product_attention_(Q, K, V, mask)
         output      = self.W_o(self.combine_heads(attn_output))
         return output, kv_cache
 
@@ -328,12 +328,12 @@ class build_model(nn.Module):
                 rms_norm(self.feature_size, elementwise_affine=True),
                 custom_attn(self.feature_size, self.num_heads, self.bias, self.drop_rate),
                 rms_norm(self.feature_size, elementwise_affine=True),
-                # nn.Sequential(
-                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
-                #     nn.GELU(),
-                #     nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
-                # )
-                moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
+                nn.Sequential(
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias),
+                    nn.GELU(),
+                    nn.Linear(self.feature_size, self.feature_size, bias=self.bias)
+                )
+                # moe_ffn(self.feature_size, num_experts=self.num_experts, top_k=self.moe_top_k, bias=self.bias)
             ])
             for _ in range(self.num_layers)
         ])
