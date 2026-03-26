@@ -84,10 +84,10 @@ reward_size = 100                    #⚠️
 state_size =  220                    #⚠️
 action_size = 3                      #⚠️
 feature_size = 350                   #⚠️
-history_size = 100                   #⚠️
+history_size = 10                    #⚠️
 future_size = 50                     #⚠️
 frame_skip = 2                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
+neural_type = 'td_chain_r'           #⚠️
 num_layers = 6                       #⚠️
 num_heads = 7                        #⚠️
 num_experts = 1                      #⚠️
@@ -110,7 +110,7 @@ max_itrtn_for_planning = 50          #⚠️
 min_param_for_planning = 0.00        #⚠️
 max_param_for_planning = 0           #⚠️
 
-episode_for_training = 50000
+episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
@@ -146,56 +146,9 @@ reward_size = 100                    #⚠️
 state_size =  900                    #⚠️
 action_size = 4                      #⚠️
 feature_size = 1050                  #⚠️
-history_size = 100                   #⚠️
+history_size = 5                     #⚠️
 future_size = 50                     #⚠️ 
 frame_skip = 2                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 6                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 2500            #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0.00        #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 50000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
-
-
-
-# -----------------------
-
-
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-reward_size = 100                    #⚠️
-state_size =  460                    #⚠️
-action_size = 2                      #⚠️
-feature_size = 550                   #⚠️
-history_size = 25                    #⚠️
-future_size = 25                     #⚠️
-frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain_r'           #⚠️
 num_layers = 6                       #⚠️
 num_heads = 10                       #⚠️
@@ -219,12 +172,11 @@ max_itrtn_for_planning = 50          #⚠️
 min_param_for_planning = 0.00        #⚠️
 max_param_for_planning = 0           #⚠️
 
-episode_for_training = 50000
+episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -268,11 +220,59 @@ max_itrtn_for_planning = 50          #⚠️
 min_param_for_planning = 0.00        #⚠️
 max_param_for_planning = 0           #⚠️
 
-episode_for_training = 50000
+episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
+
+
+
+
+# -----------------------
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+reward_size = 100                    #⚠️
+state_size =  460                    #⚠️
+action_size = 2                      #⚠️
+feature_size = 600                   #⚠️
+history_size = 10                    #⚠️
+future_size = 25                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain_r'           #⚠️
+num_layers = 6                       #⚠️
+num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+itrtn_for_learning = 2500            #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 50          #⚠️     
+min_param_for_planning = 0.00        #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
 
 
 
