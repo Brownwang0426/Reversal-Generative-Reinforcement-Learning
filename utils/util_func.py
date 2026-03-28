@@ -126,8 +126,8 @@ def update_future_action(itrtn_for_planning,
             p.requires_grad_(False)
         selected_optimizer.zero_grad()
 
-        present_a = torch.tanh(present_action)
-        future_a  = torch.tanh(future_action)
+        present_a = torch.sigmoid(present_action)
+        future_a  = torch.sigmoid(future_action)
 
         loss_function      = model.loss_function
         envisaged_reward, \

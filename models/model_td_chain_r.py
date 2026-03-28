@@ -413,7 +413,9 @@ class build_model(nn.Module):
 
             h = h[:, -1:, :]
             r = self.reward_linear_(h)
+            r = torch.sigmoid(r)
             s = self.state_linear_(h)
+            s = torch.sigmoid(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -544,7 +546,9 @@ class build_model(nn.Module):
 
         h = h[:, -1-future_r.size(1):, :]
         r = self.reward_linear_(h)
+        r = torch.sigmoid(r)
         s = self.state_linear_ (h)
+        s = torch.sigmoid(s)
 
         future_r = r
         future_s = s

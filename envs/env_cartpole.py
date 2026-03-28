@@ -58,22 +58,22 @@ def vectorizing_state(state, done, truncated, device):      # Reminder: change t
     if done:
         state_0 = torch.ones(50).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 100, -4.8  , 4.8   , state[0], device)
-    state_2 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[1], device)
-    state_3 = quantifying(-1, 1, 100, -0.418, 0.418 , state[2], device)
-    state_4 = quantifying(-1, 1, 100, -3.75 , 3.75  , state[3], device)
+        state_0 = torch.zeros(50).to(device, non_blocking=True) 
+    state_1 = quantifying(0, 1, 100, -4.8  , 4.8   , state[0], device)
+    state_2 = quantifying(0, 1, 100, -3.75 , 3.75  , state[1], device)
+    state_3 = quantifying(0, 1, 100, -0.418, 0.418 , state[2], device)
+    state_4 = quantifying(0, 1, 100, -3.75 , 3.75  , state[3], device)
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2) 
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
-    vectorized_action = (torch.eye(action_size)[action_argmax].to(device, non_blocking=True) - 0.5) * 2
+    vectorized_action = torch.eye(action_size)[action_argmax].to(device, non_blocking=True) 
     return vectorized_action, action_argmax 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying(-1, 1, reward_size, 0, 1000, summed_reward, device)
+    reward = quantifying(0, 1, reward_size, 0, 1000, summed_reward, device)
     return reward
 
 def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
