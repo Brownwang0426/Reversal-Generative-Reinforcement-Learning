@@ -97,11 +97,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-itrtn_for_learning = 2500            #⚠️
+multiplier_for_learning = 5          #⚠️
 PER = False
 
 beta = 0.1
@@ -115,6 +115,10 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
+
+
+
+
 
 
 
@@ -159,11 +163,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-itrtn_for_learning = 2500            #⚠️
+multiplier_for_learning = 5          #⚠️
 PER = False
 
 beta = 0.1
@@ -210,11 +214,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-itrtn_for_learning = 2500            #⚠️
+multiplier_for_learning = 5          #⚠️
 PER = False
 
 beta = 0.1
@@ -228,9 +232,6 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
-
-
 
 
 
@@ -259,11 +260,11 @@ init = "xavier_normal"
 opti = 'sgd'
 loss = 'mean_squared_error'
 bias = False
-drop_rate = 0.
+drop_rate = 0.1
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-itrtn_for_learning = 500             #⚠️
+multiplier_for_learning = 5          #⚠️
 PER = False
 
 beta = 0.1
@@ -277,7 +278,6 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 100000
 render_for_human = False
-
 
 
 
@@ -667,7 +667,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_reward_stack,
                                         future_state_stack,
                                         future_action_stack )
-        model_list  = update_model_list(itrtn_for_learning,
+        model_list  = update_model_list(int(len(dataset) * multiplier_for_learning),
                                         dataset,
                                         model_list,
                                         PER
