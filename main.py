@@ -81,14 +81,14 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
 reward_size = 100                    #⚠️
-state_size =  220                    #⚠️
+state_size =  320                    #⚠️
 action_size = 3                      #⚠️
-feature_size = 350                   #⚠️
+feature_size = 450                   #⚠️
 history_size = 10                    #⚠️
 future_size = 50                     #⚠️
 frame_skip = 2                       #⚠️ 
 neural_type = 'td_chain_r'           #⚠️
-num_layers = 6                       #⚠️
+num_layers = 5                       #⚠️
 num_heads = 7                        #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
@@ -139,55 +139,6 @@ render_for_human = False
 
 
 
-# -----------------------
-
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-reward_size = 100                    #⚠️
-state_size =  900                    #⚠️
-action_size = 4                      #⚠️
-feature_size = 1050                  #⚠️
-history_size = 5                     #⚠️
-future_size = 50                     #⚠️ 
-frame_skip = 2                       #⚠️ 
-neural_type = 'td_chain_r'           #⚠️
-num_layers = 6                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.1
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-multiplier_for_learning = 5          #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
-
-
-
-
-
-
 
 # -----------------------
 
@@ -198,14 +149,14 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
 reward_size = 100                    #⚠️
-state_size =  460                    #⚠️
+state_size =  560                    #⚠️
 action_size = 2                      #⚠️
-feature_size = 600                   #⚠️
+feature_size = 700                   #⚠️
 history_size = 10                    #⚠️
 future_size = 25                     #⚠️
 frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain_r'           #⚠️
-num_layers = 6                       #⚠️
+num_layers = 5                       #⚠️
 num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
@@ -244,15 +195,64 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 10                   #◀️
 reward_size = 100                    #⚠️
-state_size = 36                      #⚠️
+state_size = 136                     #⚠️
 action_size = 4                      #⚠️
-feature_size = 150                   #⚠️
+feature_size = 250                   #⚠️
 history_size =  10                   #⚠️
 future_size = 10                     #⚠️
 frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain_r'           #⚠️
-num_layers = 6                       #⚠️
+num_layers = 5                       #⚠️
 num_heads = 3                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.1
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+multiplier_for_learning = 5          #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 50          #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
+
+
+
+
+
+
+# -----------------------
+
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 200     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+reward_size = 100                    #⚠️
+state_size =  1000                   #⚠️
+action_size = 4                      #⚠️
+feature_size = 1150                  #⚠️
+history_size = 5                     #⚠️
+future_size = 25                     #⚠️ 
+frame_skip = 3                       #⚠️ 
+neural_type = 'td_chain_r'           #⚠️
+num_layers = 5                       #⚠️
+num_heads = 10                       #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
 
@@ -487,7 +487,7 @@ for training_episode in tqdm(range(episode_for_training)):
     reward_list.append(torch.zeros(reward_size ).to(device_, non_blocking=True))   
 
     # observing state
-    state          = vectorizing_state(state, False, False, device_)
+    state          = vectorizing_state(state, False, False, device_, 0)
     state_list.append(state)
 
     # starting each step
@@ -544,7 +544,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(reward)
 
         # observing state
-        state = vectorizing_state(state, done, truncated, device_)
+        state = vectorizing_state(state, done, truncated, device_, total_step)
         state_list.append(state)
 
         """

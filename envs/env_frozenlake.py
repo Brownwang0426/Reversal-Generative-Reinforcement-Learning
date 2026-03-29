@@ -54,14 +54,15 @@ def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, truncated, device):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+def vectorizing_state(state, done, truncated, device, time_steps=0):      # Reminder: change this for your specific task ⚠️⚠️⚠️
     null_state = torch.ones(10).to(device, non_blocking=True)
     if done or truncated:
         state_0 = torch.ones(10).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(10).to(device, non_blocking=True) 
-    state_1 = torch.eye(16)[state].to(device, non_blocking=True) 
-    state   = torch.cat((null_state, state_0, state_1), dim = 0)
+        state_0 = torch.zeros(10).to(device, non_blocking=True)
+    state_1 = torch.eye(16)[state].to(device, non_blocking=True)
+    state_t = quantifying(0, 1, 100, 0   , 10  , time_steps, device)
+    state   = torch.cat((null_state, state_0, state_1, state_t), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
