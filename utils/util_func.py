@@ -63,7 +63,27 @@ def load_buffer_from_pickle(filename):
 
 
 
-def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, std=0.0):
+def initialize_short_term_buffer(reward_size, state_size, action_size, history_size, frame_skip, device):
+    reward_list = []
+    state_list  = []
+    action_list = []
+    for _ in range(history_size * frame_skip):
+        reward_list.append(torch.zeros(reward_size).to(device, non_blocking=True))
+        state_list .append(torch.zeros(state_size ).to(device, non_blocking=True))
+        action_list.append(torch.zeros(action_size).to(device, non_blocking=True))
+    return reward_list, state_list, action_list
+
+
+
+
+def pad_short_term_buffer(target_list, size, device):
+    target_list.append(torch.zeros(size).to(device, non_blocking=True))
+    return target_list
+
+
+
+
+def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, mean=-3, std=0.0):
     if history_size != 0:
         history_size     *= frame_skip
         history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
@@ -75,8 +95,8 @@ def retrieve_history_present_future(reward_list, state_list, action_list, histor
         history_action    = torch.empty(0, 0, 0).to(device, non_blocking=True)
     present_reward    = reward_list[-1].unsqueeze(0).unsqueeze(0).to(device, non_blocking=True)
     present_state     = state_list [-1].unsqueeze(0).unsqueeze(0).to(device, non_blocking=True)
-    present_action    = torch.normal(mean=0.0, std=std, size=(1, 1, action_size), device=device)
-    future_action     = torch.normal(mean=0.0, std=std, size=(1, future_size, action_size), device=device)
+    present_action    = torch.normal(mean=mean, std=std, size=(1, 1, action_size), device=device)
+    future_action     = torch.normal(mean=mean, std=std, size=(1, future_size, action_size), device=device)
     return history_reward, history_state, history_action, present_reward, present_state, present_action, future_action
 
 
