@@ -84,7 +84,7 @@ def pad_short_term_buffer(target_list, size, device):
 
 
 def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, 
-                                    mean=-3, std=0.0):
+                                    mean=-0, std=0.0):
     if history_size != 0:
         history_size     *= frame_skip
         history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
