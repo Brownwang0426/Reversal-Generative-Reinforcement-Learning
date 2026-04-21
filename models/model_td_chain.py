@@ -350,7 +350,9 @@ class build_model(nn.Module):
         self.state_linear_        = nn.Sequential(
                                         nn.Linear(self.feature_size, self.state_size, bias=self.bias)
                                     )
-
+        self.reward_norm_         = rms_norm(self.reward_size , elementwise_affine=True)
+        self.state_norm_          = rms_norm(self.state_size  , elementwise_affine=True)
+        
         # Initialize weights for fully connected layers
         self.initialize_weights(self.init  )
 
@@ -424,9 +426,9 @@ class build_model(nn.Module):
 
             h = h[:, -1:, :]
             r = self.reward_linear_(h)
-            r = torch.tanh(r)
+            r = self.reward_norm_(r)
             s = self.state_linear_(h)
-            s = (s)
+            s = self.state_norm_(s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -553,9 +555,9 @@ class build_model(nn.Module):
 
         h = h[:, -future_r.size(1):, :]
         r = self.reward_linear_(h)
-        r = torch.tanh(r)
+        r = self.reward_norm_(r)
         s = self.state_linear_ (h)
-        s = (s)
+        s = self.state_norm_(s)
 
         future_r = r
         future_s = s
