@@ -68,22 +68,23 @@ def initialize_short_term_buffer(reward_size, state_size, action_size, history_s
     state_list  = []
     action_list = []
     for _ in range(history_size * frame_skip):
-        reward_list.append(torch.zeros(reward_size).to(device, non_blocking=True))
-        state_list .append(torch.zeros(state_size ).to(device, non_blocking=True))
-        action_list.append(torch.zeros(action_size).to(device, non_blocking=True))
+        reward_list.append(torch.zeros(reward_size).to(device, non_blocking=True) - 1)
+        state_list .append(torch.zeros(state_size ).to(device, non_blocking=True) - 1)
+        action_list.append(torch.zeros(action_size).to(device, non_blocking=True) - 1)
     return reward_list, state_list, action_list
 
 
 
 
 def pad_short_term_buffer(target_list, size, device):
-    target_list.append(torch.zeros(size).to(device, non_blocking=True))
+    target_list.append(torch.zeros(size).to(device, non_blocking=True) - 1)
     return target_list
 
 
 
 
-def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, mean=-3, std=0.0):
+def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, 
+                                    mean=-3, std=0.0):
     if history_size != 0:
         history_size     *= frame_skip
         history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
@@ -146,8 +147,8 @@ def update_future_action(itrtn_for_planning,
             p.requires_grad_(False)
         selected_optimizer.zero_grad()
 
-        present_a = torch.sigmoid(present_action)
-        future_a  = torch.sigmoid(future_action)
+        present_a = torch.tanh(present_action)
+        future_a  = torch.tanh(future_action)
 
         loss_function      = model.loss_function
         envisaged_reward, \

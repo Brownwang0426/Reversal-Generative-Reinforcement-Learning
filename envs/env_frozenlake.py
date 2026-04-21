@@ -59,24 +59,24 @@ def vectorizing_state(state, done, truncated, device, time_steps=0):      # Remi
     if done or truncated:
         state_0 = torch.ones(10).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(10).to(device, non_blocking=True)
-    state_1 = torch.eye(16)[state].to(device, non_blocking=True)
-    state_t = quantifying(0, 1, 100, 0   , 10  , time_steps, device)
+        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
+    state_1 = torch.eye(16)[state].to(device, non_blocking=True) * 2 - 1
+    state_t = quantifying(-1, 1, 100, 0   , 10  , time_steps, device)
     state   = torch.cat((null_state, state_0, state_1, state_t), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
     action_size       = pre_activated_actions.size(2) 
     action_argmax     = int(torch.argmax(pre_activated_actions[0, 0, :]))
-    vectorized_action = torch.eye(action_size)[action_argmax].to(device, non_blocking=True) 
+    vectorized_action = (torch.eye(action_size)[action_argmax].to(device, non_blocking=True) - 0.5) * 2
     return vectorized_action, action_argmax 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:         # If the agent reaches goal
-            reward = quantifying(0, 1, reward_size , 0, 1, summed_reward, device)      
+            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
         else:
-            reward = quantifying(0, 1, reward_size , 0, 1, summed_reward, device)      
+            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
             # x, y = divmod(state, 4)
             # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
             # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
@@ -84,7 +84,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
             # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
             # reward[0: idx] = 1
     else:
-        reward = quantifying(0, 1, reward_size , 0, 1, summed_reward, device)      
+        reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
         # x, y = divmod(state, 4)
         # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
