@@ -426,9 +426,9 @@ class build_model(nn.Module):
 
             h = h[:, -1:, :]
             r = self.reward_linear_(h)
-            r = self.reward_norm_(r)
+            r = torch.tanh(r)
             s = self.state_linear_(h)
-            s = self.state_norm_(s)
+            s = (s)
 
             future_r_list.append(r)
             future_s_list.append(s)
@@ -555,9 +555,9 @@ class build_model(nn.Module):
 
         h = h[:, -future_r.size(1):, :]
         r = self.reward_linear_(h)
-        r = self.reward_norm_(r)
+        r = torch.tanh(r)
         s = self.state_linear_ (h)
-        s = self.state_norm_(s)
+        s = (s)
 
         future_r = r
         future_s = s
