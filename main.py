@@ -142,102 +142,6 @@ render_for_human = False
 
 
 
-# -----------------------
-
-
-game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
-max_steps_for_each_episode = 10      #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-reward_size = 100                    #⚠️
-state_size = 136                     #⚠️
-action_size = 4                      #⚠️
-feature_size = 250                   #⚠️
-history_size =  10                   #⚠️
-future_size = 10                     #⚠️
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain_r'           #⚠️
-num_layers = 5                       #⚠️
-num_heads = 3                        #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-multiplier_for_learning = 5          #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
-
-
-
-
-
-
-
-
-# -----------------------
-
-
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-reward_size = 100                    #⚠️
-state_size =  560                    #⚠️
-action_size = 2                      #⚠️
-feature_size = 700                   #⚠️
-history_size = 10                    #⚠️
-future_size = 25                     #⚠️
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain_r'           #⚠️
-num_layers = 5                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-multiplier_for_learning = 5          #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
 
 
 # -----------------------
@@ -248,7 +152,7 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
 reward_size = 100                    #⚠️
-state_size =  1000                   #⚠️
+state_size =  1002                   #⚠️
 action_size = 4                      #⚠️
 feature_size = 1150                  #⚠️
 history_size = 10                    #⚠️
@@ -256,7 +160,7 @@ future_size = 25                     #⚠️
 frame_skip = 2                       #⚠️ 
 neural_type = 'td_chain'             #⚠️
 num_layers = 5                       #⚠️
-num_heads = 10                       #⚠️
+num_heads = 2                        #⚠️
 num_experts = 1                      #⚠️
 moe_top_k = 1                        #⚠️
 
@@ -282,6 +186,102 @@ episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 10000
 render_for_human = False
+
+
+
+
+
+# -----------------------
+
+
+game_name =  'FrozenLake-v1'         #⚠️   gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4")
+max_steps_for_each_episode = 10      #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 10                   #◀️
+reward_size = 100                    #⚠️
+state_size = 500                     #⚠️
+action_size = 4                      #⚠️
+feature_size = 650                   #⚠️
+history_size =  10                   #⚠️
+future_size = 10                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       #⚠️
+num_heads = 2                        #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.1
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+multiplier_for_learning = 5          #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 50          #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
+
+
+# -----------------------
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size =  700                    #⚠️
+action_size = 2                      #⚠️
+feature_size = 950                   #⚠️
+history_size = 10                    #⚠️
+future_size = 25                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       #⚠️
+num_heads = 10                       #⚠️
+num_experts = 1                      #⚠️
+moe_top_k = 1                        #⚠️
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+multiplier_for_learning = 5          #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 50          #⚠️     
+min_param_for_planning = 0           #⚠️
+max_param_for_planning = 0           #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 10
+episode_for_averaging = 30
+buffer_limit = 100000
+render_for_human = False
+
+
 
 
 
@@ -470,7 +470,7 @@ for training_episode in tqdm(range(episode_for_training)):
     # initializing short term experience replay buffer
     reward_list, \
     state_list,  \
-    action_list    = initialize_short_term_buffer(reward_size, state_size, action_size, history_size, frame_skip, device_)
+    action_list    = initialize_short_term_buffer()
 
     # initializing environment
     if game_name == 'FrozenLake-v1'  :
@@ -485,7 +485,7 @@ for training_episode in tqdm(range(episode_for_training)):
     reward_list    = pad_short_term_buffer(reward_list, reward_size, device_)
 
     # observing state
-    state          = vectorizing_state(state, False, False, device_, 0)
+    state          = vectorizing_state(state, summed_reward, False, False, device_, 0)
     state_list.append(state)
 
     # starting each step
@@ -542,7 +542,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(reward)
 
         # observing state
-        state = vectorizing_state(state, done, truncated, device_, total_step)
+        state = vectorizing_state(state, summed_reward, done, truncated, device_, total_step)
         state_list.append(state)
 
         """
