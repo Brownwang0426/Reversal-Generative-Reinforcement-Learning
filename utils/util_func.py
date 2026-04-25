@@ -63,10 +63,14 @@ def load_buffer_from_pickle(filename):
 
 
 
-def initialize_short_term_buffer():
+def initialize_short_term_buffer(reward_size, state_size, action_size, history_size, frame_skip, device):
     reward_list = []
     state_list  = []
     action_list = []
+    for _ in range(history_size * frame_skip):
+        reward_list.append(torch.zeros(reward_size).to(device, non_blocking=True) - 1)
+        state_list .append(torch.zeros(state_size ).to(device, non_blocking=True) - 1)
+        action_list.append(torch.zeros(action_size).to(device, non_blocking=True) - 1)
     return reward_list, state_list, action_list
 
 
@@ -81,12 +85,11 @@ def pad_short_term_buffer(target_list, size, device):
 
 def retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device, 
                                     mean=-0, std=0.0):
-    if history_size != 0 and len(reward_list) > 1:
+    if history_size != 0:
         history_size     *= frame_skip
-        available         = min(history_size, len(reward_list) - 1)
-        history_reward    = torch.stack(reward_list[-available-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_state     = torch.stack(state_list [-available-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
-        history_action    = torch.stack(action_list[-available  :  : frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_reward    = torch.stack(reward_list[-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_state     = torch.stack(state_list [-history_size-1:-1: frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
+        history_action    = torch.stack(action_list[-history_size  :  : frame_skip], dim=0).unsqueeze(0).to(device, non_blocking=True)
     else:
         history_reward    = torch.empty(0, 0, 0).to(device, non_blocking=True)
         history_state     = torch.empty(0, 0, 0).to(device, non_blocking=True)
