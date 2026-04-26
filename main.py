@@ -196,52 +196,6 @@ render_for_human = False
 
 # -----------------------
 
-
-game_name = 'CartPole-v1'            #⚠️
-max_steps_for_each_episode = 1000    #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 10                   #◀️
-reward_size = 100                    #⚠️
-state_size =  560                    #⚠️
-action_size = 2                      #⚠️
-feature_size = 700                   #⚠️
-history_size = 10                    #⚠️
-future_size = 25                     #⚠️
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain_r'           #⚠️
-num_layers = 5                       #⚠️
-num_heads = 10                       #⚠️
-num_experts = 1                      #⚠️
-moe_top_k = 1                        #⚠️
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-multiplier_for_learning = 5          #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 50          #⚠️     
-min_param_for_planning = 0           #⚠️
-max_param_for_planning = 0           #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 10
-episode_for_averaging = 30
-buffer_limit = 100000
-render_for_human = False
-
-
-
-# -----------------------
-
 game_name = "LunarLander-v3"         #⚠️
 max_steps_for_each_episode = 200     #⚠️
 seed = None                          #⚠️
@@ -281,6 +235,52 @@ episode_for_training = 100000
 episode_for_validation = 10
 episode_for_averaging = 30
 buffer_limit = 10000
+render_for_human = False
+
+
+
+# -----------------------
+
+
+game_name = 'CartPole-v1'            #⚠️
+max_steps_for_each_episode = 1000    #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size =  700                    #⚠️
+action_size = 2                      #⚠️
+feature_size = 850                   #⚠️
+history_size = 10                    #⚠️
+future_size = 25                     #⚠️
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       
+num_heads = 10                       
+num_experts = 1                      
+moe_top_k = 1                        
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+multiplier_for_learning = 5          #⚠️
+PER = True
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 15          #⚠️     
+min_param_for_planning = 0.          #⚠️
+max_param_for_planning = 0.          #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 1
+episode_for_averaging = 10
+buffer_limit = 10000                 #⚠️
 render_for_human = False
 
 
@@ -481,22 +481,24 @@ for training_episode in tqdm(range(episode_for_training)):
     if render_for_human == True:
         env.render()
 
-    # initializing reward
+    # observing reward
     reward_list    = pad_short_term_buffer(reward_list, reward_size, device_)
 
     # observing state
-    state          = vectorizing_state(state, False, False, device_, 0)
+    state          = vectorizing_state(state, summed_reward, False, False, device_, 0)
     state_list.append(state)
 
-    # starting each step
+    # starting counter
     post_done_truncated_counter = 0
     post_done_truncated_steps = future_size * frame_skip
-    done_truncated_flag = False
+    post_done_truncated_flag = False
     total_step = 0
-    while not done_truncated_flag:
+
+    # starting each step
+    while not post_done_truncated_flag:
 
         """
-        [ADDITIONAL] We added frame frame_skipping and positional skipping
+        [ADDITIONAL] We added frame frame_skipping
         """
         """
         [ADDITIONAL] We let agent took some history states into consideration.
@@ -529,12 +531,14 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # executing action
         state, reward, done, truncated, info = env.step(action_)
+        last_state = state
+        if post_done_truncated_counter > 0:
+            state  = last_state
+            reward = 0
         if (render_for_human == True) and (post_done_truncated_counter == 0):
             env.render()
 
         # summing reward
-        if post_done_truncated_counter > 0:
-            reward = 0
         summed_reward += reward
 
         # observing actual reward
@@ -542,7 +546,7 @@ for training_episode in tqdm(range(episode_for_training)):
         reward_list.append(reward)
 
         # observing state
-        state = vectorizing_state(state, done, truncated, device_, total_step)
+        state = vectorizing_state(state, summed_reward, done, truncated, device_, total_step)
         state_list.append(state)
 
         """
@@ -553,10 +557,10 @@ for training_episode in tqdm(range(episode_for_training)):
         The done flag shall affect the state in a considerable way to remind the agent that the environment is done.
         """
         # if done then continue for a short period. Then store experience to short term experience replay buffer
-        if done or truncated:
+        if done or truncated or post_done_truncated_counter > 0:
             post_done_truncated_counter += 1
             if post_done_truncated_counter >= post_done_truncated_steps:
-                done_truncated_flag = True
+                post_done_truncated_flag = True
                 break
         else:
             total_step += 1
