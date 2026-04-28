@@ -83,7 +83,7 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
     return vectorized_action, action_argmax 
 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
-    reward = quantifying_thermometer(-1, 1, reward_size, 0, 1000, summed_reward, device)
+    reward = quantifying_thermometer(-1, 1, reward_size, 0, 1, reward, device)
     return reward
 
 def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️

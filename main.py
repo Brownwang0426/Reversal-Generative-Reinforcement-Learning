@@ -251,11 +251,11 @@ reward_size = 100                    #⚠️
 state_size =  700                    #⚠️
 action_size = 2                      #⚠️
 feature_size = 850                   #⚠️
-history_size = 10                    #⚠️
-future_size = 25                     #⚠️
+history_size = 100                   #⚠️
+future_size = 15                     #⚠️
 frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain'             #⚠️
-num_layers = 5                       
+num_layers = 3                       
 num_heads = 10                       
 num_experts = 1                      
 moe_top_k = 1                        
@@ -268,7 +268,7 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-multiplier_for_learning = 5          #⚠️
+itrtn_for_learning = 1500            #⚠️
 PER = True
 
 beta = 0.1
@@ -669,7 +669,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_reward_stack,
                                         future_state_stack,
                                         future_action_stack )
-        model_list  = update_model_list(int(len(dataset) * multiplier_for_learning),
+        model_list  = update_model_list(min(len(dataset)*5, itrtn_for_learning),
                                         dataset,
                                         model_list,
                                         PER
