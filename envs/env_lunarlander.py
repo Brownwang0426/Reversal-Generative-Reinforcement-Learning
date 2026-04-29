@@ -46,29 +46,37 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+def quantifying_onehot(start_value, end_value, tesnor_size, min_value, max_value, value, device):
     tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
     interval = (max_value - min_value) / tesnor_size
-    index    = int( (value - min_value) // interval + 1)
+    index    = int((value - min_value) // interval)
+    index    = max(0, min(index, tesnor_size - 1))
+    tensor[index] = end_value
+    return tensor
+
+def quantifying_thermometer(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
+    interval = (max_value - min_value) / tesnor_size
+    index    = int((value - min_value) // interval + 1)
     if index >= 0:
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, truncated, device, time_steps=0):  # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(50).to(device, non_blocking=True)
+def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=0):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    null_state = torch.ones(100).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(50).to(device, non_blocking=True)
+        state_0 = torch.ones(100).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(50).to(device, non_blocking=True) - 1
-    state_1 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[0], device)
-    state_2 = quantifying(-1, 1, 100, -2.5 , 2.5  , state[1], device)
-    state_3 = quantifying(-1, 1, 100, -10  , 10   , state[2], device)
-    state_4 = quantifying(-1, 1, 100, -10  , 10   , state[3], device)
-    state_5 = quantifying(-1, 1, 100, -6.28, 6.28 , state[4], device)
-    state_6 = quantifying(-1, 1, 100, -10  , 10   , state[5], device)
-    state_7 = quantifying(-1, 1, 100, 0    , 1    , state[6], device)
-    state_8 = quantifying(-1, 1, 100, 0    , 1    , state[7], device)
-    state_t = quantifying(-1, 1, 100, 0    , 200  , time_steps, device)
+        state_0 = torch.zeros(100).to(device, non_blocking=True) - 1
+    state_1 = quantifying_thermometer(-1, 1, 100, -2.5 , 2.5  , state[0], device)
+    state_2 = quantifying_thermometer(-1, 1, 100, -2.5 , 2.5  , state[1], device)
+    state_3 = quantifying_thermometer(-1, 1, 100, -10  , 10   , state[2], device)
+    state_4 = quantifying_thermometer(-1, 1, 100, -10  , 10   , state[3], device)
+    state_5 = quantifying_thermometer(-1, 1, 100, -6.28, 6.28 , state[4], device)
+    state_6 = quantifying_thermometer(-1, 1, 100, -10  , 10   , state[5], device)
+    state_7 = quantifying_thermometer(-1, 1, 100, 0    , 1    , state[6], device)
+    state_8 = quantifying_thermometer(-1, 1, 100, 0    , 1    , state[7], device)
+    state_t = quantifying_thermometer(-1, 1, 100, 0    , 200  , time_steps, device)
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8, state_t), dim = 0)
     return state
 
@@ -81,11 +89,11 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:
-            reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)       
+            reward = quantifying_thermometer(-1, 1, reward_size , -100, 150, reward, device)       
         else:
-            reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)   
+            reward = quantifying_thermometer(-1, 1, reward_size , -100, 150, reward, device)   
     else:
-        reward = quantifying(-1, 1, reward_size , -200, 400, summed_reward, device)       
+        reward = quantifying_thermometer(-1, 1, reward_size , -100, 150, reward, device)       
     return reward
 
 def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️

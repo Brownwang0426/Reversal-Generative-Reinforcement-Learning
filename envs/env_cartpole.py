@@ -71,7 +71,6 @@ def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=
     state_2 = quantifying_thermometer(-1, 1, 100, -3.75 , 3.75  , state[1], device)
     state_3 = quantifying_thermometer(-1, 1, 100, -0.418, 0.418 , state[2], device)
     state_4 = quantifying_thermometer(-1, 1, 100, -3.75 , 3.75  , state[3], device)
-    # state_r = quantifying_thermometer(-1, 1, 100, 0     , 1000  , summed_reward, device)
     state_t = quantifying_thermometer(-1, 1, 100, 0     , 1000  , time_steps, device)
     state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_t), dim = 0)
     return state
@@ -88,7 +87,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
 
 def itrtn_by_averaging_reward(performance_log, itrtn_for_planning, window_size): # Reminder: change this for your specific task ⚠️⚠️⚠️
     start_value = 0
-    end_value = 1000   
+    end_value = 500   
     N = itrtn_for_planning
     recent_K = window_size
     rewards = []
