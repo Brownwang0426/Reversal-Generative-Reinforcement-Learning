@@ -46,22 +46,30 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+def quantifying_onehot(start_value, end_value, tesnor_size, min_value, max_value, value, device):
     tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
     interval = (max_value - min_value) / tesnor_size
-    index    = int( (value - min_value) // interval + 1)
+    index    = int((value - min_value) // interval)
+    index    = max(0, min(index, tesnor_size - 1))
+    tensor[index] = end_value
+    return tensor
+
+def quantifying_thermometer(start_value, end_value, tesnor_size, min_value, max_value, value, device):
+    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
+    interval = (max_value - min_value) / tesnor_size
+    index    = int((value - min_value) // interval + 1)
     if index >= 0:
         tensor[ : index] = end_value
     return tensor
 
-def vectorizing_state(state, done, truncated, device, time_steps=0):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(10).to(device, non_blocking=True)
+def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=0):      # Reminder: change this for your specific task ⚠️⚠️⚠️
+    null_state = torch.ones(20).to(device, non_blocking=True)
     if done or truncated:
-        state_0 = torch.ones(10).to(device, non_blocking=True)
+        state_0 = torch.ones(20).to(device, non_blocking=True)
     else:
-        state_0 = torch.zeros(10).to(device, non_blocking=True) - 1
-    state_1 = torch.eye(16)[state].to(device, non_blocking=True) * 2 - 1
-    state_t = quantifying(-1, 1, 100, 0   , 10  , time_steps, device)
+        state_0 = torch.zeros(20).to(device, non_blocking=True) - 1
+    state_1 = torch.eye(20)[state].to(device, non_blocking=True) * 2 - 1
+    state_t = quantifying_thermometer(-1, 1, 20, 0   , 10  , time_steps, device)
     state   = torch.cat((null_state, state_0, state_1, state_t), dim = 0)
     return state
 
@@ -74,9 +82,9 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:         # If the agent reaches goal
-            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
+            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
         else:
-            reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
+            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
             # x, y = divmod(state, 4)
             # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
             # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
@@ -84,7 +92,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
             # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
             # reward[0: idx] = 1
     else:
-        reward = quantifying(-1, 1, reward_size , 0, 1, summed_reward, device)      
+        reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
         # x, y = divmod(state, 4)
         # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
