@@ -193,53 +193,6 @@ render_for_human = False
 
 
 
-
-# -----------------------
-
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-reward_size = 100                    #⚠️
-state_size =  1100                   #⚠️
-action_size = 4                      #⚠️
-feature_size = 1250                  #⚠️
-history_size = 5                     #⚠️
-future_size = 25                     #⚠️ 
-frame_skip = 2                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 3                       
-num_heads = 10                       
-num_experts = 1                      
-moe_top_k = 1                        
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 1500            #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 25          #⚠️     
-min_param_for_planning = 0.0         #⚠️
-max_param_for_planning = 0.01        #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 1
-episode_for_averaging = 10
-buffer_limit = 10000                 #⚠️
-render_for_human = False
-
-
-
-
 # -----------------------
 
 
@@ -269,7 +222,54 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-itrtn_for_learning = 1500            #⚠️
+magnitude_for_learning = 3           #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 25          #⚠️     
+min_param_for_planning = 0.0         #⚠️
+max_param_for_planning = 0.01        #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 1
+episode_for_averaging = 10
+buffer_limit = 10000                 #⚠️
+render_for_human = False
+
+
+
+
+
+# -----------------------
+
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 200     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size =  1100                   #⚠️
+action_size = 4                      #⚠️
+feature_size = 1250                  #⚠️
+history_size = 5                     #⚠️
+future_size = 25                     #⚠️ 
+frame_skip = 2                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 3                       
+num_heads = 10                       
+num_experts = 1                      
+moe_top_k = 1                        
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+magnitude_for_learning = 3           #⚠️
 PER = False
 
 beta = 0.1
@@ -670,7 +670,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_reward_stack,
                                         future_state_stack,
                                         future_action_stack )
-        model_list  = update_model_list(min(len(dataset)*5, itrtn_for_learning),
+        model_list  = update_model_list(len(dataset)*magnitude_for_learning,
                                         dataset,
                                         model_list,
                                         PER
