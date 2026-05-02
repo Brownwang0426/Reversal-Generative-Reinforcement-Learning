@@ -118,7 +118,7 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-multiplier_for_learning = 2          #⚠️
+itrtn_for_learning = 1500            #⚠️
 PER = False
 
 beta = 0.1
@@ -168,7 +168,7 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-multiplier_for_learning = 2          #⚠️
+itrtn_for_learning = 1500            #⚠️
 PER = False
 
 beta = 0.1
@@ -215,7 +215,7 @@ drop_rate = 0.01
 alpha = 0.1
 L2_lambda = 0                 
 grad_clip_value = 1.0
-multiplier_for_learning = 2          #⚠️
+itrtn_for_learning = 1500            #⚠️
 PER = False
 
 beta = 0.1
@@ -615,7 +615,7 @@ for training_episode in tqdm(range(episode_for_training)):
                                         future_reward_stack,
                                         future_state_stack,
                                         future_action_stack )
-        model_list  = update_model_list(int(len(dataset)*multiplier_for_learning),
+        model_list  = update_model_list(itrtn_for_learning,
                                         dataset,
                                         model_list,
                                         PER
