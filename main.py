@@ -136,6 +136,52 @@ render_for_human = False
 
 # -----------------------
 
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 200     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size =  800                    #⚠️
+action_size = 4                      #⚠️
+feature_size = 950                   #⚠️
+history_size = 5                     #⚠️
+future_size = 50                     #⚠️ 
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       
+num_heads = 10                       
+num_experts = 1                      
+moe_top_k = 1                        
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+itrtn_for_learning = 1500            #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 25          #⚠️     
+min_param_for_planning = 0.0         #⚠️
+max_param_for_planning = 0.01        #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 1
+episode_for_averaging = 10
+buffer_limit = 100000                #⚠️
+render_for_human = False
+
+
+
+
+# -----------------------
+
 
 game_name = 'CartPole-v1'            #⚠️
 max_steps_for_each_episode = 1000    #⚠️
@@ -143,9 +189,9 @@ seed = None                          #⚠️
 load_pretrained_model = True
 ensemble_size = 5                    #◀️
 reward_size = 100                    #⚠️
-state_size =  700                    #⚠️
+state_size =  400                    #⚠️
 action_size = 2                      #⚠️
-feature_size = 850                   #⚠️
+feature_size = 550                   #⚠️
 history_size = 5                     #⚠️
 future_size = 25                     #⚠️
 frame_skip = 1                       #⚠️ 
@@ -180,52 +226,6 @@ render_for_human = False
 
 
 
-
-
-
-
-# -----------------------
-
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-reward_size = 100                    #⚠️
-state_size =  1100                   #⚠️
-action_size = 4                      #⚠️
-feature_size = 1250                  #⚠️
-history_size = 5                     #⚠️
-future_size = 50                     #⚠️ 
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 5                       
-num_heads = 10                       
-num_experts = 1                      
-moe_top_k = 1                        
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 1500            #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 25          #⚠️     
-min_param_for_planning = 0.0         #⚠️
-max_param_for_planning = 0.01        #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 1
-episode_for_averaging = 10
-buffer_limit = 100000                #⚠️
-render_for_human = False
 
 
 
@@ -410,113 +410,109 @@ else:
 for training_episode in tqdm(range(episode_for_training)):
     current_episode  = training_episode + last_episode + 1
 
-    # initializing summed reward
-    summed_reward  = 0
+    while True:
 
-    # initializing short term experience replay buffer
-    reward_list, \
-    state_list,  \
-    action_list    = initialize_short_term_buffer(reward_size, state_size, action_size, history_size, frame_skip, device_)
+        # initializing summed reward
+        summed_reward  = 0
 
-    # initializing environment
-    if game_name == 'FrozenLake-v1'  :
-        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4", render_mode = "human" if render_for_human else None)
-    else:
-        env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, render_mode = "human" if render_for_human else None)
-    state, info    = env.reset(seed = seed)
-    if render_for_human == True:
-        env.render()
+        # initializing short term experience replay buffer
+        reward_list, \
+        state_list,  \
+        action_list    = initialize_short_term_buffer(reward_size, state_size, action_size, history_size, frame_skip, device_)
 
-    # observing reward
-    reward_list    = pad_short_term_buffer(reward_list, reward_size, device_)
-
-    # observing state
-    state          = vectorizing_state(state, summed_reward, False, False, device_, 0)
-    state_list.append(state)
-
-    # starting counter
-    post_done_truncated_counter = 0
-    post_done_truncated_steps = future_size * frame_skip
-    post_done_truncated_flag = False
-    total_step = 0
-
-    # starting each step
-    while not post_done_truncated_flag:
-
-        """
-        [ADDITIONAL] We added frame frame_skipping
-        """
-        """
-        [ADDITIONAL] We let agent took some history states into consideration.
-        """
-        # initializing and updating action by desired reward
-        history_reward, \
-        history_state,  \
-        history_action, \
-        present_reward, \
-        present_state,  \
-        present_action, \
-        future_action   = retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device_, std = param_for_planning)
-        desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
-        present_action, \
-        future_action   = update_future_action(itrtn_for_planning ,
-                                               model_list,
-                                               history_reward,
-                                               history_state ,
-                                               history_action,
-                                               present_reward,
-                                               present_state,
-                                               present_action,
-                                               future_action,
-                                               desired_reward,
-                                               beta)
-
-        # observing action
-        action, action_  = vectorizing_action(present_action, device_)
-        action_list.append(action)
-
-        # executing action
-        state, reward, done, truncated, info = env.step(action_)
-        last_state = state
-        if post_done_truncated_counter > 0:
-            state  = last_state
-            reward = 0
-        if (render_for_human == True) and (post_done_truncated_counter == 0):
+        # initializing environment
+        if game_name == 'FrozenLake-v1'  :
+            env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, is_slippery=False, map_name="4x4", render_mode = "human" if render_for_human else None)
+        else:
+            env        = gym.make(game_name, max_episode_steps=max_steps_for_each_episode, render_mode = "human" if render_for_human else None)
+        state, info    = env.reset(seed = seed)
+        if render_for_human == True:
             env.render()
 
-        # summing reward
-        summed_reward += reward
-
-        # observing actual reward
-        reward = vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device_)
-        reward_list.append(reward)
+        # observing reward
+        reward_list    = pad_short_term_buffer(reward_list, reward_size, device_)
 
         # observing state
-        state = vectorizing_state(state, summed_reward, done, truncated, device_, total_step)
+        state          = vectorizing_state(state, summed_reward, False, False, device_, 0)
         state_list.append(state)
 
-        """
-        [ADDITIONAL] We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes.
-        Though it is contrary to common practice in RL, this is for better handling the sequentialization of the short-term experience replay buffer with fixed window length.
-        And it is also for agent to plan ahead even after the episode is done.
-        We give a done flag to state to indicate that the environment is done so that the agent won't be confused.
-        The done flag shall affect the state in a considerable way to remind the agent that the environment is done.
-        """
-        # if done then continue for a short period. Then store experience to short term experience replay buffer
-        if done or truncated or post_done_truncated_counter > 0:
-            post_done_truncated_counter += 1
-            if post_done_truncated_counter >= post_done_truncated_steps:
-                post_done_truncated_flag = True
+        # starting counter
+        done_truncated_flag = False
+        total_step = 0
+
+        # starting each step
+        while not done_truncated_flag:
+
+            """
+            [ADDITIONAL] We added frame frame_skipping
+            """
+            """
+            [ADDITIONAL] We let agent took some history states into consideration.
+            """
+            # initializing and updating action by desired reward
+            history_reward, \
+            history_state,  \
+            history_action, \
+            present_reward, \
+            present_state,  \
+            present_action, \
+            future_action   = retrieve_history_present_future(reward_list, state_list, action_list, history_size, future_size, action_size, frame_skip, device_, std = param_for_planning)
+            desired_reward  = initialize_desired_reward((1, future_size, reward_size), device_)
+            present_action, \
+            future_action   = update_future_action(itrtn_for_planning ,
+                                                   model_list,
+                                                   history_reward,
+                                                   history_state ,
+                                                   history_action,
+                                                   present_reward,
+                                                   present_state,
+                                                   present_action,
+                                                   future_action,
+                                                   desired_reward,
+                                                   beta)
+
+            # observing action
+            action, action_  = vectorizing_action(present_action, device_)
+            action_list.append(action)
+
+            # executing action
+            state, reward, done, truncated, info = env.step(action_)
+            if render_for_human == True:
+                env.render()
+
+            # summing reward
+            summed_reward += reward
+
+            # observing actual reward
+            reward = vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device_)
+            reward_list.append(reward)
+
+            # observing state
+            state = vectorizing_state(state, summed_reward, done, truncated, device_, total_step)
+            state_list.append(state)
+
+            # if done then continue for a short period. Then store experience to short term experience replay buffer
+            if done or truncated:
+                total_step += 1
+                print(f'\rStep: {total_step}\r', end='', flush=True)
+                done_truncated_flag = True
                 break
+            else:
+                total_step += 1
+                print(f'\rStep: {total_step}\r', end='', flush=True)
+
+        # padding action
+        action_list = pad_short_term_buffer(action_list, action_size, device_)
+
+        # closing env
+        env.close()
+
+        # retry episode if too short to produce experience
+        if total_step < future_size:
+            print(f'Episode too short ({total_step} < {future_size}), retrying...')
+            continue
         else:
-            total_step += 1
-            print(f'\rStep: {total_step}\r', end='', flush=True)
-
-    # padding action
-    action_list = pad_short_term_buffer(action_list, action_size, device_)
-
-    # closing env
-    env.close()
+            break
 
 
 
