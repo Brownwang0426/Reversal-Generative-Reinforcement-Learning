@@ -63,6 +63,11 @@ def quantifying_thermometer(start_value, end_value, tesnor_size, min_value, max_
     return tensor
 
 def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=0):  # Reminder: change this for your specific task ⚠️⚠️⚠️
+    null_state = torch.ones(100).to(device, non_blocking=True)
+    if done or truncated:
+        state_0 = torch.ones(100).to(device, non_blocking=True)
+    else:
+        state_0 = torch.zeros(100).to(device, non_blocking=True) - 1
     state_1 = quantifying_thermometer(-1, 1, 100, -2.5 , 2.5  , state[0], device)
     state_2 = quantifying_thermometer(-1, 1, 100, -2.5 , 2.5  , state[1], device)
     state_3 = quantifying_thermometer(-1, 1, 100, -10  , 10   , state[2], device)
@@ -71,7 +76,8 @@ def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=
     state_6 = quantifying_thermometer(-1, 1, 100, -10  , 10   , state[5], device)
     state_7 = quantifying_thermometer(-1, 1, 100, 0    , 1    , state[6], device)
     state_8 = quantifying_thermometer(-1, 1, 100, 0    , 1    , state[7], device)
-    state   = torch.cat((state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8), dim = 0)
+    state_t = quantifying_thermometer(-1, 1, 100, 0    , 200  , time_steps, device)
+    state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7, state_8, state_t), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
