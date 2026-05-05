@@ -504,14 +504,7 @@ for training_episode in tqdm(range(episode_for_training)):
         state = vectorizing_state(state, summed_reward, done, truncated, device_, total_step)
         state_list.append(state)
 
-        """
-        [ADDITIONAL] We expanded the condition for terminating an episode to include the case where the count is smaller than the sum of the history and future sizes.
-        Though it is contrary to common practice in RL, this is for better handling the sequentialization of the short-term experience replay buffer with fixed window length.
-        And it is also for agent to plan ahead even after the episode is done.
-        We give a done flag to state to indicate that the environment is done so that the agent won't be confused.
-        The done flag shall affect the state in a considerable way to remind the agent that the environment is done.
-        """
-        # if done then continue for a short period. Then store experience to short term experience replay buffer
+        # if done then start padding 
         if done or truncated:
             done_truncated_flag = True
             action_list = pad_short_term_buffer(action_list, action_size, device_)
