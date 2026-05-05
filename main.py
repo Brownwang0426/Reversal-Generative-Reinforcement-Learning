@@ -137,6 +137,10 @@ render_for_human = False
 
 
 
+
+
+
+
 # -----------------------
 
 game_name = "LunarLander-v3"         #⚠️
@@ -148,7 +152,7 @@ reward_size = 100                    #⚠️
 state_size =  1100                   #⚠️
 action_size = 4                      #⚠️
 feature_size = 1250                  #⚠️
-history_size = 5                     #⚠️
+history_size = 10                    #⚠️
 future_size = 50                     #⚠️ 
 frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain'             #⚠️
@@ -180,8 +184,6 @@ episode_for_averaging = 10
 warmup_episodes_for_planning = 10
 buffer_limit = 100000                #⚠️
 render_for_human = False
-
-
 
 
 
@@ -229,8 +231,6 @@ episode_for_averaging = 10
 warmup_episodes_for_planning = 10
 buffer_limit = 100000                #⚠️
 render_for_human = False
-
-
 
 
 
@@ -450,13 +450,11 @@ for training_episode in tqdm(range(episode_for_training)):
     state_list.append(state)
 
     # starting counter
-    post_done_truncated_counter = 0
-    post_done_truncated_steps = future_size * frame_skip
-    post_done_truncated_flag = False
+    done_truncated_flag = False
     total_step = 0
 
     # starting each step
-    while not post_done_truncated_flag:
+    while not done_truncated_flag:
 
         """
         [ADDITIONAL] We added frame frame_skipping
@@ -492,9 +490,7 @@ for training_episode in tqdm(range(episode_for_training)):
 
         # executing action
         state, reward, done, truncated, info = env.step(action_)
-        if post_done_truncated_counter > 0:
-            reward = 0
-        if (render_for_human == True) and (post_done_truncated_counter == 0):
+        if render_for_human == True:
             env.render()
 
         # summing reward
@@ -516,11 +512,13 @@ for training_episode in tqdm(range(episode_for_training)):
         The done flag shall affect the state in a considerable way to remind the agent that the environment is done.
         """
         # if done then continue for a short period. Then store experience to short term experience replay buffer
-        if done or truncated or post_done_truncated_counter > 0:
-            post_done_truncated_counter += 1
-            if post_done_truncated_counter >= post_done_truncated_steps:
-                post_done_truncated_flag = True
-                break
+        if done or truncated:
+            done_truncated_flag = True
+            for _ in range(future_size * frame_skip):
+                 action_list = pad_short_term_buffer(action_list, action_size, device_)
+                 reward_list = pad_short_term_buffer(reward_list, reward_size, device_)
+                 state_list  = pad_short_term_buffer(state_list , state_size , device_)
+            break
         else:
             total_step += 1
             print(f'\rStep: {total_step}\r', end='', flush=True)
