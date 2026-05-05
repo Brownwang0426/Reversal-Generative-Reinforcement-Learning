@@ -514,17 +514,15 @@ for training_episode in tqdm(range(episode_for_training)):
         # if done then continue for a short period. Then store experience to short term experience replay buffer
         if done or truncated:
             done_truncated_flag = True
-            for _ in range(future_size * frame_skip):
-                 action_list = pad_short_term_buffer(action_list, action_size, device_)
+            action_list = pad_short_term_buffer(action_list, action_size, device_)
+            for _ in range(future_size * frame_skip - 1):
                  reward_list = pad_short_term_buffer(reward_list, reward_size, device_)
                  state_list  = pad_short_term_buffer(state_list , state_size , device_)
+                 action_list = pad_short_term_buffer(action_list, action_size, device_)
             break
         else:
             total_step += 1
             print(f'\rStep: {total_step}\r', end='', flush=True)
-
-    # padding action
-    action_list = pad_short_term_buffer(action_list, action_size, device_)
 
     # closing env
     env.close()
