@@ -128,11 +128,58 @@ max_param_for_planning = 0.01        #⚠️
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 10
+warmup_episodes_for_planning = 10
 buffer_limit = 100000                #⚠️
 render_for_human = False
 
 
 
+
+
+
+# -----------------------
+
+game_name = "LunarLander-v3"         #⚠️
+max_steps_for_each_episode = 200     #⚠️
+seed = None                          #⚠️
+load_pretrained_model = True
+ensemble_size = 5                    #◀️
+reward_size = 100                    #⚠️
+state_size =  1100                   #⚠️
+action_size = 4                      #⚠️
+feature_size = 1250                  #⚠️
+history_size = 5                     #⚠️
+future_size = 50                     #⚠️ 
+frame_skip = 1                       #⚠️ 
+neural_type = 'td_chain'             #⚠️
+num_layers = 5                       
+num_heads = 10                       
+num_experts = 1                      
+moe_top_k = 1                        
+
+init = "xavier_normal"
+opti = 'sgd'
+loss = 'mean_squared_error'
+bias = False
+drop_rate = 0.01
+alpha = 0.1
+L2_lambda = 0                 
+grad_clip_value = 1.0
+itrtn_for_learning = 1500            #⚠️
+PER = False
+
+beta = 0.1
+min_itrtn_for_planning = 1           #⚠️
+max_itrtn_for_planning = 25          #⚠️     
+min_param_for_planning = 0.0         #⚠️
+max_param_for_planning = 0.01        #⚠️
+
+episode_for_training = 100000
+episode_for_validation = 1
+episode_for_averaging = 10
+warmup_episodes_for_planning = 10
+buffer_limit = 100000                #⚠️
+render_for_human = False
 
 
 
@@ -179,53 +226,9 @@ max_param_for_planning = 0.01        #⚠️
 episode_for_training = 100000
 episode_for_validation = 1
 episode_for_averaging = 10
+warmup_episodes_for_planning = 10
 buffer_limit = 100000                #⚠️
 render_for_human = False
-
-
-# -----------------------
-
-game_name = "LunarLander-v3"         #⚠️
-max_steps_for_each_episode = 200     #⚠️
-seed = None                          #⚠️
-load_pretrained_model = True
-ensemble_size = 5                    #◀️
-reward_size = 100                    #⚠️
-state_size =  1100                   #⚠️
-action_size = 4                      #⚠️
-feature_size = 1250                  #⚠️
-history_size = 5                     #⚠️
-future_size = 50                     #⚠️ 
-frame_skip = 1                       #⚠️ 
-neural_type = 'td_chain'             #⚠️
-num_layers = 5                       
-num_heads = 10                       
-num_experts = 1                      
-moe_top_k = 1                        
-
-init = "xavier_normal"
-opti = 'sgd'
-loss = 'mean_squared_error'
-bias = False
-drop_rate = 0.01
-alpha = 0.1
-L2_lambda = 0                 
-grad_clip_value = 1.0
-itrtn_for_learning = 1500            #⚠️
-PER = False
-
-beta = 0.1
-min_itrtn_for_planning = 1           #⚠️
-max_itrtn_for_planning = 25          #⚠️     
-min_param_for_planning = 0.0         #⚠️
-max_param_for_planning = 0.01        #⚠️
-
-episode_for_training = 100000
-episode_for_validation = 1
-episode_for_averaging = 10
-buffer_limit = 100000                #⚠️
-render_for_human = False
-
 
 
 
@@ -354,12 +357,20 @@ future_reward_hash_set     = set()
 future_state_hash_set      = set()
 future_action_hash_set     = set()
 
+# initialize saved planning parameters
+old_itrtn_for_planning = min_itrtn_for_planning
+old_param_for_planning = max_param_for_planning
+
 # load from pre-trained models if needed
 if load_pretrained_model == True:
     try:
         model_dict = torch.load(model_directory)
         for i, model in enumerate(model_list):
             model.load_state_dict(model_dict[f'model_{i}'])
+        if 'itrtn_for_planning' in model_dict:
+            old_itrtn_for_planning = model_dict['itrtn_for_planning']
+        if 'param_for_planning' in model_dict:
+            old_param_for_planning = model_dict['param_for_planning']
         history_reward_stack, \
         history_state_stack,  \
         history_action_stack, \
@@ -398,11 +409,15 @@ if load_pretrained_model == True:
 
 
 
-# retreive highest reward
-if len(performance_log) > 0:
-    itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
-    param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
+# initialize planning parameters
+if last_episode >= warmup_episodes_for_planning:
+    # post-warmup: compute from performance log, then apply monotonic constraints
+    new_itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
+    new_param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
+    itrtn_for_planning = max(old_itrtn_for_planning, new_itrtn_for_planning)  # only goes up
+    param_for_planning = min(old_param_for_planning, new_param_for_planning)  # only goes down
 else:
+    # warmup: lock to min/max
     itrtn_for_planning = min_itrtn_for_planning
     param_for_planning = max_param_for_planning
 
@@ -673,6 +688,8 @@ for training_episode in tqdm(range(episode_for_training)):
         model_dict = {}
         for i, model in enumerate(model_list):
             model_dict[f'model_{i}'] = model.state_dict()
+        model_dict['itrtn_for_planning'] = itrtn_for_planning
+        model_dict['param_for_planning'] = param_for_planning
         torch.save(model_dict, model_directory)
 
         # saving long term experience replay buffer
@@ -700,8 +717,14 @@ for training_episode in tqdm(range(episode_for_training)):
 
 
         # retreive highest reward
-        itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
-        param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
+        if current_episode >= warmup_episodes_for_planning:
+            new_itrtn_for_planning = min_itrtn_for_planning + itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_itrtn_for_planning - min_itrtn_for_planning, episode_for_averaging)
+            new_param_for_planning = max_param_for_planning - itrtn_by_averaging_reward([entry[1] for entry in performance_log], max_param_for_planning - min_param_for_planning, episode_for_averaging)
+            itrtn_for_planning = max(itrtn_for_planning, new_itrtn_for_planning)  # only goes up
+            param_for_planning = min(param_for_planning, new_param_for_planning)  # only goes down
+        else:
+            itrtn_for_planning = min_itrtn_for_planning
+            param_for_planning = max_param_for_planning
 
 
 
