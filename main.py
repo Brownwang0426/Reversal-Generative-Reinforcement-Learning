@@ -198,7 +198,7 @@ state_size =  700                    #⚠️
 action_size = 2                      #⚠️
 feature_size = 850                   #⚠️
 history_size = 5                     #⚠️
-future_size = 25                     #⚠️
+future_size = 50                     #⚠️
 frame_skip = 1                       #⚠️ 
 neural_type = 'td_chain'             #⚠️
 num_layers = 5                       
@@ -493,12 +493,15 @@ for training_episode in tqdm(range(episode_for_training)):
         # executing action
         state, reward, done, truncated, info = env.step(action_)
         if post_done_truncated_counter > 0:
-            reward = 0
+            reward = -1e9
         if (render_for_human == True) and (post_done_truncated_counter == 0):
             env.render()
 
         # summing reward
-        summed_reward += reward
+        if post_done_truncated_counter > 0:
+            summed_reward += 0
+        else:
+            summed_reward += reward
 
         # observing actual reward
         reward = vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device_)

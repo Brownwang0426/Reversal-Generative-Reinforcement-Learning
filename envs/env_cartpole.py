@@ -45,20 +45,20 @@ Crucial function regarding how you manipulate or shape your state, action and re
 - As for reward shaping, it is recommended to increase your reward upper and decrease your reward lower bound.
 """
 
-def quantifying_onehot(start_value, end_value, tesnor_size, min_value, max_value, value, device):
-    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
-    interval = (max_value - min_value) / tesnor_size
-    index    = int((value - min_value) // interval)
-    index    = max(0, min(index, tesnor_size - 1))
+def quantifying_onehot(start_value, end_value, tensor_size, min_value, max_value, value, device):
+    tensor = torch.zeros(tensor_size, device=device) + start_value
+    ratio = (value - min_value) / (max_value - min_value)
+    index = int(ratio * tensor_size)
+    index = max(0, min(index, tensor_size - 1))
     tensor[index] = end_value
     return tensor
 
-def quantifying_thermometer(start_value, end_value, tesnor_size, min_value, max_value, value, device):
-    tensor   = torch.zeros(tesnor_size).to(device, non_blocking=True) + start_value
-    interval = (max_value - min_value) / tesnor_size
-    index    = int((value - min_value) // interval + 1)
-    if index >= 0:
-        tensor[ : index] = end_value
+def quantifying_thermometer(start_value, end_value, tensor_size, min_value, max_value, value, device):
+    tensor = torch.zeros(tensor_size, device=device) + start_value
+    ratio = (value - min_value) / (max_value - min_value)
+    index = int(ratio * tensor_size)
+    index = max(1, min(index + 1, tensor_size))
+    tensor[:index] = end_value
     return tensor
 
 def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=0):      # Reminder: change this for your specific task ⚠️⚠️⚠️
