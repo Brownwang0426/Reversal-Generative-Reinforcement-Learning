@@ -506,15 +506,6 @@ def update_model(itrtn_for_learning,
         future_state   = torch.stack(future_state  ).to(device)
         future_action  = torch.stack(future_action ).to(device)
 
-        history_mask   = (history_state != -1).any(dim = -1)
-        history_reward = history_reward[:, history_mask[0], :]
-        history_state  = history_state [:, history_mask[0], :]
-        history_action = history_action[:, history_mask[0], :]
-        future_mask    = (future_state  != -1).any(dim = -1)
-        future_reward  = future_reward[:, future_mask[0], :]
-        future_state   = future_state [:, future_mask[0], :]
-        future_action  = future_action[:, future_mask[0], :]  
-
         model.train()
         for p in model.parameters():
             p.requires_grad_(True)
