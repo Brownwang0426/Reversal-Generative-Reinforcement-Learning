@@ -133,11 +133,6 @@ def update_future_action(itrtn_for_planning,
     future_action  = future_action .to(device)
     desired_reward = desired_reward.to(device)
 
-    history_mask   = (history_state != -1).any(dim = -1)
-    history_reward = history_reward[:, history_mask[0], :]
-    history_state  = history_state [:, history_mask[0], :]
-    history_action = history_action[:, history_mask[0], :]
-
     present_action     = torch.nn.Parameter(present_action)
     future_action      = torch.nn.Parameter(future_action)
     selected_optimizer = torch.optim.SGD([present_action, future_action], lr=beta)
@@ -340,41 +335,112 @@ def update_long_term_experience_replay_buffer(history_reward_stack,
 
 
 
-def obtain_priority_probability(model, dataset, batch_size, PER_epsilon, PER_exponent, device):
+# def obtain_priority_probability(model, dataset, batch_size, PER_epsilon, PER_exponent, device):
+# 
+#     data_loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
+# 
+#     TD_error_list = []
+# 
+#     for history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action in data_loader:
+# 
+#         history_reward = history_reward.to(device)
+#         history_state  = history_state .to(device)
+#         history_action = history_action.to(device)
+#         present_reward = present_reward.to(device)
+#         present_state  = present_state .to(device)
+#         present_action = present_action.to(device)
+#         future_reward  = future_reward .to(device)
+#         future_state   = future_state  .to(device)
+#         future_action  = future_action .to(device)
+# 
+#         model.train()
+#         for p in model.parameters():
+#             p.requires_grad_(True)
+#         selected_optimizer = model.selected_optimizer
+#         selected_optimizer.zero_grad()
+# 
+#         loss_function                 = model.loss_function_
+#         envisaged_reward, \
+#         envisaged_state               = model.forward_(history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action)
+#         total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1, 2)) + \
+#                                         torch.sum(torch.abs(loss_function(envisaged_state [:, :, :], future_state [:, :, :]) ), dim=(1, 2))
+#         TD_error_list.append(total_loss.detach())
+# 
+#     obsolute_TD_error    = torch.cat(TD_error_list, dim=0).to(device)
+#     priority             = obsolute_TD_error + PER_epsilon
+#     exponent_priority    = priority ** PER_exponent
+#     probabilities        = exponent_priority / torch.sum(exponent_priority)
+# 
+#     return probabilities
+# 
+# def update_model_per(itrtn_for_learning,
+#                      dataset,
+#                      model,
+#                      batch_size):
+# 
+#     device         = next(model.parameters()).device
+# 
+#     for _ in range(itrtn_for_learning):
+# 
+#         priority_batch_size  = 50
+#         priority_epsilon     = 1e-10
+#         priority_exponent    = 1
+#         priority_probability = obtain_priority_probability(model, dataset, priority_batch_size, priority_epsilon, priority_exponent, device)
+#         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
+# 
+#         batch_samples  = [dataset[i] for i in final_indices]
+#         history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action = zip(*batch_samples)
+#         
+#         history_reward = torch.stack(history_reward).to(device)
+#         history_state  = torch.stack(history_state ).to(device)
+#         history_action = torch.stack(history_action).to(device)
+#         present_reward = torch.stack(present_reward).to(device)
+#         present_state  = torch.stack(present_state ).to(device)
+#         present_action = torch.stack(present_action).to(device)
+#         future_reward  = torch.stack(future_reward ).to(device)
+#         future_state   = torch.stack(future_state  ).to(device)
+#         future_action  = torch.stack(future_action ).to(device)
+# 
+#         model.train()
+#         for p in model.parameters():
+#             p.requires_grad_(True)
+#         selected_optimizer = model.selected_optimizer
+#         selected_optimizer.zero_grad()
+# 
+#         loss_function               = model.loss_function
+#         envisaged_reward, \
+#         envisaged_state             = model.forward_(history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action)
+#         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state)
+#         total_loss.backward()
+# 
+#         torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
+#         selected_optimizer.step()
+# 
+#     return model
 
-    data_loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=0)
+def obtain_priority_probability(model, dataset, device):
 
-    TD_error_list = []
+    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, pin_memory=True, num_workers=0)
+    
+    reward_list = []
 
-    for history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action in data_loader:
+    for history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, _, _ in data_loader:
+        # history_state  = history_state.reshape(history_state.size(0), -1)
+        # history_action = history_action.reshape(history_action.size(0), -1)
+        # present_state  = present_state.reshape(present_state.size(0), -1)
+        future_reward  = future_reward[:, :, :].reshape(future_reward.size(0), -1)  
+        # combined = torch.cat((history_state, history_action, present_state, future_reward), dim=1)
+        combined = future_reward
+        reward_list.append(combined.detach())
 
-        history_reward = history_reward.to(device)
-        history_state  = history_state .to(device)
-        history_action = history_action.to(device)
-        present_reward = present_reward.to(device)
-        present_state  = present_state .to(device)
-        present_action = present_action.to(device)
-        future_reward  = future_reward .to(device)
-        future_state   = future_state  .to(device)
-        future_action  = future_action .to(device)
+    rewards = torch.cat(reward_list, dim=0).to(device)  # [N, D]
 
-        model.train()
-        for p in model.parameters():
-            p.requires_grad_(True)
-        selected_optimizer = model.selected_optimizer
-        selected_optimizer.zero_grad()
+    # 🔹 unique rewards by row
+    unique_rewards, inverse_indices, counts = torch.unique(rewards, dim=0, return_inverse=True, return_counts=True)
 
-        loss_function                 = model.loss_function_
-        envisaged_reward, \
-        envisaged_state               = model.forward_(history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action)
-        total_loss                    = torch.sum(torch.abs(loss_function(envisaged_reward[:, :, :], future_reward[:, :, :]) ), dim=(1, 2)) + \
-                                        torch.sum(torch.abs(loss_function(envisaged_state [:, :, :], future_state [:, :, :]) ), dim=(1, 2))
-        TD_error_list.append(total_loss.detach())
-
-    obsolute_TD_error    = torch.cat(TD_error_list, dim=0).to(device)
-    priority             = obsolute_TD_error + PER_epsilon
-    exponent_priority    = priority ** PER_exponent
-    probabilities        = exponent_priority / torch.sum(exponent_priority)
+    num_classes   = unique_rewards.size(0)
+    probabilities = 1.0 / (num_classes * counts[inverse_indices].float())
+    probabilities = probabilities / probabilities.sum()
 
     return probabilities
 
@@ -382,28 +448,26 @@ def update_model_per(itrtn_for_learning,
                      dataset,
                      model,
                      batch_size):
-
-    device         = next(model.parameters()).device
+        
+    device               = next(model.parameters()).device
+    priority_probability = obtain_priority_probability(model, dataset, device)
 
     for _ in range(itrtn_for_learning):
 
-        priority_batch_size  = 50
-        priority_epsilon     = 1e-10
-        priority_exponent    = 1
-        priority_probability = obtain_priority_probability(model, dataset, priority_batch_size, priority_epsilon, priority_exponent, device)
-        final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
-
-        batch_samples  = [dataset[i] for i in final_indices]
+        final_indices    = torch.multinomial(priority_probability, batch_size, replacement=False)
+  
+        batch_samples    = [dataset[i] for i in final_indices]
         history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action = zip(*batch_samples)
-        history_reward = torch.stack(history_reward).to(device)
-        history_state  = torch.stack(history_state ).to(device)
-        history_action = torch.stack(history_action).to(device)
-        present_reward = torch.stack(present_reward).to(device)
-        present_state  = torch.stack(present_state ).to(device)
-        present_action = torch.stack(present_action).to(device)
-        future_reward  = torch.stack(future_reward ).to(device)
-        future_state   = torch.stack(future_state  ).to(device)
-        future_action  = torch.stack(future_action ).to(device)
+
+        history_reward   = torch.stack(history_reward).to(device)
+        history_state    = torch.stack(history_state ).to(device)
+        history_action   = torch.stack(history_action).to(device)
+        present_reward   = torch.stack(present_reward).to(device)
+        present_state    = torch.stack(present_state ).to(device)
+        present_action   = torch.stack(present_action).to(device)
+        future_reward    = torch.stack(future_reward ).to(device)
+        future_state     = torch.stack(future_state  ).to(device)
+        future_action    = torch.stack(future_action ).to(device)
 
         model.train()
         for p in model.parameters():
@@ -413,76 +477,14 @@ def update_model_per(itrtn_for_learning,
 
         loss_function               = model.loss_function
         envisaged_reward, \
-        envisaged_state             = model.forward_(history_reward, history_state, history_action, present_reward, present_state, present_action, future_reward, future_state, future_action)
-        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state)
-        total_loss.backward()
-
+        envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
+        total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
+        total_loss.backward()     
+        
         torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
-        selected_optimizer.step()
+        selected_optimizer.step() 
 
     return model
-
-# def obtain_priority_probability(model, dataset, device):
-# 
-#     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, pin_memory=True, num_workers=0)
-#     
-#     reward_list = []
-# 
-#     for history_state, history_action, present_state, _, future_reward, _ in data_loader:
-#         # history_state  = history_state.reshape(history_state.size(0), -1)
-#         # history_action = history_action.reshape(history_action.size(0), -1)
-#         # present_state  = present_state.reshape(present_state.size(0), -1)
-#         future_reward  = future_reward[:, -1:, :].reshape(future_reward.size(0), -1)  
-#         # combined = torch.cat((history_state, history_action, present_state, future_reward), dim=1)
-#         combined = future_reward
-#         reward_list.append(combined.detach())
-# 
-#     rewards = torch.cat(reward_list, dim=0).to(device)  # [N, D]
-# 
-#     # 🔹 unique rewards by row
-#     unique_rewards, inverse_indices, counts = torch.unique(rewards, dim=0, return_inverse=True, return_counts=True)
-# 
-#     num_classes   = unique_rewards.size(0)
-#     probabilities = 1.0 / (num_classes * counts[inverse_indices].float())
-#     probabilities = probabilities / probabilities.sum()
-# 
-#     return probabilities
-# 
-# def update_model_per(itrtn_for_learning,
-#                      dataset,
-#                      model,
-#                      batch_size):
-#         
-#     device         = next(model.parameters()).device
-#     priority_probability = obtain_priority_probability(model, dataset, device)
-# 
-#     for _ in range(itrtn_for_learning):
-# 
-#         final_indices        = torch.multinomial(priority_probability, batch_size, replacement=False)
-# 
-#         batch_samples  = [dataset[i] for i in final_indices]
-#         history_state, history_action, present_state, future_action, future_reward, future_state = zip(*batch_samples)
-#         history_state  = torch.stack(history_state ).to(device)
-#         history_action = torch.stack(history_action).to(device)
-#         present_state  = torch.stack(present_state ).to(device)
-#         future_action  = torch.stack(future_action ).to(device)
-#         future_reward  = torch.stack(future_reward ).to(device)
-#         future_state   = torch.stack(future_state  ).to(device)
-# 
-#         model.train()
-#         selected_optimizer = model.selected_optimizer
-#         selected_optimizer.zero_grad()
-# 
-#         loss_function               = model.loss_function
-#         envisaged_reward, \
-#         envisaged_state             = model.forward_(history_state, history_action, present_state, future_state, future_action)
-#         total_loss                  = loss_function(envisaged_reward, future_reward) + loss_function(envisaged_state, future_state )
-#         total_loss.backward()     
-#         
-#         torch.nn.utils.clip_grad_norm_(model.parameters(), model.grad_clip_value)
-#         selected_optimizer.step() 
-# 
-#     return model
 
 
 
