@@ -133,6 +133,11 @@ def update_future_action(itrtn_for_planning,
     future_action  = future_action .to(device)
     desired_reward = desired_reward.to(device)
 
+    history_mask   = (history_state != -1).any(dim = -1)
+    history_reward = history_reward[:, history_mask[0], :]
+    history_state  = history_state [:, history_mask[0], :]
+    history_action = history_action[:, history_mask[0], :]
+
     present_action     = torch.nn.Parameter(present_action)
     future_action      = torch.nn.Parameter(future_action)
     selected_optimizer = torch.optim.SGD([present_action, future_action], lr=beta)

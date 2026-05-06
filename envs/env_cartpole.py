@@ -47,32 +47,28 @@ Crucial function regarding how you manipulate or shape your state, action and re
 
 def quantifying_onehot(start_value, end_value, tensor_size, min_value, max_value, value, device):
     tensor = torch.zeros(tensor_size, device=device) + start_value
-    ratio = (value - min_value) / (max_value - min_value)
-    index = int(ratio * tensor_size)
-    index = max(0, min(index, tensor_size - 1))
+    ratio  = (value - min_value) / (max_value - min_value)
+    index  = int(ratio * tensor_size)
+    index  = max(0, min(index, tensor_size - 1))
     tensor[index] = end_value
     return tensor
 
+
 def quantifying_thermometer(start_value, end_value, tensor_size, min_value, max_value, value, device):
     tensor = torch.zeros(tensor_size, device=device) + start_value
-    ratio = (value - min_value) / (max_value - min_value)
-    index = int(ratio * tensor_size)
-    index = max(1, min(index + 1, tensor_size))
+    ratio  = (value - min_value) / (max_value - min_value)
+    index  = int(ratio * tensor_size)
+    index  = max(1, min(index + 1, tensor_size))
     tensor[:index] = end_value
     return tensor
 
 def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=0):      # Reminder: change this for your specific task ⚠️⚠️⚠️
-    null_state = torch.ones(100).to(device, non_blocking=True)
-    if done:
-        state_0 = torch.ones(100).to(device, non_blocking=True)
-    else:
-        state_0 = torch.zeros(100).to(device, non_blocking=True) - 1
     state_1 = quantifying_thermometer(-1, 1, 100, -4.8  , 4.8   , state[0], device)
     state_2 = quantifying_thermometer(-1, 1, 100, -3.75 , 3.75  , state[1], device)
     state_3 = quantifying_thermometer(-1, 1, 100, -0.418, 0.418 , state[2], device)
     state_4 = quantifying_thermometer(-1, 1, 100, -3.75 , 3.75  , state[3], device)
     state_t = quantifying_thermometer(-1, 1, 100, 0     , 1000  , time_steps, device)
-    state   = torch.cat((null_state, state_0, state_1, state_2, state_3, state_4, state_t), dim = 0)
+    state   = torch.cat((state_1, state_2, state_3, state_4, state_t), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
