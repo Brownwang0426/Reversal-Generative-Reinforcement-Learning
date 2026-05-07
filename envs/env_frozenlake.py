@@ -69,7 +69,8 @@ def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=
     else:
         state_0 = torch.zeros(100).to(device, non_blocking=True) - 1
     state_1 = torch.eye(100)[state].to(device, non_blocking=True) * 2 - 1
-    state   = torch.cat((null_state, state_0, state_1), dim = 0)
+    state_t = quantifying_thermometer(-1, 1, 100 , 0, 10, time_steps, device)      
+    state   = torch.cat((null_state, state_0, state_1, state_t), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
@@ -81,9 +82,9 @@ def vectorizing_action(pre_activated_actions, device):  # Reminder: change this 
 def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_size, device):       # Reminder: change this for your specific task ⚠️⚠️⚠️
     if done or truncated: 
         if done:         # If the agent reaches goal
-            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
+            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, summed_reward, device)      
         else:
-            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
+            reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, summed_reward, device)      
             # x, y = divmod(state, 4)
             # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
             # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
@@ -91,7 +92,7 @@ def vectorizing_reward(state, done, truncated, reward, summed_reward, reward_siz
             # reward = torch.zeros(reward_size ).to(device, non_blocking=True) - 1
             # reward[0: idx] = 1
     else:
-        reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, reward, device)      
+        reward = quantifying_thermometer(-1, 1, reward_size , 0, 1, summed_reward, device)      
         # x, y = divmod(state, 4)
         # distance = np.sqrt((x - 3) ** 2 + (y - 3) ** 2)
         # max_distance = np.sqrt(3**2 + 3**2)  # 4.24
