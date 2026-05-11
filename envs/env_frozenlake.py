@@ -68,9 +68,8 @@ def vectorizing_state(state, summed_reward, done, truncated, device, time_steps=
         state_0 = torch.ones(100).to(device, non_blocking=True)
     else:
         state_0 = torch.zeros(100).to(device, non_blocking=True) - 1
-    state_1 = torch.eye(100)[state].to(device, non_blocking=True) * 2 - 1
-    state_t = quantifying_thermometer(-1, 1, 100 , 0, 10, time_steps, device)      
-    state   = torch.cat((null_state, state_0, state_1, state_t), dim = 0)
+    state_1 = torch.eye(100)[state].to(device, non_blocking=True) * 2 - 1   
+    state   = torch.cat((null_state, state_0, state_1), dim = 0)
     return state
 
 def vectorizing_action(pre_activated_actions, device):  # Reminder: change this for your specific task ⚠️⚠️⚠️
